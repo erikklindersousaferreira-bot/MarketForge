@@ -2,10 +2,17 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+const SUPABASE_URL = "https://jadhnzbuxgnjibymtcmn.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphZGhuemJ1eGduamlieW10Y21uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MDYwNjUsImV4cCI6MjA5NDM4MjA2NX0.OQSiDO3OiPcGDt28I12D8dbJz4a4tp5DVHZw0bGgFMQ";
+
+console.log("SUPABASE DEBUG", {
+  urlOk: !!SUPABASE_URL,
+  keyOk: !!SUPABASE_ANON_KEY,
+  keyLength: SUPABASE_ANON_KEY.length,
+  origem: typeof window !== "undefined" ? window.location.href : "server"
+});
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ── SEED DATA (usado quando Supabase está vazio) ──────────────────────────────
 const SEED_CLIENTS = [
@@ -948,16 +955,21 @@ export default function App() {
   const [loadingData,setLoadingData]=useState(true);
 
   // Seed se tabela vazia
-  const seedIfEmpty = async (table, seed, setter) => {
-    const {data,error} = await supabase.from(table).select("id").limit(1);
-    if(!error && data?.length === 0) {
-      const {data:ins} = await supabase.from(table).insert(seed).select();
+const seedIfEmpty = async (table, seed, setter) => {
+  try {
+    const {data, error} = await supabase.from(table).select("*");
+    if(error) { console.error("Erro ao carregar", table, error); return; }
+    if(data?.length === 0) {
+      const {data:ins, error:e2} = await supabase.from(table).insert(seed).select();
+      if(e2) console.error("Erro ao inserir seed", table, e2);
       if(ins) setter(ins);
-    } else if(!error && data) {
-      const {data:all} = await supabase.from(table).select("*").order("id");
-      if(all) setter(all);
+    } else {
+      setter(data);
     }
-  };
+  } catch(e) {
+    console.error("seedIfEmpty error", table, e);
+  }
+};
 
   useEffect(()=>{
     if(!loggedIn) return;
