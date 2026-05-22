@@ -975,12 +975,16 @@ const seedIfEmpty = async (table, seed, setter) => {
     if(!loggedIn) return;
     const load = async () => {
       setLoadingData(true);
-      await seedIfEmpty("clientes", SEED_CLIENTS, setClients);
-      await seedIfEmpty("cobrancas", SEED_COBR, setCobr);
-      await seedIfEmpty("tarefas", SEED_TASKS, setTasks);
-      await seedIfEmpty("despesas", SEED_DESPESAS, setDespesas);
-      await seedIfEmpty("colaboradores", SEED_EQUIPE, setEquipe);
-      setLoadingData(false);
+const {data:c} = await supabase.from("clientes").select("*");
+if(c) setClients(c);
+const {data:cb} = await supabase.from("cobrancas").select("*");
+if(cb) setCobr(cb);
+const {data:t} = await supabase.from("tarefas").select("*");
+if(t) setTasks(t);
+const {data:d} = await supabase.from("despesas").select("*");
+if(d) setDespesas(d);
+const {data:e} = await supabase.from("colaboradores").select("*");
+if(e) setEquipe(e);
     };
     load();
   },[loggedIn]);
