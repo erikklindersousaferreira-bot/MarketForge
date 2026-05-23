@@ -973,20 +973,25 @@ const seedIfEmpty = async (table, seed, setter) => {
 
   useEffect(()=>{
     if(!loggedIn) return;
-    const load = async () => {
-      setLoadingData(true);
-const {data:c} = await supabase.from("clientes").select("*");
-if(c) setClients(c);
-const {data:cb} = await supabase.from("cobrancas").select("*");
-if(cb) setCobr(cb);
-const {data:t} = await supabase.from("tarefas").select("*");
-if(t) setTasks(t);
-const {data:d} = await supabase.from("despesas").select("*");
-if(d) setDespesas(d);
-const {data:e} = await supabase.from("colaboradores").select("*");
-if(e) setEquipe(e);
-    };
-    load();
+const load = async () => {
+  setLoadingData(true);
+  try {
+    const {data:c} = await supabase.from("clientes").select("*");
+    if(c) setClients(c);
+    const {data:cb} = await supabase.from("cobrancas").select("*");
+    if(cb) setCobr(cb);
+    const {data:t} = await supabase.from("tarefas").select("*");
+    if(t) setTasks(t);
+    const {data:d} = await supabase.from("despesas").select("*");
+    if(d) setDespesas(d);
+    const {data:e} = await supabase.from("colaboradores").select("*");
+    if(e) setEquipe(e);
+  } catch(err) {
+    console.error("Erro ao carregar dados:", err);
+  } finally {
+    setLoadingData(false);
+  }
+};
   },[loggedIn]);
 
   if(!loggedIn) return <LoginPage onLogin={()=>setLoggedIn(true)}/>;
