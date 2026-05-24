@@ -515,9 +515,18 @@ const CobrancasPage=({cobr,setCobr,clients,loading})=>{
   const openEdit=(c)=>{setForm({...c,vencimento:c.vencimento?.split("T")[0]||c.vencimento});setEditing(c.id);setModal(true);};
 
   const marcarPago=async(id)=>{
-    await supabase.from("cobrancas").update({status:"pago",pagamento:"Pix"}).eq("id",id);
-    setCobr(prev=>prev.map(c=>c.id===id?{...c,status:"pago",pagamento:"Pix"}:c));
-  };
+  const cobAtual=cobr.find(c=>c.id===id);
+  await supabase.from("cobrancas").update({status:"pago",pagamento:"Pix"}).eq("id",id);
+  setCobr(prev=>prev.map(c=>c.id===id?{...c,status:"pago",pagamento:"Pix"}:c));
+  if(cobAtual){
+    const venc=new Date(cobAtual.vencimento);
+    venc.setMonth(venc.getMonth()+1);
+    const novaData=`${venc.getFullYear()}-${String(venc.getMonth()+1).padStart(2,"0")}-${String(venc.getDate()).padStart(2,"0")}`;
+    const novaCob={cliente:cobAtual.cliente,valor:cobAtual.valor,vencimento:novaData,status:"pendente",pagamento:""};
+    const {data:ins}=await supabase.from("cobrancas").insert([novaCob]).select();
+    if(ins) setCobr(prev=>[...prev,...ins]);
+  }
+};
 
   const save=async()=>{
     if(!form.cliente||!form.valor){return;}
