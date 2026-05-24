@@ -243,14 +243,14 @@ return (
   </div>
 );};
 
-const Topbar=({page})=>(
+const Topbar=({page,nomeUser,perfil})=>(
   <div style={{position:"fixed",top:0,left:230,right:0,height:62,background:"#fff",borderBottom:"1px solid #DDE5EF",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",zIndex:99}}>
     <div style={{fontSize:18,fontWeight:800,color:"#111827"}}>{LABELS[page]||page}</div>
     <div style={{display:"flex",alignItems:"center",gap:16}}>
       <div style={{position:"relative",cursor:"pointer",color:"#64748B"}}>{IC.bell}</div>
       <div style={{display:"flex",alignItems:"center",gap:9}}>
         <div style={{width:34,height:34,background:"linear-gradient(135deg,#FF6200,#FF8C00)",borderRadius:99,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:14,fontWeight:700}}>E</div>
-        <div><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>erikklinder</div><div style={{fontSize:11,color:"#64748B"}}>Admin</div></div>
+        <div><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{nomeUser||"erikklinder"}</div><div style={{fontSize:11,color:"#64748B"}}>Admin</div></div>
       </div>
     </div>
   </div>
@@ -1027,7 +1027,7 @@ load();
   return (
     <div style={{fontFamily:"'Sora','Segoe UI',sans-serif",background:"#EEF3F8",minHeight:"100vh"}}>
       <Sidebar page={page} setPage={setPage} perfil={perfil} onLogout={()=>{supabase.auth.signOut();setLoggedIn(false);setPerfil("operacional");setClients([]);setCobr([]);setTasks([]);setDespesas([]);setEquipe([]);}} cobrPend={cobrPend}/>
-      <Topbar page={page}/>
+      <Topbar page={page} nomeUser={nomeUser} perfil={perfil}/>
       <main style={{marginLeft:230,paddingTop:62}}>
         <div style={{padding:"28px 30px",minHeight:"calc(100vh - 62px)"}}>
           {pages[page]}
