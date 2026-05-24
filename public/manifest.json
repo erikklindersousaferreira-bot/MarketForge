@@ -1,0 +1,21 @@
+{
+  "name": "MarketForge",
+  "short_name": "MarketForge",
+  "description": "Gestão de agência de marketing",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1F2F46",
+  "theme_color": "#FF6200",
+  "icons": [
+    {
+      "src": "https://i.postimg.cc/9Mr8QDTD/ELEMETO-preto.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://i.postimg.cc/9Mr8QDTD/ELEMETO-preto.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
