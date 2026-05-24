@@ -4,14 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = "https://jadhnzbuxgnjibymtcmn.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphZGhuemJ1eGduamlieW10Y21uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MDYwNjUsImV4cCI6MjA5NDM4MjA2NX0.OQSiDO3OiPcGDt28I12D8dbJz4a4tp5DVHZw0bGgFMQ";
-
-console.log("SUPABASE DEBUG", {
-  urlOk: !!SUPABASE_URL,
-  keyOk: !!SUPABASE_ANON_KEY,
-  keyLength: SUPABASE_ANON_KEY.length,
-  origem: typeof window !== "undefined" ? window.location.href : "server"
-});
-
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ── SEED DATA (usado quando Supabase está vazio) ──────────────────────────────
@@ -182,19 +174,20 @@ const ClientLogo = ({url,name,size=50}) => {
 
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
 const LoginPage = ({onLogin}) => {
-  const [u,setU]=useState("");
-  const [s,setS]=useState("");
+  const [email,setEmail]=useState("");
+  const [senha,setSenha]=useState("");
   const [show,setShow]=useState(false);
   const [err,setErr]=useState("");
   const [loading,setLoading]=useState(false);
 
-  const handle = () => {
-    if(!u||!s){setErr("Preencha todos os campos.");return;}
+  const handle = async () => {
+    if(!email||!senha){setErr("Preencha todos os campos.");return;}
     setLoading(true);setErr("");
-    setTimeout(()=>{
-      if(u==="erikklinder"&&s==="432008erik"){onLogin();}
-      else{setErr("Usuário ou senha incorretos.");setLoading(false);}
-    },900);
+    const {data,error} = await supabase.auth.signInWithPassword({email,password:senha});
+    if(error){setErr("Email ou senha incorretos.");setLoading(false);return;}
+    const {data:u} = await supabase.from("usuarios").select("perfil,nome").eq("id",data.user.id).single();
+    onLogin(u?.perfil||"operacional", u?.nome||email);
+    setLoading(false);
   };
 
   return (
@@ -202,22 +195,19 @@ const LoginPage = ({onLogin}) => {
       <div style={{position:"fixed",inset:0,backgroundImage:"radial-gradient(circle at 20% 50%,rgba(255,98,0,0.1) 0%,transparent 50%),radial-gradient(circle at 80% 20%,rgba(255,98,0,0.06) 0%,transparent 40%)",pointerEvents:"none"}}/>
       <div style={{background:"#fff",borderRadius:24,boxShadow:"0 32px 80px rgba(0,0,0,0.4)",padding:"52px 48px",width:"100%",maxWidth:440,textAlign:"center",position:"relative",zIndex:1}}>
         <div style={{marginBottom:36}}>
-          <img src="https://i.postimg.cc/02xYt6Qp/logo-vertical-nomepreta.png" alt="MarketForge"
-            style={{height:80,objectFit:"contain",display:"block",margin:"0 auto 20px"}}
-            onError={e=>{e.target.style.display="none"}}/>
+          <img src="https://i.postimg.cc/02xYt6Qp/logo-vertical-nomepreta.png" alt="MarketForge" style={{height:80,objectFit:"contain",display:"block",margin:"0 auto 20px"}} onError={e=>{e.target.style.display="none"}}/>
           <div style={{fontSize:20,fontWeight:800,color:"#111827",marginBottom:6}}>Acesso ao Painel</div>
           <div style={{fontSize:13,color:"#64748B"}}>Gestão financeira, clientes e produção da agência</div>
         </div>
         <div style={{textAlign:"left"}}>
-          <FInput label="Usuário" value={u} onChange={setU} placeholder="Seu usuário" icon={IC.user}/>
-          <FInput label="Senha" value={s} onChange={v=>setS(v)} type={show?"text":"password"} placeholder="Sua senha" icon={IC.lock}
+          <FInput label="Email" value={email} onChange={setEmail} placeholder="seu@email.com" icon={IC.user}/>
+          <FInput label="Senha" value={senha} onChange={setSenha} type={show?"text":"password"} placeholder="Sua senha" icon={IC.lock}
             extra={<button onClick={()=>setShow(!show)} style={{background:"none",border:"none",cursor:"pointer",color:"#94A3B8",display:"flex"}}>{show?IC.eyeOff:IC.eye}</button>}/>
         </div>
         {err&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",color:"#991B1B",borderRadius:8,padding:"10px 14px",fontSize:13,marginBottom:16,textAlign:"left",display:"flex",alignItems:"center",gap:8}}><span style={{color:"#EF4444",flexShrink:0}}>{IC.alert}</span>{err}</div>}
         <Btn onClick={handle} size="lg" style={{width:"100%",background:"linear-gradient(135deg,#FF6200,#FF8C00)",fontSize:15,marginBottom:14}} disabled={loading}>
           {loading?"Entrando...":"Entrar no sistema"}
         </Btn>
-        <div style={{fontSize:12}}><span style={{cursor:"pointer",color:"#FF6200",fontWeight:600}}>Esqueci minha senha</span></div>
         <div style={{marginTop:28,paddingTop:20,borderTop:"1px solid #EEF3F8",fontSize:11,color:"#94A3B8"}}>© 2025 MarketForge — @marketforge_</div>
       </div>
     </div>
@@ -225,10 +215,14 @@ const LoginPage = ({onLogin}) => {
 };
 
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
-const NAV=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"mensagens",label:"Modelos",icon:IC.msg}];
+const NAV_ADMIN=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"mensagens",label:"Modelos",icon:IC.msg}];
+
+const NAV_OP=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"mensagens",label:"Modelos",icon:IC.msg}];{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"mensagens",label:"Modelos",icon:IC.msg}];
 const LABELS={hoje:"Hoje",dashboard:"Dashboard",clientes:"Clientes",financeiro:"Financeiro",cobr:"Cobranças",despesas:"Despesas",tarefas:"Tarefas",calendario:"Calendário Estratégico",equipe:"Equipe",trafego:"Saldo de Tráfego",mensagens:"Modelos de Mensagem"};
 
-const Sidebar=({page,setPage,onLogout,cobrPend})=>(
+const Sidebar=({page,setPage,onLogout,cobrPend,perfil})=>{
+const NAV = perfil==="admin" ? NAV_ADMIN : NAV_OP;
+return ((
   <div style={{width:230,background:"#1F2F46",minHeight:"100vh",display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,zIndex:100}}>
     <div style={{padding:"20px 18px 16px",borderBottom:"1px solid rgba(255,255,255,0.08)"}}>
       <img src="https://i.postimg.cc/jdB530mK/mkt.png" alt="MarketForge" style={{height:38,objectFit:"contain"}} onError={e=>{e.target.style.display="none"}}/>
@@ -247,7 +241,7 @@ const Sidebar=({page,setPage,onLogout,cobrPend})=>(
       </div>
     </div>
   </div>
-);
+);};
 
 const Topbar=({page})=>(
   <div style={{position:"fixed",top:0,left:230,right:0,height:62,background:"#fff",borderBottom:"1px solid #DDE5EF",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",zIndex:99}}>
@@ -943,7 +937,9 @@ const MensagensPage=()=>{
 
 // ── APP ROOT ──────────────────────────────────────────────────────────────────
 export default function App() {
-  const [loggedIn,setLoggedIn]=useState(()=>{
+  const [loggedIn,setLoggedIn]=useState(false);
+const [perfil,setPerfil]=useState("operacional");
+const [nomeUser,setNomeUser]=useState("erikklinder");(()=>{
   if(typeof window !== "undefined") return localStorage.getItem("mf_logged") === "true";
   return false;
 });
@@ -999,7 +995,7 @@ const load = async () => {
 load();
   },[loggedIn]);
 
-  if(!loggedIn) return <LoginPage onLogin={()=>{localStorage.setItem("mf_logged","true");setLoggedIn(true);}}/>;
+  if(!loggedIn) return <LoginPage onLogin={(p,n)=>{setLoggedIn(true);setPerfil(p);setNomeUser(n);}}/>;
 
   const cobrPend = cobr.filter(c=>c.status==="pendente"||c.status==="atrasado").length;
 
@@ -1019,7 +1015,7 @@ load();
 
   return (
     <div style={{fontFamily:"'Sora','Segoe UI',sans-serif",background:"#EEF3F8",minHeight:"100vh"}}>
-      <Sidebar page={page} setPage={setPage} onLogout={()=>{localStorage.removeItem("mf_logged");setLoggedIn(false);setClients([]);setCobr([]);setTasks([]);setDespesas([]);setEquipe([]);}} cobrPend={cobrPend}/>
+      <Sidebar page={page} setPage={setPage} perfil={perfil} onLogout={()=>{supabase.auth.signOut();setLoggedIn(false);setPerfil("operacional");setClients([]);setCobr([]);setTasks([]);setDespesas([]);setEquipe([]);}} cobrPend={cobrPend}/>
       <Topbar page={page}/>
       <main style={{marginLeft:230,paddingTop:62}}>
         <div style={{padding:"28px 30px",minHeight:"calc(100vh - 62px)"}}>
