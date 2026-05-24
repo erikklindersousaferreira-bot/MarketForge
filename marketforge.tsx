@@ -222,7 +222,7 @@ const LABELS={hoje:"Hoje",dashboard:"Dashboard",clientes:"Clientes",financeiro:"
 
 const Sidebar=({page,setPage,onLogout,cobrPend,perfil})=>{
 const NAV = perfil==="admin" ? NAV_ADMIN : NAV_OP;
-return ((
+return (
   <div style={{width:230,background:"#1F2F46",minHeight:"100vh",display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,zIndex:100}}>
     <div style={{padding:"20px 18px 16px",borderBottom:"1px solid rgba(255,255,255,0.08)"}}>
       <img src="https://i.postimg.cc/jdB530mK/mkt.png" alt="MarketForge" style={{height:38,objectFit:"contain"}} onError={e=>{e.target.style.display="none"}}/>
