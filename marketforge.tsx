@@ -970,7 +970,18 @@ const seedIfEmpty = async (table, seed, setter) => {
   }
 };
 
-  useEffect(()=>{
+ useEffect(()=>{
+  supabase.auth.getSession().then(({data:{session}})=>{
+    if(session){
+      supabase.from("usuarios").select("perfil,nome").eq("id",session.user.id).single().then(({data:u})=>{
+        setPerfil(u?.perfil||"operacional");
+        setNomeUser(u?.nome||session.user.email||"");
+        setLoggedIn(true);
+      });
+    }
+  });
+},[]); 
+useEffect(()=>{
     if(!loggedIn) return;
 const load = async () => {
   setLoadingData(true);
