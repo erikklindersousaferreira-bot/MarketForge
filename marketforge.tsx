@@ -366,7 +366,27 @@ const ClientesPage=({clients,setClients,loading})=>{
       if(!error) setClients(prev=>prev.map(c=>c.id===editing?{...c,...data}:c));
     } else {
       const {data:inserted,error}=await supabase.from("clientes").insert([data]).select();
-      if(!error&&inserted) setClients(prev=>[...prev,...inserted]);
+      if(!error&&inserted){
+        setClients(prev=>[...prev,...inserted]);
+        const novoCliente=inserted[0];
+        const hoje=new Date();
+        const anoVenc=hoje.getDate()>Number(form.vencimento)?hoje.getFullYear()+(hoje.getMonth()===11?1:0):hoje.getFullYear();
+        const mesVenc=hoje.getDate()>Number(form.vencimento)?(hoje.getMonth()+1)%12:hoje.getMonth();
+        const dataVenc=`${anoVenc}-${String(mesVenc+1).padStart(2,"0")}-${String(form.vencimento).padStart(2,"0")}`;
+        const cobData={cliente:novoCliente.name,valor:Number(form.valor),vencimento:dataVenc,status:"pendente",pagamento:""};
+        const {data:cobIns}=await supabase.from("cobrancas").insert([cobData]).select();
+        if(cobIns) setCobr(prev=>[...prev,...cobIns]);
+      }
+    }
+        const novoCliente=inserted[0];
+        const hoje=new Date();
+        const anoVenc=hoje.getDate()>Number(form.vencimento)?hoje.getFullYear()+(hoje.getMonth()===11?1:0):hoje.getFullYear();
+        const mesVenc=hoje.getDate()>Number(form.vencimento)?(hoje.getMonth()+1)%12:hoje.getMonth();
+        const dataVenc=`${anoVenc}-${String(mesVenc+1).padStart(2,"0")}-${String(form.vencimento).padStart(2,"0")}`;
+        const cobData={cliente:novoCliente.name,valor:Number(form.valor),vencimento:dataVenc,status:"pendente",pagamento:""};
+        const {data:cobIns}=await supabase.from("cobrancas").insert([cobData]).select();
+        if(cobIns) setCobr(prev=>[...prev,...cobIns]);
+      }
     }
     setSaving(false);setModal(false);
   };
