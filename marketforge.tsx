@@ -986,11 +986,12 @@ const load = async () => {
     if(d) setDespesas(d);
     const {data:e} = await supabase.from("colaboradores").select("*");
     if(e) setEquipe(e);
-  } catch(err) {
-    console.error("Erro ao carregar dados:", err);
-  } finally {
-    setLoadingData(false);
-  }
+} catch(err) {
+  console.error("Erro ao carregar dados:", err);
+  alert("Erro: " + JSON.stringify(err));
+} finally {
+  setLoadingData(false);
+}
 };
   },[loggedIn]);
 
