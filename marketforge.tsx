@@ -257,7 +257,7 @@ const Topbar=({page})=>(
 );
 
 // ── HOJE ──────────────────────────────────────────────────────────────────────
-const HojePage=({setPage,clients,cobr,tasks})=>{
+const HojePage=({setPage,clients,cobr,tasks,perfil,nomeUser})=>{
   const atrasadas=tasks.filter(t=>t.status==="atrasado");
   const cobHoje=cobr.filter(c=>c.status==="pendente"||c.status==="atrasado").slice(0,4);
   return (
@@ -265,18 +265,18 @@ const HojePage=({setPage,clients,cobr,tasks})=>{
       <div style={{marginBottom:22,display:"flex",alignItems:"center",gap:12}}>
         <div style={{width:48,height:48,background:"linear-gradient(135deg,#FF6200,#FF8C00)",borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff"}}>{IC.sun}</div>
         <div>
-          <div style={{fontSize:22,fontWeight:800,color:"#111827"}}>Bom dia, erikklinder!</div>
+          <div style={{fontSize:22,fontWeight:800,color:"#111827"}}>Bom dia, {nomeUser||"erikklinder"}!</div>
           <div style={{fontSize:13,color:"#64748B"}}>Aqui está o que precisa de atenção hoje</div>
         </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:14,marginBottom:28}}>
-        <MC label="Cobranças pendentes" value={cobr.filter(c=>c.status==="pendente").length} icon={IC.money} bg="#FFF7F3"/>
+        {perfil==="admin"&&<MC label="Cobranças pendentes" value={cobr.filter(c=>c.status==="pendente").length} icon={IC.money} bg="#FFF7F3"/>}
         <MC label="Tarefas atrasadas" value={atrasadas.length} icon={IC.alert} bg="#FEF2F2"/>
         <MC label="Clientes ativos" value={clients.filter(c=>c.status==="ativo").length} icon={IC.users} bg="#ECFDF5"/>
-        <MC label="Inadimplentes" value={clients.filter(c=>c.status==="inadimplente").length} icon={IC.users} bg="#FEF2F2"/>
+        {perfil==="admin"&&<MC label="Inadimplentes" value={clients.filter(c=>c.status==="inadimplente").length} icon={IC.users} bg="#FEF2F2"/>}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18}}>
-        <Card>
+        {perfil==="admin"&&<Card>
           <ST action={<Btn size="sm" variant="ghost" onClick={()=>setPage("cobr")}>Ver todas</Btn>}>Cobranças pendentes</ST>
           {cobHoje.length===0?<div style={{color:"#10B981",textAlign:"center",padding:"20px 0",fontSize:13}}>Nenhuma pendência!</div>:cobHoje.map(c=>(
             <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"#F8FAFC",borderRadius:10,marginBottom:8}}>
@@ -284,7 +284,7 @@ const HojePage=({setPage,clients,cobr,tasks})=>{
               <div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:800}}>R$ {c.valor?.toLocaleString()}</div><StatusBadge status={c.status}/></div>
             </div>
           ))}
-        </Card>
+        </Card>}
         <Card>
           <ST action={<Btn size="sm" variant="ghost" onClick={()=>setPage("tarefas")}>Ver todas</Btn>}>Tarefas atrasadas</ST>
           {atrasadas.length===0?<div style={{color:"#10B981",textAlign:"center",padding:"20px 0",fontSize:13}}>Nenhuma atrasada!</div>:atrasadas.map(t=>(
@@ -1000,7 +1000,7 @@ load();
   const cobrPend = cobr.filter(c=>c.status==="pendente"||c.status==="atrasado").length;
 
   const pages = {
-    hoje:<HojePage setPage={setPage} clients={clients} cobr={cobr} tasks={tasks}/>,
+    hoje:<HojePage setPage={setPage} clients={clients} cobr={cobr} tasks={tasks} perfil={perfil} nomeUser={nomeUser}/>,
     dashboard:<DashboardPage clients={clients} cobr={cobr} despesas={despesas}/>,
     clientes:<ClientesPage clients={clients} setClients={setClients} loading={loadingData}/>,
     financeiro:<FinanceiroPage clients={clients} cobr={cobr} despesas={despesas}/>,
