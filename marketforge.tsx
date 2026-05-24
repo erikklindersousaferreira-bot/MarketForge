@@ -943,7 +943,10 @@ const MensagensPage=()=>{
 
 // ── APP ROOT ──────────────────────────────────────────────────────────────────
 export default function App() {
-  const [loggedIn,setLoggedIn]=useState(false);
+  const [loggedIn,setLoggedIn]=useState(()=>{
+  if(typeof window !== "undefined") return localStorage.getItem("mf_logged") === "true";
+  return false;
+});
   const [page,setPage]=useState("hoje");
 
   // Data state
@@ -996,7 +999,7 @@ const load = async () => {
 load();
   },[loggedIn]);
 
-  if(!loggedIn) return <LoginPage onLogin={()=>setLoggedIn(true)}/>;
+  if(!loggedIn) return <LoginPage onLogin={()=>{localStorage.setItem("mf_logged","true");setLoggedIn(true);}}/>;
 
   const cobrPend = cobr.filter(c=>c.status==="pendente"||c.status==="atrasado").length;
 
@@ -1016,7 +1019,7 @@ load();
 
   return (
     <div style={{fontFamily:"'Sora','Segoe UI',sans-serif",background:"#EEF3F8",minHeight:"100vh"}}>
-      <Sidebar page={page} setPage={setPage} onLogout={()=>{setLoggedIn(false);setClients([]);setCobr([]);setTasks([]);setDespesas([]);setEquipe([]);}} cobrPend={cobrPend}/>
+      <Sidebar page={page} setPage={setPage} onLogout={()=>{localStorage.removeItem("mf_logged");setLoggedIn(false);setClients([]);setCobr([]);setTasks([]);setDespesas([]);setEquipe([]);}} cobrPend={cobrPend}/>
       <Topbar page={page}/>
       <main style={{marginLeft:230,paddingTop:62}}>
         <div style={{padding:"28px 30px",minHeight:"calc(100vh - 62px)"}}>
