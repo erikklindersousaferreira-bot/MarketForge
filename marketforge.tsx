@@ -216,45 +216,54 @@ const LoginPage = ({onLogin}) => {
 
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
 const NAV_ADMIN=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"mensagens",label:"Modelos",icon:IC.msg}];
-
 const NAV_OP=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"mensagens",label:"Modelos",icon:IC.msg}];
 const LABELS={hoje:"Hoje",dashboard:"Dashboard",clientes:"Clientes",financeiro:"Financeiro",cobr:"Cobranças",despesas:"Despesas",tarefas:"Tarefas",calendario:"Calendário Estratégico",equipe:"Equipe",trafego:"Saldo de Tráfego",mensagens:"Modelos de Mensagem"};
 
-const Sidebar=({page,setPage,onLogout,cobrPend,perfil})=>{
+const Sidebar=({page,setPage,onLogout,cobrPend,perfil,open,setOpen})=>{
 const NAV = perfil==="admin" ? NAV_ADMIN : NAV_OP;
+const isMobile = typeof window!=="undefined"&&window.innerWidth<768;
 return (
-  <div style={{width:230,background:"#1F2F46",minHeight:"100vh",display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,zIndex:100}}>
-    <div style={{padding:"20px 18px 16px",borderBottom:"1px solid rgba(255,255,255,0.08)"}}>
-      <img src="https://i.postimg.cc/jdB530mK/mkt.png" alt="MarketForge" style={{height:38,objectFit:"contain"}} onError={e=>{e.target.style.display="none"}}/>
-    </div>
-    <nav style={{flex:1,padding:"14px 10px",overflowY:"auto"}}>
-      {NAV.map(n=>(
-        <div key={n.id} onClick={()=>setPage(n.id)} style={{display:"flex",alignItems:"center",gap:11,padding:"9px 12px",borderRadius:10,marginBottom:2,cursor:"pointer",background:page===n.id?"rgba(255,98,0,0.18)":"transparent",color:page===n.id?"#FF6200":"rgba(255,255,255,0.65)",fontWeight:page===n.id?700:500,fontSize:13}}>
-          <span style={{opacity:page===n.id?1:0.7}}>{n.icon}</span>{n.label}
-          {n.id==="cobr"&&cobrPend>0&&<span style={{marginLeft:"auto",background:"#EF4444",color:"#fff",fontSize:10,fontWeight:700,borderRadius:10,padding:"1px 7px"}}>{cobrPend}</span>}
+  <>
+    {isMobile&&open&&<div onClick={()=>setOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:99}}/>}
+    <div style={{width:230,background:"#1F2F46",minHeight:"100vh",display:"flex",flexDirection:"column",position:"fixed",top:0,left:isMobile?(open?0:-230):0,zIndex:100,transition:"left 0.3s"}}>
+      <div style={{padding:"20px 18px 16px",borderBottom:"1px solid rgba(255,255,255,0.08)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <img src="https://i.postimg.cc/jdB530mK/mkt.png" alt="MarketForge" style={{height:38,objectFit:"contain"}} onError={e=>{e.target.style.display="none"}}/>
+        {isMobile&&<button onClick={()=>setOpen(false)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.5)",fontSize:22,cursor:"pointer"}}>×</button>}
+      </div>
+      <nav style={{flex:1,padding:"14px 10px",overflowY:"auto"}}>
+        {NAV.map(n=>(
+          <div key={n.id} onClick={()=>{setPage(n.id);setOpen(false);}} style={{display:"flex",alignItems:"center",gap:11,padding:"9px 12px",borderRadius:10,marginBottom:2,cursor:"pointer",background:page===n.id?"rgba(255,98,0,0.18)":"transparent",color:page===n.id?"#FF6200":"rgba(255,255,255,0.65)",fontWeight:page===n.id?700:500,fontSize:13}}>
+            <span style={{opacity:page===n.id?1:0.7}}>{n.icon}</span>{n.label}
+            {n.id==="cobr"&&cobrPend>0&&<span style={{marginLeft:"auto",background:"#EF4444",color:"#fff",fontSize:10,fontWeight:700,borderRadius:10,padding:"1px 7px"}}>{cobrPend}</span>}
+          </div>
+        ))}
+      </nav>
+      <div style={{padding:"14px 10px",borderTop:"1px solid rgba(255,255,255,0.08)"}}>
+        <div onClick={onLogout} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,cursor:"pointer",color:"rgba(255,255,255,0.5)",fontSize:13}}>
+          {IC.logout} Sair
         </div>
-      ))}
-    </nav>
-    <div style={{padding:"14px 10px",borderTop:"1px solid rgba(255,255,255,0.08)"}}>
-      <div onClick={onLogout} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,cursor:"pointer",color:"rgba(255,255,255,0.5)",fontSize:13}}>
-        {IC.logout} Sair
+      </div>
+    </div>
+  </>
+);};
+
+const Topbar=({page,nomeUser,perfil,onMenuClick})=>{
+const isMobile = typeof window!=="undefined"&&window.innerWidth<768;
+return (
+  <div style={{position:"fixed",top:0,left:isMobile?0:230,right:0,height:62,background:"#fff",borderBottom:"1px solid #DDE5EF",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",zIndex:99}}>
+    <div style={{display:"flex",alignItems:"center",gap:12}}>
+      {isMobile&&<button onClick={onMenuClick} style={{background:"none",border:"none",cursor:"pointer",color:"#64748B",fontSize:22,display:"flex",padding:0}}>☰</button>}
+      <div style={{fontSize:18,fontWeight:800,color:"#111827"}}>{LABELS[page]||page}</div>
+    </div>
+    <div style={{display:"flex",alignItems:"center",gap:16}}>
+      <div style={{position:"relative",cursor:"pointer",color:"#64748B"}}>{IC.bell}</div>
+      <div style={{display:"flex",alignItems:"center",gap:9}}>
+        <div style={{width:34,height:34,background:"linear-gradient(135deg,#FF6200,#FF8C00)",borderRadius:99,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:14,fontWeight:700}}>{nomeUser?.charAt(0).toUpperCase()||"E"}</div>
+        <div><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{nomeUser||"erikklinder"}</div><div style={{fontSize:11,color:"#64748B"}}>{perfil==="admin"?"Admin":"Operacional"}</div></div>
       </div>
     </div>
   </div>
 );};
-
-const Topbar=({page,nomeUser,perfil})=>(
-  <div style={{position:"fixed",top:0,left:230,right:0,height:62,background:"#fff",borderBottom:"1px solid #DDE5EF",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",zIndex:99}}>
-    <div style={{fontSize:18,fontWeight:800,color:"#111827"}}>{LABELS[page]||page}</div>
-    <div style={{display:"flex",alignItems:"center",gap:16}}>
-      <div style={{position:"relative",cursor:"pointer",color:"#64748B"}}>{IC.bell}</div>
-      <div style={{display:"flex",alignItems:"center",gap:9}}>
-        <div style={{width:34,height:34,background:"linear-gradient(135deg,#FF6200,#FF8C00)",borderRadius:99,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:14,fontWeight:700}}>E</div>
-        <div><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{nomeUser||"erikklinder"}</div><div style={{fontSize:11,color:"#64748B"}}>Admin</div></div>
-      </div>
-    </div>
-  </div>
-);
 
 // ── HOJE ──────────────────────────────────────────────────────────────────────
 const HojePage=({setPage,clients,cobr,tasks,perfil,nomeUser})=>{
@@ -958,7 +967,8 @@ const MensagensPage=()=>{
 // ── APP ROOT ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [loggedIn,setLoggedIn]=useState(false);
-const [perfil,setPerfil]=useState("operacional");
+const [menuOpen,setMenuOpen]=useState(false);
+  const [perfil,setPerfil]=useState("operacional");
 const [nomeUser,setNomeUser]=useState("erikklinder");(()=>{
   if(typeof window !== "undefined") return localStorage.getItem("mf_logged") === "true";
   return false;
@@ -1046,9 +1056,9 @@ load();
 
   return (
     <div style={{fontFamily:"'Sora','Segoe UI',sans-serif",background:"#EEF3F8",minHeight:"100vh"}}>
-      <Sidebar page={page} setPage={setPage} perfil={perfil} onLogout={()=>{supabase.auth.signOut();setLoggedIn(false);setPerfil("operacional");setClients([]);setCobr([]);setTasks([]);setDespesas([]);setEquipe([]);}} cobrPend={cobrPend}/>
-      <Topbar page={page} nomeUser={nomeUser} perfil={perfil}/>
-      <main style={{marginLeft:230,paddingTop:62}}>
+      <Sidebar page={page} setPage={setPage} perfil={perfil} open={menuOpen} setOpen={setMenuOpen} onLogout={()=>{supabase.auth.signOut();setLoggedIn(false);setPerfil("operacional");setClients([]);setCobr([]);setTasks([]);setDespesas([]);setEquipe([]);}} cobrPend={cobrPend}/>
+      <Topbar page={page} nomeUser={nomeUser} perfil={perfil} onMenuClick={()=>setMenuOpen(true)}/>
+      <main style={{marginLeft:typeof window!=="undefined"&&window.innerWidth<768?0:230,paddingTop:62}}>
         <div style={{padding:"28px 30px",minHeight:"calc(100vh - 62px)"}}>
           {pages[page]}
         </div>
