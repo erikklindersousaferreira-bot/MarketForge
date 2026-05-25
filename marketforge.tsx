@@ -284,7 +284,7 @@ const HojePage=({setPage,clients,cobr,tasks,perfil,nomeUser})=>{
         <MC label="Clientes ativos" value={clients.filter(c=>c.status==="ativo").length} icon={IC.users} bg="#ECFDF5"/>
         {perfil==="admin"&&<MC label="Inadimplentes" value={clients.filter(c=>c.status==="inadimplente").length} icon={IC.users} bg="#FEF2F2"/>}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:18}}>
         {perfil==="admin"&&<Card>
           <ST action={<Btn size="sm" variant="ghost" onClick={()=>setPage("cobr")}>Ver todas</Btn>}>Cobranças pendentes</ST>
           {cobHoje.length===0?<div style={{color:"#10B981",textAlign:"center",padding:"20px 0",fontSize:13}}>Nenhuma pendência!</div>:cobHoje.map(c=>(
@@ -325,7 +325,7 @@ const DashboardPage=({clients,cobr,despesas})=>{
         <MC label="Lucro estimado" value={`R$ ${(recR-despT).toLocaleString()}`} icon={IC.trending} bg="#ECFDF5"/>
         <MC label="Clientes ativos" value={atv} icon={IC.users} bg="#F5F3FF"/>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:18}}>
         <Card>
           <ST>Status de cobranças</ST>
           {[{label:"Pagas",count:cobr.filter(c=>c.status==="pago").length,color:"#10B981"},{label:"Pendentes",count:cobr.filter(c=>c.status==="pendente").length,color:"#F59E0B"},{label:"Atrasadas",count:cobr.filter(c=>c.status==="atrasado").length,color:"#EF4444"}].map(s=>(
@@ -481,7 +481,7 @@ const FinanceiroPage=({clients,cobr,despesas})=>{
         <MC label="Despesas do mês" value={`R$ ${despT.toLocaleString()}`} icon={IC.money} bg="#F8FAFC"/>
         <MC label="Lucro líquido" value={`R$ ${(recR-despPago).toLocaleString()}`} icon={IC.trending} bg="#ECFDF5"/>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:18}}>
         <Card>
           <ST>Receita por cliente</ST>
           {clients.filter(c=>c.status==="ativo").map(c=>(
