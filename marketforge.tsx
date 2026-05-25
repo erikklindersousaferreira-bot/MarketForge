@@ -900,38 +900,117 @@ const CalendarioPage=()=>{
 };
 
 // ── TRÁFEGO ───────────────────────────────────────────────────────────────────
-const MOCK_TRAFEGO=[
-  {id:1,cliente:"Academia FitBody",plataforma:"Meta Ads",recebido:1500,gasto:1430,saldo:70,status:"baixo"},
-  {id:2,cliente:"Clínica Beleza & Saúde",plataforma:"Meta Ads",recebido:2000,gasto:1200,saldo:800,status:"ok"},
-  {id:3,cliente:"Churrascaria Pantanal",plataforma:"Google Ads",recebido:1000,gasto:1000,saldo:0,status:"zerado"},
-  {id:4,cliente:"Moda Feminina Estilo",plataforma:"Meta Ads",recebido:800,gasto:350,saldo:450,status:"ok"},
-];
-const TráfegoPage=()=>(
-  <div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:16}}>
-      {MOCK_TRAFEGO.map(t=>{
-        const pct=Math.round((t.gasto/t.recebido)*100);
-        return (
-          <Card key={t.id} style={{borderLeft:`4px solid ${t.status==="ok"?"#10B981":t.status==="baixo"?"#F59E0B":"#EF4444"}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
-              <div><div style={{fontSize:15,fontWeight:800,color:"#111827"}}>{t.cliente}</div><div style={{fontSize:12,color:"#64748B"}}>{t.plataforma}</div></div>
-              <StatusBadge status={t.status}/>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
-              <div><div style={{fontSize:10,color:"#64748B",fontWeight:700,textTransform:"uppercase"}}>Recebido</div><div style={{fontSize:15,fontWeight:800}}>R$ {t.recebido.toLocaleString()}</div></div>
-              <div><div style={{fontSize:10,color:"#64748B",fontWeight:700,textTransform:"uppercase"}}>Gasto</div><div style={{fontSize:15,fontWeight:800,color:"#EF4444"}}>R$ {t.gasto.toLocaleString()}</div></div>
-              <div><div style={{fontSize:10,color:"#64748B",fontWeight:700,textTransform:"uppercase"}}>Saldo</div><div style={{fontSize:15,fontWeight:800,color:t.saldo<100?"#EF4444":"#10B981"}}>R$ {t.saldo.toLocaleString()}</div></div>
-            </div>
-            <div style={{background:"#EEF3F8",borderRadius:99,height:8,overflow:"hidden",marginBottom:10}}><div style={{background:t.status==="ok"?"#10B981":t.status==="baixo"?"#F59E0B":"#EF4444",height:"100%",width:`${pct}%`,borderRadius:99}}/></div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#64748B"}}><span>{pct}% utilizado</span>{t.status!=="ok"&&<span style={{color:"#EF4444",fontWeight:700}}>{t.status==="zerado"?"Campanha pausada!":"Saldo baixo!"}</span>}</div>
-            {t.status!=="ok"&&<div style={{marginTop:12}}><Btn size="sm" style={{width:"100%"}}>Solicitar recarga ao cliente</Btn></div>}
-          </Card>
-        );
-      })}
-    </div>
-  </div>
-);
+const META_TOKEN = "EAANu31tVGzQBRuNNtvkZADvYWZBeVEvRZApKDsGcYsIg4NiNmGAOQqKi59nk0LGPS6b4Vsp2NOOB1x4mDdDUdDsPTFb4kooLdhP7378GmwPK1KEjRBg1KEmWzZA6WBeDbNyOqxOztAbiQ9gE0BV7ZBkOQOZBNzgU3fRjj6qZCchoMlM8RYKLBjYxE3i5g0DWBOF5rkHZBzgGb3YLdmzaNvRZAZBDVXDlfOBCxofMnV8Boi11eF03DBlOlBOLZBaHNuFZAmUOkGZCpfVPZA7kvbd9UKqFrpLBhjbAZDZD";
 
+const META_CONTAS = [
+  { id: "65170252229843",    cliente: "Medellin",     plataforma: "Meta Ads" },
+  { id: "750043358048860",   cliente: "Lá em Casa",   plataforma: "Meta Ads" },
+  { id: "141116179588051",   cliente: "Ki-Burg",      plataforma: "Meta Ads" },
+  { id: "1104013311850054",  cliente: "Di Chinello",  plataforma: "Meta Ads" },
+  { id: "861354603644905",   cliente: "L&A Pneus",    plataforma: "Meta Ads" },
+  { id: "1383953866799392",  cliente: "MarketForge",  plataforma: "Meta Ads" },
+];
+
+const TráfegoPage = () => {
+  const [contas, setContas] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [ultimaAtualizacao, setUltimaAtualizacao] = useState(null);
+  const [erro, setErro] = useState("");
+
+  const getStatus = (saldo) => {
+    if (saldo <= 0) return "zerado";
+    if (saldo < 100) return "baixo";
+    return "ok";
+  };
+
+  const buscarSaldos = async () => {
+    setLoading(true);
+    setErro("");
+    const resultados = [];
+    for (const conta of META_CONTAS) {
+      try {
+        const res = await fetch(
+          `https://graph.facebook.com/v25.0/act_${conta.id}?fields=name,balance,currency,amount_spent&access_token=${META_TOKEN}`
+        );
+        const json = await res.json();
+        if (json.error) {
+          resultados.push({ ...conta, saldo: null, gasto: null, moeda: "BRL", erro: json.error.message, status: "zerado" });
+        } else {
+          const saldo = Number(json.balance) / 100;
+          const gasto = Number(json.amount_spent) / 100;
+          resultados.push({ ...conta, nomeReal: json.name, saldo, gasto, moeda: json.currency || "BRL", status: getStatus(saldo), erro: null });
+        }
+      } catch (e) {
+        resultados.push({ ...conta, saldo: null, gasto: null, erro: "Erro de rede", status: "zerado" });
+      }
+    }
+    setContas(resultados);
+    setUltimaAtualizacao(new Date().toLocaleTimeString("pt-BR"));
+    setLoading(false);
+  };
+
+  useEffect(() => { buscarSaldos(); }, []);
+
+  const totalSaldo = contas.filter(c => c.saldo !== null).reduce((a, c) => a + c.saldo, 0);
+  const totalGasto = contas.filter(c => c.gasto !== null).reduce((a, c) => a + c.gasto, 0);
+  const semSaldo = contas.filter(c => c.status !== "ok").length;
+
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:12}}>
+        <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
+          <MC label="Saldo total" value={`R$ ${totalSaldo.toLocaleString("pt-BR",{minimumFractionDigits:2})}`} icon={IC.money} bg="#ECFDF5"/>
+          <MC label="Total gasto" value={`R$ ${totalGasto.toLocaleString("pt-BR",{minimumFractionDigits:2})}`} icon={IC.chart} bg="#FEF2F2"/>
+          <MC label="Atenção" value={semSaldo} icon={IC.alert} bg="#FFFBEB"/>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
+          <Btn onClick={buscarSaldos} disabled={loading} variant="secondary">{loading?"Atualizando...":"⟳ Atualizar Saldos"}</Btn>
+          {ultimaAtualizacao&&<span style={{fontSize:11,color:"#94A3B8"}}>Última atualização: {ultimaAtualizacao}</span>}
+        </div>
+      </div>
+      {erro&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,padding:"12px 16px",marginBottom:16,fontSize:13,color:"#991B1B"}}>{erro}</div>}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:16}}>
+        {contas.length===0&&loading&&[1,2,3,4,5,6].map(i=>(
+          <Card key={i} style={{borderLeft:"4px solid #EEF3F8",opacity:0.5}}>
+            <div style={{height:80,background:"#F8FAFC",borderRadius:8}}/>
+          </Card>
+        ))}
+        {contas.map((t,i)=>{
+          const cor=t.status==="ok"?"#10B981":t.status==="baixo"?"#F59E0B":"#EF4444";
+          return (
+            <Card key={i} style={{borderLeft:`4px solid ${cor}`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+                <div>
+                  <div style={{fontSize:15,fontWeight:800,color:"#111827"}}>{t.cliente}</div>
+                  <div style={{fontSize:12,color:"#64748B"}}>{t.plataforma}</div>
+                  {t.nomeReal&&t.nomeReal!==t.cliente&&<div style={{fontSize:11,color:"#94A3B8",marginTop:2}}>{t.nomeReal}</div>}
+                </div>
+                <StatusBadge status={t.status}/>
+              </div>
+              {t.erro?(
+                <div style={{background:"#FEF2F2",borderRadius:8,padding:"10px 12px",fontSize:12,color:"#991B1B"}}>⚠️ {t.erro}</div>
+              ):(
+                <>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+                    <div style={{background:"#F8FAFC",borderRadius:8,padding:"10px 12px"}}>
+                      <div style={{fontSize:10,color:"#64748B",fontWeight:700,textTransform:"uppercase",marginBottom:4}}>Saldo Disponível</div>
+                      <div style={{fontSize:18,fontWeight:800,color:t.saldo<100?"#EF4444":"#10B981"}}>R$ {t.saldo?.toLocaleString("pt-BR",{minimumFractionDigits:2})??"—"}</div>
+                    </div>
+                    <div style={{background:"#F8FAFC",borderRadius:8,padding:"10px 12px"}}>
+                      <div style={{fontSize:10,color:"#64748B",fontWeight:700,textTransform:"uppercase",marginBottom:4}}>Total Gasto</div>
+                      <div style={{fontSize:18,fontWeight:800,color:"#EF4444"}}>R$ {t.gasto?.toLocaleString("pt-BR",{minimumFractionDigits:2})??"—"}</div>
+                    </div>
+                  </div>
+                  {t.status!=="ok"&&<div style={{marginTop:4}}><Btn size="sm" style={{width:"100%"}}>{t.status==="zerado"?"🚨 Campanha pausada — Solicitar recarga":"⚠️ Saldo baixo — Solicitar recarga"}</Btn></div>}
+                </>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 // ── MODELOS ───────────────────────────────────────────────────────────────────
 const MODELOS=[
   {cat:"Cobrança",nome:"Lembrete 3 dias antes",msg:"Olá, {{nome}}! Passando para lembrar que a mensalidade referente aos serviços da MarketForge vence no dia {{data}}. Valor: R$ {{valor}}. Qualquer dúvida, estou à disposição."},
