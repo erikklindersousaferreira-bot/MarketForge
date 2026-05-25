@@ -930,14 +930,21 @@ const TráfegoPage = () => {
     for (const conta of META_CONTAS) {
       try {
         const res = await fetch(
-          `https://graph.facebook.com/v25.0/act_${conta.id}?fields=name,balance,currency,amount_spent&access_token=${META_TOKEN}`
-        );
+  `https://graph.facebook.com/v25.0/act_${conta.id}?fields=name,balance,currency,amount_spent,spend_cap&access_token=${META_TOKEN}`
+);
         const json = await res.json();
         if (json.error) {
           resultados.push({ ...conta, saldo: null, gasto: null, moeda: "BRL", erro: json.error.message, status: "zerado" });
         } else {
-          const saldo = Number(json.balance) / 100;
-          const gasto = Number(json.amount_spent) / 100;
+          const balance = Number(json.balance);
+const spendCap = Number(json.spend_cap);
+const amountSpent = Number(json.amount_spent);
+
+// Se tem spend_cap, calcula saldo como cap - gasto
+const saldo = spendCap > 0
+  ? (spendCap - amountSpent) / 100
+  : balance / 100;
+const gasto = amountSpent / 100;
           resultados.push({ ...conta, nomeReal: json.name, saldo, gasto, moeda: json.currency || "BRL", status: getStatus(saldo), erro: null });
         }
       } catch (e) {
