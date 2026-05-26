@@ -690,13 +690,13 @@ const TarefasPage=({tasks,setTasks,clients,equipe,loading})=>{
   const openNew=()=>{setForm(BLANK_TASK);setEditing(null);setModal(true);};
   const openEdit=(t)=>{setForm({...t,entrega:t.entrega?.split("T")[0]||t.entrega});setEditing(t.id);setModal(true);};
 
-  const drop=async(newStatus)=>{
-    if(!dragId) return;
-    await supabase.from("tarefas").update({status:newStatus}).eq("id",dragId);
-    setTasks(prev=>prev.map(t=>t.id===dragId?{...t,status:newStatus}:t));
-    setDragId(null);
-  };
-
+const drop=async(newStatus,taskId?)=>{
+  const id=taskId||dragId;
+  if(!id) return;
+  await supabase.from("tarefas").update({status:newStatus}).eq("id",id);
+  setTasks(prev=>prev.map(t=>t.id===id?{...t,status:newStatus}:t));
+  setDragId(null);
+};
   const save=async()=>{
     if(!form.titulo){return;}
     setSaving(true);
@@ -736,16 +736,20 @@ const TarefasPage=({tasks,setTasks,clients,equipe,loading})=>{
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:10,minHeight:120,background:"#F0F4F9",borderRadius:12,padding:10}}>
                 {ct.map(t=>(
-                  <div key={t.id} draggable onDragStart={()=>setDragId(t.id)} style={{background:"#fff",borderRadius:10,padding:"12px 14px",boxShadow:"0 1px 3px rgba(0,0,0,0.06)",cursor:"grab",borderLeft:`3px solid ${col.color}`}}>
-                    <div style={{fontSize:13,fontWeight:700,color:"#111827",marginBottom:4}}>{t.titulo}</div>
-                    <div style={{fontSize:11,color:"#64748B",marginBottom:8}}>{t.cliente}</div>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><PBadge p={t.prioridade}/><div style={{fontSize:11,color:"#64748B"}}>{t.responsavel}</div></div>
-                    <div style={{fontSize:11,color:"#94A3B8",display:"flex",alignItems:"center",gap:4,marginBottom:8}}>{IC.clock} {fmtDate(t.entrega)}</div>
-                    <div style={{display:"flex",gap:6}}>
-                      <Btn size="sm" variant="ghost" style={{flex:1,padding:"4px 8px"}} onClick={()=>openEdit(t)}>{IC.edit}</Btn>
-                      <Btn size="sm" variant="danger" style={{flex:1,padding:"4px 8px"}} onClick={()=>setConfirm(t)}>{IC.trash}</Btn>
-                    </div>
-                  </div>
+                  <div key={t.id} draggable onDragStart={()=>setDragId(t.id)} style={{background:"#fff",borderRadius:10,padding:"12px 14px",boxShadow:"0 1px 3px rgba(0,0,0,0.06)",cursor:"grab",borderLeft:`3px solid ${col.color}`,userSelect:"none"}}>
+  <div style={{fontSize:13,fontWeight:700,color:"#111827",marginBottom:4}}>{t.titulo}</div>
+  <div style={{fontSize:11,color:"#64748B",marginBottom:8}}>{t.cliente}</div>
+  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><PBadge p={t.prioridade}/><div style={{fontSize:11,color:"#64748B"}}>{t.responsavel}</div></div>
+  <div style={{fontSize:11,color:"#94A3B8",display:"flex",alignItems:"center",gap:4,marginBottom:8}}>{IC.clock} {fmtDate(t.entrega)}</div>
+  <div style={{display:"flex",gap:6,marginBottom:6}}>
+    <Btn size="sm" variant="ghost" style={{flex:1,padding:"4px 8px"}} onClick={()=>openEdit(t)}>{IC.edit}</Btn>
+    <Btn size="sm" variant="danger" style={{flex:1,padding:"4px 8px"}} onClick={()=>setConfirm(t)}>{IC.trash}</Btn>
+  </div>
+  <select onChange={e=>{if(e.target.value)drop(e.target.value,t.id);e.target.value="";}} style={{width:"100%",padding:"6px 10px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,color:"#64748B",background:"#F8FAFC",fontFamily:"inherit"}}>
+    <option value="">Mover para...</option>
+    {cols.filter(c=>c.id!==col.id).map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+  </select>
+</div>
                 ))}
                 {ct.length===0&&<div style={{color:"#94A3B8",fontSize:12,textAlign:"center",padding:"20px 0"}}>Solte aqui</div>}
               </div>
