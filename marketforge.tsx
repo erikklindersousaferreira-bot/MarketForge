@@ -900,7 +900,7 @@ const CalendarioPage=()=>{
   const doisMeses=new Date();
   doisMeses.setMonth(doisMeses.getMonth()+2);
   const importante=d.nivel==="critico"||d.nivel==="alto";
-  return dataEvento>=hoje && (dataEvento<=doisMeses || importante);
+  return dataEvento>=hoje && dataEvento<=doisMeses;
 }).map(d=>(
           <Card key={d.id} onClick={()=>setSel(d)} style={{cursor:"pointer",borderLeft:`4px solid ${nm[d.nivel]||"#64748B"}`}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
