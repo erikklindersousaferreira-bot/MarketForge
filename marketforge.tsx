@@ -900,7 +900,7 @@ const CalendarioPage=()=>{
 };
 
 // ── TRÁFEGO ───────────────────────────────────────────────────────────────────
-const META_TOKEN = "EAANu31tVGzQBRuNNtvkZADvYWZBeVEvRZApKDsGcYsIg4NiNmGAOQqKi59nk0LGPS6b4Vsp2NOOB1x4mDdDUdDsPTFb4kooLdhP7378GmwPK1KEjRBg1KEmWzZA6WBeDbNyOqxOztAbiQ9gE0BV7ZBkOQOZBNzgU3fRjj6qZCchoMlM8RYKLBjYxE3i5g0DWBOF5rkHZBzgGb3YLdmzaNvRZAZBDVXDlfOBCxofMnV8Boi11eF03DBlOlBOLZBaHNuFZAmUOkGZCpfVPZA7kvbd9UKqFrpLBhjbAZDZD";
+const META_TOKEN = "EAANu31tVGzQBRgceZBBpflLJFZA43PRVEAYMUyDK2VAQLdp2aMl7oWVuubH9fgKwTh2NzLWIsNDN9z2hc54XcnNKKImNiBrsdzbLoZA0T2W1mK5NZCPaOWqbBSqrQNKSAHznkZALfHKQBXEvtrFCqE1JLxO1T1knrIBTbSgQZBRkwZCWkEasZCpw2hKLBZAu";
 
 const META_CONTAS = [
   { id: "65170252229843",    cliente: "Medellin",     plataforma: "Meta Ads" },
