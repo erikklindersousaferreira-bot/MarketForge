@@ -909,6 +909,7 @@ const META_CONTAS = [
   { id: "1104013311850054",  cliente: "Di Chinello",  plataforma: "Meta Ads" },
   { id: "861354603644905",   cliente: "L&A Pneus",    plataforma: "Meta Ads" },
   { id: "1383953866799392",  cliente: "MarketForge",  plataforma: "Meta Ads" },
+  { id: "286396705545158",  cliente: "Dolce Morena",  plataforma: "Meta Ads" },
 ];
 
 const TráfegoPage = () => {
