@@ -871,11 +871,20 @@ const EquipePage=({equipe,setEquipe,tasks,loading})=>{
 
 // ── CALENDÁRIO ────────────────────────────────────────────────────────────────
 const MOCK_DATAS=[
-  {id:1,nome:"Dia dos Namorados",data:"12/06/2025",tipo:"Comercial",nivel:"alto",nichos:["Restaurantes","Floricultura","Moda","Presentes"],status:"urgente"},
-  {id:2,nome:"Festa Junina / São João",data:"24/06/2025",tipo:"Sazonal",nivel:"medio",nichos:["Alimentação","Vestuário","Eventos"],status:"planejar"},
-  {id:3,nome:"Dia do Médico",data:"18/10/2025",tipo:"Nicho",nivel:"alto",nichos:["Saúde","Clínicas","Hospitais"],status:"futuro"},
-  {id:4,nome:"Black Friday",data:"28/11/2025",tipo:"Comercial",nivel:"critico",nichos:["Todos os nichos"],status:"futuro"},
-  {id:5,nome:"Aniversário de Marabá",data:"04/04/2026",tipo:"Local",nivel:"medio",nichos:["Comércio local","Serviços"],status:"futuro"},
+  {id:1,nome:"Dia dos Namorados",data:"12/06/2026",tipo:"Comercial",nivel:"alto",nichos:["Restaurantes","Floricultura","Moda","Presentes"],status:"urgente"},
+  {id:2,nome:"Festa Junina / São João",data:"24/06/2026",tipo:"Sazonal",nivel:"medio",nichos:["Alimentação","Vestuário","Eventos"],status:"planejar"},
+  {id:3,nome:"Dia do Psicólogo",data:"27/05/2026",tipo:"Nicho",nivel:"medio",nichos:["Saúde","Clínicas","Bem-estar"],status:"urgente"},
+  {id:4,nome:"Dia do Hambúrguer",data:"28/05/2026",tipo:"Nicho",nivel:"medio",nichos:["Alimentação","Restaurantes","Delivery"],status:"urgente"},
+  {id:5,nome:"Dia do Recepcionista",data:"28/05/2026",tipo:"Nicho",nivel:"medio",nichos:["Clínicas","Empresas","Serviços"],status:"urgente"},
+  {id:6,nome:"Dia Mundial do Meio Ambiente",data:"05/06/2026",tipo:"Sazonal",nivel:"medio",nichos:["Todos os nichos"],status:"planejar"},
+  {id:7,nome:"Dia dos Pais",data:"09/08/2026",tipo:"Comercial",nivel:"alto",nichos:["Presentes","Moda","Restaurantes","Eletrônicos"],status:"futuro"},
+  {id:8,nome:"Dia do Cliente",data:"15/09/2026",tipo:"Comercial",nivel:"alto",nichos:["Todos os nichos"],status:"futuro"},
+  {id:9,nome:"Dia das Crianças",data:"12/10/2026",tipo:"Comercial",nivel:"alto",nichos:["Brinquedos","Moda Infantil","Alimentação"],status:"futuro"},
+  {id:10,nome:"Halloween",data:"31/10/2026",tipo:"Comercial",nivel:"medio",nichos:["Festas","Alimentação","Moda"],status:"futuro"},
+  {id:11,nome:"Black Friday",data:"27/11/2026",tipo:"Comercial",nivel:"critico",nichos:["Todos os nichos"],status:"futuro"},
+  {id:12,nome:"Natal",data:"25/12/2026",tipo:"Comercial",nivel:"critico",nichos:["Todos os nichos"],status:"futuro"},
+  {id:13,nome:"Ano Novo",data:"01/01/2027",tipo:"Comercial",nivel:"alto",nichos:["Festas","Restaurantes","Viagens"],status:"futuro"},
+  {id:14,nome:"Aniversário de Marabá",data:"04/04/2027",tipo:"Local",nivel:"medio",nichos:["Comércio local","Serviços"],status:"futuro"},
 ];
 const CalendarioPage=()=>{
   const [sel,setSel]=useState(null);
@@ -884,7 +893,15 @@ const CalendarioPage=()=>{
     <div>
       <div style={{fontSize:13,color:"#64748B",marginBottom:20}}>Datas comemorativas e oportunidades para seus clientes</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14}}>
-        {MOCK_DATAS.map(d=>(
+        {MOCK_DATAS.filter(d=>{
+  const [dia,mes,ano]=d.data.split("/").map(Number);
+  const dataEvento=new Date(ano,mes-1,dia);
+  const hoje=new Date();
+  const doisMeses=new Date();
+  doisMeses.setMonth(doisMeses.getMonth()+2);
+  const importante=d.nivel==="critico"||d.nivel==="alto";
+  return dataEvento>=hoje && (dataEvento<=doisMeses || importante);
+}).map(d=>(
           <Card key={d.id} onClick={()=>setSel(d)} style={{cursor:"pointer",borderLeft:`4px solid ${nm[d.nivel]||"#64748B"}`}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
               <div><div style={{fontSize:15,fontWeight:800,color:"#111827"}}>{d.nome}</div><div style={{fontSize:12,color:"#64748B",marginTop:2}}>{d.data}</div></div>
