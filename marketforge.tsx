@@ -1075,6 +1075,7 @@ const MensagensPage=()=>{
 // ── APP ROOT ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [loggedIn,setLoggedIn]=useState(false);
+  const [checandoSessao,setChecandoSessao]=useState(true);
 const [menuOpen,setMenuOpen]=useState(false);
   const [perfil,setPerfil]=useState("operacional");
 const [nomeUser,setNomeUser]=useState("erikklinder");(()=>{
@@ -1108,17 +1109,20 @@ const seedIfEmpty = async (table, seed, setter) => {
   }
 };
 
- useEffect(()=>{
+useEffect(()=>{
   supabase.auth.getSession().then(({data:{session}})=>{
     if(session){
       supabase.from("usuarios").select("perfil,nome").eq("id",session.user.id).single().then(({data:u})=>{
         setPerfil(u?.perfil||"operacional");
         setNomeUser(u?.nome||session.user.email||"");
         setLoggedIn(true);
+        setChecandoSessao(false);
       });
+    } else {
+      setChecandoSessao(false);
     }
   });
-},[]); 
+},[]);
 useEffect(()=>{
     if(!loggedIn) return;
 const load = async () => {
@@ -1144,6 +1148,7 @@ const load = async () => {
 load();
   },[loggedIn]);
 
+  if(checandoSessao) return <div style={{minHeight:"100vh",background:"#1F2F46",display:"flex",alignItems:"center",justifyContent:"center"}}><img src="https://i.postimg.cc/jdB530mK/mkt.png" alt="MarketForge" style={{height:60,objectFit:"contain",animation:"pulse 1.5s ease-in-out infinite"}} onError={e=>{e.target.style.display="none"}}/></div>;
   if(!loggedIn) return <LoginPage onLogin={(p,n)=>{setLoggedIn(true);setPerfil(p);setNomeUser(n);}}/>;
 
   const cobrPend = cobr.filter(c=>c.status==="pendente"||c.status==="atrasado").length;
