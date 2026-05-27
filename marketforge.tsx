@@ -71,7 +71,7 @@ const IC = {
 };
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
-const fmtDate = (d) => { if(!d) return "—"; try { return new Date(d).toLocaleDateString("pt-BR"); } catch { return d; } };
+const fmtDate = (d) => { if(!d) return "—"; try { const s=String(d).split("T")[0]; const [a,m,dia]=s.split("-"); if(a&&m&&dia) return `${dia}/${m}/${a}`; return new Date(d).toLocaleDateString("pt-BR"); } catch { return d; } };
 const genId = () => Date.now();
 
 const StatusBadge = ({status}) => {
