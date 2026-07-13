@@ -1547,7 +1547,8 @@ const RelatoriosTrafegoPage=({clients})=>{
     const valorGasto=form.valorGasto?Number(form.valorGasto):null;
     const valorProduto=form.valorProduto?Number(form.valorProduto):null;
     const qtdVendas=form.qtdVendas?Number(form.qtdVendas):null;
-    const custoPorMensagem=totalMensagens>0?Math.round((valorInvestido/totalMensagens)*100)/100:null;
+    const baseCusto=valorGasto!=null?valorGasto:valorInvestido;
+    const custoPorMensagem=totalMensagens>0?Math.round((baseCusto/totalMensagens)*100)/100:null;
     const faturamentoEstimado=(qtdVendas&&valorProduto)?qtdVendas*valorProduto:null;
     const roi=(faturamentoEstimado!=null&&valorInvestido>0)?Math.round(((faturamentoEstimado-valorInvestido)/valorInvestido)*1000)/10:null;
 
