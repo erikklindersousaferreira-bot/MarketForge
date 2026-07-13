@@ -89,10 +89,10 @@ const PBadge = ({p}) => {
 
 const Card = ({children,style={},onClick}) => <div onClick={onClick} style={{background:"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07),0 0 0 1px #DDE5EF",padding:22,...style,cursor:onClick?"pointer":undefined}}>{children}</div>;
 
-const MC = ({label,value,sub,icon,bg="#FFF7F3"}) => (
-  <Card style={{display:"flex",alignItems:"flex-start",gap:14,minWidth:160}}>
-    <div style={{background:bg,borderRadius:12,width:46,height:46,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#FF6200"}}>{icon}</div>
-    <div><div style={{fontSize:11,color:"#64748B",fontWeight:600,letterSpacing:0.4,textTransform:"uppercase"}}>{label}</div><div style={{fontSize:22,fontWeight:800,color:"#111827",lineHeight:1.2,marginTop:2}}>{value}</div>{sub&&<div style={{fontSize:12,color:"#64748B",marginTop:2}}>{sub}</div>}</div>
+const MC = ({label,value,sub,icon,bg="#FFF7F3",compact}) => (
+  <Card style={{display:"flex",alignItems:"flex-start",gap:compact?8:14,minWidth:compact?0:160,padding:compact?12:22}}>
+    <div style={{background:bg,borderRadius:compact?9:12,width:compact?34:46,height:compact?34:46,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#FF6200"}}>{icon}</div>
+    <div><div style={{fontSize:compact?9.5:11,color:"#64748B",fontWeight:600,letterSpacing:0.4,textTransform:"uppercase"}}>{label}</div><div style={{fontSize:compact?16:22,fontWeight:800,color:"#111827",lineHeight:1.2,marginTop:2}}>{value}</div>{sub&&<div style={{fontSize:12,color:"#64748B",marginTop:2}}>{sub}</div>}</div>
   </Card>
 );
 
@@ -529,6 +529,7 @@ const ProspPrio=({p})=>{
 };
 
 const ProspeccaoPage=({prospeccao,setProspeccao,equipe,loading})=>{
+  const isMobile = typeof window!=="undefined"&&window.innerWidth<768;
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState(BLANK_PROSPECCAO);
   const [editing,setEditing]=useState(null);
@@ -640,8 +641,9 @@ const ProspeccaoPage=({prospeccao,setProspeccao,equipe,loading})=>{
     setNovoHist("");
   };
 
+  const filterSelStyle=isMobile?{...selStyle,width:"100%",boxSizing:"border-box" as const}:selStyle;
   const miniSelect=(value,onChange,options,placeholder)=>(
-    <select value={value} onChange={e=>onChange(e.target.value)} style={selStyle}>
+    <select value={value} onChange={e=>onChange(e.target.value)} style={filterSelStyle}>
       <option value="">{placeholder}</option>
       {options.map(o=><option key={o} value={o}>{o}</option>)}
     </select>
@@ -675,42 +677,42 @@ const ProspeccaoPage=({prospeccao,setProspeccao,equipe,loading})=>{
   if(loading) return <Loading/>;
   return (
     <div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:14,marginBottom:22}}>
-        <MC label="Total empresas" value={prospeccao.length} icon={IC.users} bg="#EFF6FF"/>
-        <MC label="Mensagens enviadas" value={mensagensEnviadas} icon={IC.msg} bg="#F5F3FF"/>
-        <MC label="Visitas realizadas" value={visitasRealizadas} icon={IC.cal} bg="#FFF7ED"/>
-        <MC label="Reuniões realizadas" value={reunioesRealizadas} icon={IC.user} bg="#FFFBEB"/>
-        <MC label="Propostas enviadas" value={propostasEnviadas} icon={IC.list} bg="#ECFDF5"/>
-        <MC label="Clientes fechados" value={clientesFechados} icon={IC.check} bg="#ECFDF5"/>
-        <MC label="Taxa de conversão" value={`${taxaConversao}%`} icon={IC.trending} bg="#FFF7F3"/>
-        <MC label="Em negociação" value={`R$ ${valorNegociacao.toLocaleString("pt-BR")}`} icon={IC.money} bg="#F8FAFC"/>
-        <MC label="Valor fechado" value={`R$ ${valorFechado.toLocaleString("pt-BR")}`} icon={IC.money} bg="#ECFDF5"/>
-        <MC label="Paradas +7 dias" value={paradas} icon={IC.alert} bg="#FEF2F2"/>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(auto-fill,minmax(190px,1fr))",gap:isMobile?8:14,marginBottom:22}}>
+        <MC compact={isMobile} label="Total empresas" value={prospeccao.length} icon={IC.users} bg="#EFF6FF"/>
+        <MC compact={isMobile} label="Mensagens enviadas" value={mensagensEnviadas} icon={IC.msg} bg="#F5F3FF"/>
+        <MC compact={isMobile} label="Visitas realizadas" value={visitasRealizadas} icon={IC.cal} bg="#FFF7ED"/>
+        <MC compact={isMobile} label="Reuniões realizadas" value={reunioesRealizadas} icon={IC.user} bg="#FFFBEB"/>
+        <MC compact={isMobile} label="Propostas enviadas" value={propostasEnviadas} icon={IC.list} bg="#ECFDF5"/>
+        <MC compact={isMobile} label="Clientes fechados" value={clientesFechados} icon={IC.check} bg="#ECFDF5"/>
+        <MC compact={isMobile} label="Taxa de conversão" value={`${taxaConversao}%`} icon={IC.trending} bg="#FFF7F3"/>
+        <MC compact={isMobile} label="Em negociação" value={`R$ ${valorNegociacao.toLocaleString("pt-BR")}`} icon={IC.money} bg="#F8FAFC"/>
+        <MC compact={isMobile} label="Valor fechado" value={`R$ ${valorFechado.toLocaleString("pt-BR")}`} icon={IC.money} bg="#ECFDF5"/>
+        <MC compact={isMobile} label="Paradas +7 dias" value={paradas} icon={IC.alert} bg="#FEF2F2"/>
       </div>
 
-      <div style={{display:"flex",gap:10,marginBottom:18,flexWrap:"wrap",alignItems:"center"}}>
+      <div style={{display:isMobile?"grid":"flex",gridTemplateColumns:isMobile?"1fr 1fr":undefined,gap:10,marginBottom:18,flexWrap:isMobile?undefined:"wrap",alignItems:"center"}}>
         {miniSelect(fBairro,setFBairro,bairros,"Todos os bairros")}
         {miniSelect(fSegmento,setFSegmento,segmentos,"Todos os segmentos")}
-        <select value={fStatus} onChange={e=>setFStatus(e.target.value)} style={selStyle}>
+        <select value={fStatus} onChange={e=>setFStatus(e.target.value)} style={filterSelStyle}>
           <option value="">Todos os status</option>
           {PROSP_COLS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
         </select>
         {miniSelect(fVendedor,setFVendedor,vendedores,"Todos os vendedores")}
-        <select value={fTemp} onChange={e=>setFTemp(e.target.value)} style={selStyle}>
+        <select value={fTemp} onChange={e=>setFTemp(e.target.value)} style={filterSelStyle}>
           <option value="">Todas as temperaturas</option>
           <option value="quente">🔥 Quente</option>
           <option value="morno">🌤 Morno</option>
           <option value="frio">❄️ Frio</option>
         </select>
-        <div style={{flex:1}}/>
-        <Btn onClick={openNew}>+ Nova Empresa</Btn>
+        {!isMobile&&<div style={{flex:1}}/>}
+        <Btn style={isMobile?{gridColumn:"1 / -1"}:undefined} onClick={openNew}>+ Nova Empresa</Btn>
       </div>
 
-      <div style={{display:"flex",gap:14,overflowX:"auto",paddingBottom:16}}>
+      <div style={{display:"flex",gap:isMobile?10:14,overflowX:"auto",paddingBottom:16,WebkitOverflowScrolling:"touch"}}>
         {PROSP_COLS.map(col=>{
           const ct=fl.filter(p=>p.status===col.id);
           return (
-            <div key={col.id} style={{minWidth:250,flex:"0 0 250px"}} onDragOver={e=>e.preventDefault()} onDrop={()=>moveStatus(col.id)}>
+            <div key={col.id} style={{minWidth:isMobile?180:250,flex:isMobile?"0 0 180px":"0 0 250px"}} onDragOver={e=>e.preventDefault()} onDrop={()=>moveStatus(col.id)}>
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
                 <div style={{width:10,height:10,borderRadius:99,background:col.color}}/>
                 <span style={{fontSize:13,fontWeight:800,color:"#1F2F46"}}>{col.label}</span>
