@@ -2,6 +2,8 @@ import type { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import path from "path";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const SUPABASE_URL = "https://jadhnzbuxgnjibymtcmn.supabase.co";
