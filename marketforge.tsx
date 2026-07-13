@@ -753,8 +753,8 @@ const ProspeccaoPage=({prospeccao,setProspeccao,equipe,loading})=>{
           <FInput label="WhatsApp" value={form.whatsapp} onChange={v=>f("whatsapp",v)} placeholder="94999999999"/>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-          <FSel label="Responsável" value={form.responsavel} onChange={v=>f("responsavel",v)} options={[{value:"",label:"Selecione..."},...equipe.map(e=>({value:e.nome.split(" ")[0],label:e.nome}))]}/>
-          <FSel label="Vendedor" value={form.vendedor} onChange={v=>f("vendedor",v)} options={[{value:"",label:"Selecione..."},...equipe.map(e=>({value:e.nome.split(" ")[0],label:e.nome}))]}/>
+          <FInput label="Responsável" value={form.responsavel} onChange={v=>f("responsavel",v)} placeholder="Nome do responsável"/>
+          <FInput label="Vendedor" value={form.vendedor} onChange={v=>f("vendedor",v)} placeholder="Nome do vendedor"/>
         </div>
         <div style={{marginBottom:14}}>
           <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>Observações</label>
