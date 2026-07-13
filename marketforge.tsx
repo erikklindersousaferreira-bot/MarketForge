@@ -68,6 +68,7 @@ const IC = {
   edit:<svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
   trash:<svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>,
   image:<svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>,
+  target:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
 };
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -215,9 +216,9 @@ const LoginPage = ({onLogin}) => {
 };
 
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
-const NAV_ADMIN=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"mensagens",label:"Modelos",icon:IC.msg}];
-const NAV_OP=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"mensagens",label:"Modelos",icon:IC.msg}];
-const LABELS={hoje:"Hoje",dashboard:"Dashboard",clientes:"Clientes",financeiro:"Financeiro",cobr:"Cobranças",despesas:"Despesas",tarefas:"Tarefas",calendario:"Calendário Estratégico",equipe:"Equipe",trafego:"Saldo de Tráfego",mensagens:"Modelos de Mensagem"};
+const NAV_ADMIN=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"mensagens",label:"Modelos",icon:IC.msg}];
+const NAV_OP=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"mensagens",label:"Modelos",icon:IC.msg}];
+const LABELS={hoje:"Hoje",dashboard:"Dashboard",prospeccao:"Prospecção CRM",clientes:"Clientes",financeiro:"Financeiro",cobr:"Cobranças",despesas:"Despesas",tarefas:"Tarefas",calendario:"Calendário Estratégico",equipe:"Equipe",trafego:"Saldo de Tráfego",mensagens:"Modelos de Mensagem"};
 
 const Sidebar=({page,setPage,onLogout,cobrPend,perfil,open,setOpen})=>{
 const NAV = perfil==="admin" ? NAV_ADMIN : NAV_OP;
@@ -461,6 +462,414 @@ const ClientesPage=({clients,setClients,loading})=>{
       </Modal>}
 
       {confirm&&<ConfirmModal msg={`Remover "${confirm.name}"? Esta ação não pode ser desfeita.`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
+// ── PROSPECÇÃO CRM ────────────────────────────────────────────────────────────
+const BLANK_PROSPECCAO={empresa:"",segmento:"",bairro:"",instagram:"",whatsapp:"",responsavel:"",observacoes:"",status:"encontrado",prioridade:"media",temperatura:"morno",origem:"instagram",servicos:[],valor_estimado:"",motivo_perda:"",proxima_acao:"",proxima_acao_data:"",vendedor:""};
+const PROSP_COLS=[
+  {id:"encontrado",label:"Encontrado",color:"#64748B"},
+  {id:"mensagem_enviada",label:"Mensagem Enviada",color:"#3B82F6"},
+  {id:"ligacao_realizada",label:"Ligação Realizada",color:"#0EA5E9"},
+  {id:"visita_agendada",label:"Visita Agendada",color:"#8B5CF6"},
+  {id:"reuniao_realizada",label:"Reunião Realizada",color:"#F59E0B"},
+  {id:"proposta_enviada",label:"Proposta Enviada",color:"#FF6200"},
+  {id:"aguardando_resposta",label:"Aguardando Resposta",color:"#EAB308"},
+  {id:"fechado",label:"Fechado",color:"#10B981"},
+  {id:"perdido",label:"Perdido",color:"#EF4444"},
+];
+const PROSP_STATUS_LABEL=Object.fromEntries(PROSP_COLS.map(c=>[c.id,c.label]));
+const PROSP_STAGE_ORDER=["encontrado","mensagem_enviada","ligacao_realizada","visita_agendada","reuniao_realizada","proposta_enviada","aguardando_resposta","fechado"];
+const SERVICOS_OPTS=[
+  {value:"gestao_redes",label:"Gestão de Redes"},
+  {value:"trafego_pago",label:"Tráfego Pago"},
+  {value:"site",label:"Site"},
+  {value:"sistema",label:"Sistema"},
+  {value:"identidade_visual",label:"Identidade Visual"},
+  {value:"videos",label:"Vídeos"},
+  {value:"automacao",label:"Automação"},
+];
+const ORIGEM_OPTS=[
+  {value:"instagram",label:"Instagram"},
+  {value:"google_maps",label:"Google Maps"},
+  {value:"indicacao",label:"Indicação"},
+  {value:"rua",label:"Rua"},
+  {value:"facebook",label:"Facebook"},
+  {value:"tiktok",label:"TikTok"},
+  {value:"outro",label:"Outro"},
+];
+const MOTIVO_PERDA_OPTS=[
+  {value:"sem_orcamento",label:"Sem orçamento"},
+  {value:"ja_possui_agencia",label:"Já possui agência"},
+  {value:"nao_respondeu",label:"Não respondeu"},
+  {value:"nao_tem_interesse",label:"Não tem interesse"},
+  {value:"vai_pensar",label:"Vai pensar"},
+  {value:"outro",label:"Outro"},
+];
+const TEMP_EMOJI={quente:"🔥",morno:"🌤",frio:"❄️"};
+const IA_TABS=[
+  {id:"whatsapp",label:"Mensagem WhatsApp"},
+  {id:"ligacao",label:"Roteiro de Ligação"},
+  {id:"argumentos",label:"Argumentos de Venda"},
+  {id:"videos",label:"Ideias de Vídeo"},
+  {id:"instagram",label:"Diagnóstico Instagram"},
+  {id:"proposta",label:"Proposta"},
+];
+const selStyle={padding:"8px 12px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,color:"#374151",outline:"none",fontFamily:"inherit",background:"#fff"};
+
+const ProspStatusBadge=({status})=>{
+  const col=PROSP_COLS.find(c=>c.id===status)||{color:"#6B7280",label:status};
+  return <span style={{background:col.color+"22",color:col.color,fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:20}}>{col.label}</span>;
+};
+const ProspPrio=({p})=>{
+  const m={alta:["#FEE2E2","#991B1B","Alta"],media:["#FEF9C3","#92400E","Média"],baixa:["#DCFCE7","#166534","Baixa"]};
+  const [bg,c,label]=m[p]||["#F3F4F6","#6B7280",p];
+  return <span style={{background:bg,color:c,fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20}}>{label}</span>;
+};
+
+const ProspeccaoPage=({prospeccao,setProspeccao,equipe,loading})=>{
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState(BLANK_PROSPECCAO);
+  const [editing,setEditing]=useState(null);
+  const [confirm,setConfirm]=useState(null);
+  const [dragId,setDragId]=useState(null);
+  const [saving,setSaving]=useState(false);
+
+  const [fBairro,setFBairro]=useState("");
+  const [fSegmento,setFSegmento]=useState("");
+  const [fStatus,setFStatus]=useState("");
+  const [fVendedor,setFVendedor]=useState("");
+  const [fTemp,setFTemp]=useState("");
+
+  const [detail,setDetail]=useState(null);
+  const [historico,setHistorico]=useState([]);
+  const [histLoading,setHistLoading]=useState(false);
+  const [novoHist,setNovoHist]=useState("");
+
+  const [iaOpen,setIaOpen]=useState(false);
+  const [iaTab,setIaTab]=useState("whatsapp");
+  const [iaCache,setIaCache]=useState({});
+  const [iaLoading,setIaLoading]=useState(false);
+  const [iaErr,setIaErr]=useState("");
+  const [iaCopied,setIaCopied]=useState(false);
+
+  const gerarIA=async(tipo,forcar)=>{
+    if(!detail) return;
+    if(iaCache[tipo]&&!forcar) return;
+    setIaLoading(true);setIaErr("");
+    try{
+      const res=await fetch("/api/gerar-abordagem",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tipo,empresa:{empresa:detail.empresa,segmento:detail.segmento,bairro:detail.bairro,instagram:detail.instagram,servicos:(detail.servicos||[]).map(s=>SERVICOS_OPTS.find(o=>o.value===s)?.label||s),observacoes:detail.observacoes,temperatura:detail.temperatura,valor_estimado:detail.valor_estimado}})});
+      const json=await res.json();
+      if(!res.ok||json.error) throw new Error(json.error||"Erro ao gerar conteúdo");
+      setIaCache(prev=>({...prev,[tipo]:json.texto}));
+    }catch(e){
+      setIaErr(e.message||"Erro ao gerar conteúdo");
+    }
+    setIaLoading(false);
+  };
+
+  useEffect(()=>{
+    if(!iaOpen||!detail) return;
+    if(iaCache[iaTab]) return;
+    gerarIA(iaTab,false);
+  },[iaOpen,iaTab,detail]);
+
+  const copyIA=(texto)=>{navigator.clipboard.writeText(texto).catch(()=>{});setIaCopied(true);setTimeout(()=>setIaCopied(false),2000);};
+
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const openNew=()=>{setForm(BLANK_PROSPECCAO);setEditing(null);setModal(true);};
+  const openEdit=(p)=>{setForm({...BLANK_PROSPECCAO,...p,servicos:p.servicos||[],valor_estimado:p.valor_estimado??"",proxima_acao_data:p.proxima_acao_data?.split("T")[0]||p.proxima_acao_data||""});setEditing(p.id);setModal(true);};
+
+  const closeDetail=()=>{setDetail(null);setIaOpen(false);setIaCache({});setNovoHist("");setHistorico([]);};
+  const openDetail=async(p)=>{
+    setDetail(p);setIaCache({});setIaOpen(false);
+    setHistLoading(true);
+    const {data:h}=await supabase.from("prospeccao_historico").select("*").eq("prospeccao_id",p.id).order("created_at",{ascending:false});
+    setHistorico(h||[]);
+    setHistLoading(false);
+  };
+
+  const save=async()=>{
+    if(!form.empresa){return;}
+    setSaving(true);
+    const data={empresa:form.empresa,segmento:form.segmento,bairro:form.bairro,instagram:form.instagram,whatsapp:form.whatsapp,responsavel:form.responsavel,observacoes:form.observacoes,status:form.status,prioridade:form.prioridade,temperatura:form.temperatura,origem:form.origem,servicos:form.servicos,valor_estimado:form.valor_estimado?Number(form.valor_estimado):null,motivo_perda:form.status==="perdido"?form.motivo_perda:null,proxima_acao:form.proxima_acao,proxima_acao_data:form.proxima_acao_data||null,vendedor:form.vendedor};
+    if(editing){
+      const anterior=prospeccao.find(p=>p.id===editing);
+      await supabase.from("prospeccao").update(data).eq("id",editing);
+      setProspeccao(prev=>prev.map(p=>p.id===editing?{...p,...data,updated_at:new Date().toISOString()}:p));
+      if(anterior&&anterior.status!==data.status){
+        const texto=`Status alterado de "${PROSP_STATUS_LABEL[anterior.status]}" para "${PROSP_STATUS_LABEL[data.status]}"`;
+        const {data:h}=await supabase.from("prospeccao_historico").insert([{prospeccao_id:editing,texto}]).select();
+        if(h&&detail&&detail.id===editing) setHistorico(prev=>[...h,...prev]);
+      }
+    } else {
+      const {data:ins}=await supabase.from("prospeccao").insert([data]).select();
+      if(ins){
+        setProspeccao(prev=>[...prev,...ins]);
+        await supabase.from("prospeccao_historico").insert([{prospeccao_id:ins[0].id,texto:"Empresa cadastrada na prospecção"}]);
+      }
+    }
+    setSaving(false);setModal(false);
+  };
+
+  const remove=async(id)=>{
+    await supabase.from("prospeccao").delete().eq("id",id);
+    setProspeccao(prev=>prev.filter(p=>p.id!==id));
+    setConfirm(null);
+    if(detail&&detail.id===id) closeDetail();
+  };
+
+  const moveStatus=async(newStatus,taskId)=>{
+    const id=taskId||dragId;
+    if(!id) return;
+    const item=prospeccao.find(p=>p.id===id);
+    if(!item||item.status===newStatus){setDragId(null);return;}
+    await supabase.from("prospeccao").update({status:newStatus}).eq("id",id);
+    setProspeccao(prev=>prev.map(p=>p.id===id?{...p,status:newStatus,updated_at:new Date().toISOString()}:p));
+    const texto=`Status alterado de "${PROSP_STATUS_LABEL[item.status]}" para "${PROSP_STATUS_LABEL[newStatus]}"`;
+    const {data:h}=await supabase.from("prospeccao_historico").insert([{prospeccao_id:id,texto}]).select();
+    if(h&&detail&&detail.id===id) setHistorico(prev=>[...h,...prev]);
+    setDragId(null);
+  };
+
+  const addHistorico=async()=>{
+    if(!novoHist.trim()||!detail) return;
+    const {data:h}=await supabase.from("prospeccao_historico").insert([{prospeccao_id:detail.id,texto:novoHist.trim()}]).select();
+    if(h) setHistorico(prev=>[...h,...prev]);
+    setNovoHist("");
+  };
+
+  const miniSelect=(value,onChange,options,placeholder)=>(
+    <select value={value} onChange={e=>onChange(e.target.value)} style={selStyle}>
+      <option value="">{placeholder}</option>
+      {options.map(o=><option key={o} value={o}>{o}</option>)}
+    </select>
+  );
+
+  const bairros=[...new Set(prospeccao.map(p=>p.bairro).filter(Boolean))];
+  const segmentos=[...new Set(prospeccao.map(p=>p.segmento).filter(Boolean))];
+  const vendedores=[...new Set(prospeccao.map(p=>p.vendedor).filter(Boolean))];
+
+  const fl=prospeccao.filter(p=>
+    (fBairro===""||p.bairro===fBairro)&&
+    (fSegmento===""||p.segmento===fSegmento)&&
+    (fStatus===""||p.status===fStatus)&&
+    (fVendedor===""||p.vendedor===fVendedor)&&
+    (fTemp===""||p.temperatura===fTemp)
+  );
+
+  const stageIdx=(s)=>PROSP_STAGE_ORDER.indexOf(s);
+  const atLeast=(stage)=>prospeccao.filter(p=>stageIdx(p.status)>=stageIdx(stage)).length;
+  const mensagensEnviadas=atLeast("mensagem_enviada");
+  const visitasRealizadas=atLeast("visita_agendada");
+  const reunioesRealizadas=atLeast("reuniao_realizada");
+  const propostasEnviadas=atLeast("proposta_enviada");
+  const clientesFechados=prospeccao.filter(p=>p.status==="fechado").length;
+  const taxaConversao=prospeccao.length?((clientesFechados/prospeccao.length)*100).toFixed(1):"0.0";
+  const valorNegociacao=prospeccao.filter(p=>p.status!=="fechado"&&p.status!=="perdido").reduce((a,p)=>a+Number(p.valor_estimado||0),0);
+  const valorFechado=prospeccao.filter(p=>p.status==="fechado").reduce((a,p)=>a+Number(p.valor_estimado||0),0);
+  const seteDiasAtras=new Date();seteDiasAtras.setDate(seteDiasAtras.getDate()-7);
+  const paradas=prospeccao.filter(p=>p.status!=="fechado"&&p.status!=="perdido"&&p.updated_at&&new Date(p.updated_at)<seteDiasAtras).length;
+
+  if(loading) return <Loading/>;
+  return (
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:14,marginBottom:22}}>
+        <MC label="Total empresas" value={prospeccao.length} icon={IC.users} bg="#EFF6FF"/>
+        <MC label="Mensagens enviadas" value={mensagensEnviadas} icon={IC.msg} bg="#F5F3FF"/>
+        <MC label="Visitas realizadas" value={visitasRealizadas} icon={IC.cal} bg="#FFF7ED"/>
+        <MC label="Reuniões realizadas" value={reunioesRealizadas} icon={IC.user} bg="#FFFBEB"/>
+        <MC label="Propostas enviadas" value={propostasEnviadas} icon={IC.list} bg="#ECFDF5"/>
+        <MC label="Clientes fechados" value={clientesFechados} icon={IC.check} bg="#ECFDF5"/>
+        <MC label="Taxa de conversão" value={`${taxaConversao}%`} icon={IC.trending} bg="#FFF7F3"/>
+        <MC label="Em negociação" value={`R$ ${valorNegociacao.toLocaleString("pt-BR")}`} icon={IC.money} bg="#F8FAFC"/>
+        <MC label="Valor fechado" value={`R$ ${valorFechado.toLocaleString("pt-BR")}`} icon={IC.money} bg="#ECFDF5"/>
+        <MC label="Paradas +7 dias" value={paradas} icon={IC.alert} bg="#FEF2F2"/>
+      </div>
+
+      <div style={{display:"flex",gap:10,marginBottom:18,flexWrap:"wrap",alignItems:"center"}}>
+        {miniSelect(fBairro,setFBairro,bairros,"Todos os bairros")}
+        {miniSelect(fSegmento,setFSegmento,segmentos,"Todos os segmentos")}
+        <select value={fStatus} onChange={e=>setFStatus(e.target.value)} style={selStyle}>
+          <option value="">Todos os status</option>
+          {PROSP_COLS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+        </select>
+        {miniSelect(fVendedor,setFVendedor,vendedores,"Todos os vendedores")}
+        <select value={fTemp} onChange={e=>setFTemp(e.target.value)} style={selStyle}>
+          <option value="">Todas as temperaturas</option>
+          <option value="quente">🔥 Quente</option>
+          <option value="morno">🌤 Morno</option>
+          <option value="frio">❄️ Frio</option>
+        </select>
+        <div style={{flex:1}}/>
+        <Btn onClick={openNew}>+ Nova Empresa</Btn>
+      </div>
+
+      <div style={{display:"flex",gap:14,overflowX:"auto",paddingBottom:16}}>
+        {PROSP_COLS.map(col=>{
+          const ct=fl.filter(p=>p.status===col.id);
+          return (
+            <div key={col.id} style={{minWidth:250,flex:"0 0 250px"}} onDragOver={e=>e.preventDefault()} onDrop={()=>moveStatus(col.id)}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                <div style={{width:10,height:10,borderRadius:99,background:col.color}}/>
+                <span style={{fontSize:13,fontWeight:800,color:"#1F2F46"}}>{col.label}</span>
+                <span style={{marginLeft:"auto",background:"#EEF3F8",borderRadius:99,padding:"1px 9px",fontSize:11,fontWeight:700,color:"#64748B"}}>{ct.length}</span>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:10,minHeight:120,background:"#F0F4F9",borderRadius:12,padding:10}}>
+                {ct.map(p=>(
+                  <div key={p.id} draggable onDragStart={()=>setDragId(p.id)} onClick={()=>openDetail(p)} style={{background:"#fff",borderRadius:10,padding:"12px 14px",boxShadow:"0 1px 3px rgba(0,0,0,0.06)",cursor:"pointer",borderLeft:`3px solid ${col.color}`,userSelect:"none"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:6,marginBottom:4}}>
+                      <div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{p.empresa}</div>
+                      <span style={{fontSize:15,flexShrink:0}}>{TEMP_EMOJI[p.temperatura]||""}</span>
+                    </div>
+                    <div style={{fontSize:11,color:"#64748B",marginBottom:8}}>{p.segmento}{p.bairro?` · ${p.bairro}`:""}</div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                      <ProspPrio p={p.prioridade}/>
+                      {p.valor_estimado?<div style={{fontSize:12,fontWeight:800,color:"#111827"}}>R$ {Number(p.valor_estimado).toLocaleString("pt-BR")}</div>:null}
+                    </div>
+                    {p.proxima_acao&&<div style={{fontSize:11,color:"#94A3B8",display:"flex",alignItems:"center",gap:4,marginBottom:8}}>{IC.clock} {p.proxima_acao}{p.proxima_acao_data?` — ${fmtDate(p.proxima_acao_data)}`:""}</div>}
+                    <select onClick={e=>e.stopPropagation()} onChange={e=>{if(e.target.value)moveStatus(e.target.value,p.id);e.target.value="";}} style={{width:"100%",padding:"6px 10px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,color:"#64748B",background:"#F8FAFC",fontFamily:"inherit"}}>
+                      <option value="">Mover para...</option>
+                      {PROSP_COLS.filter(c=>c.id!==col.id).map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+                    </select>
+                  </div>
+                ))}
+                {ct.length===0&&<div style={{color:"#94A3B8",fontSize:12,textAlign:"center",padding:"20px 0"}}>Solte aqui</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {modal&&<Modal title={editing?"Editar Prospecção":"Nova Empresa"} onClose={()=>setModal(false)} width={560}>
+        <FInput label="Nome da empresa *" value={form.empresa} onChange={v=>f("empresa",v)} placeholder="Padaria Pão Quente"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <FInput label="Segmento" value={form.segmento} onChange={v=>f("segmento",v)} placeholder="Alimentação"/>
+          <FInput label="Bairro" value={form.bairro} onChange={v=>f("bairro",v)} placeholder="Centro"/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <FInput label="Instagram" value={form.instagram} onChange={v=>f("instagram",v)} placeholder="@empresa"/>
+          <FInput label="WhatsApp" value={form.whatsapp} onChange={v=>f("whatsapp",v)} placeholder="94999999999"/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <FSel label="Responsável" value={form.responsavel} onChange={v=>f("responsavel",v)} options={[{value:"",label:"Selecione..."},...equipe.map(e=>({value:e.nome.split(" ")[0],label:e.nome}))]}/>
+          <FSel label="Vendedor" value={form.vendedor} onChange={v=>f("vendedor",v)} options={[{value:"",label:"Selecione..."},...equipe.map(e=>({value:e.nome.split(" ")[0],label:e.nome}))]}/>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>Observações</label>
+          <textarea value={form.observacoes} onChange={e=>f("observacoes",e.target.value)} rows={3} placeholder="Anotações sobre a empresa..." style={{width:"100%",padding:"9px 13px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit",boxSizing:"border-box",background:"#FAFBFD",resize:"vertical"}}/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14}}>
+          <FSel label="Status" value={form.status} onChange={v=>f("status",v)} options={PROSP_COLS.map(c=>({value:c.id,label:c.label}))}/>
+          <FSel label="Prioridade" value={form.prioridade} onChange={v=>f("prioridade",v)} options={[{value:"alta",label:"Alta"},{value:"media",label:"Média"},{value:"baixa",label:"Baixa"}]}/>
+          <FSel label="Temperatura" value={form.temperatura} onChange={v=>f("temperatura",v)} options={[{value:"quente",label:"🔥 Quente"},{value:"morno",label:"🌤 Morno"},{value:"frio",label:"❄️ Frio"}]}/>
+        </div>
+        <FSel label="Origem" value={form.origem} onChange={v=>f("origem",v)} options={ORIGEM_OPTS}/>
+        {form.status==="perdido"&&<FSel label="Motivo da perda" value={form.motivo_perda} onChange={v=>f("motivo_perda",v)} options={[{value:"",label:"Selecione..."},...MOTIVO_PERDA_OPTS]}/>}
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>Serviços de interesse</label>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+            {SERVICOS_OPTS.map(s=>{
+              const ativo=form.servicos.includes(s.value);
+              return (
+                <button key={s.value} type="button" onClick={()=>f("servicos",ativo?form.servicos.filter(x=>x!==s.value):[...form.servicos,s.value])}
+                  style={{border:ativo?"1.5px solid #FF6200":"1.5px solid #DDE5EF",background:ativo?"#FFF7F3":"#FAFBFD",color:ativo?"#FF6200":"#64748B",borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{s.label}</button>
+              );
+            })}
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <FInput label="Valor estimado (R$)" value={form.valor_estimado} onChange={v=>f("valor_estimado",v)} placeholder="1500"/>
+          <FInput label="Próxima ação" value={form.proxima_acao} onChange={v=>f("proxima_acao",v)} placeholder="Ligar novamente"/>
+        </div>
+        <FInput label="Data da próxima ação" value={form.proxima_acao_data} onChange={v=>f("proxima_acao_data",v)} type="date"/>
+        <div style={{display:"flex",gap:10,marginTop:4}}>
+          <Btn style={{flex:1}} onClick={save} disabled={saving}>{saving?"Salvando...":"Salvar"}</Btn>
+          <Btn variant="ghost" onClick={()=>setModal(false)} style={{flex:1}}>Cancelar</Btn>
+        </div>
+      </Modal>}
+
+      {detail&&<Modal title={detail.empresa} onClose={closeDetail} width={620}>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
+          <ProspStatusBadge status={detail.status}/>
+          <ProspPrio p={detail.prioridade}/>
+          <span style={{fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:20,background:"#F3F4F6",color:"#374151"}}>{TEMP_EMOJI[detail.temperatura]} {detail.temperatura?.charAt(0).toUpperCase()+detail.temperatura?.slice(1)}</span>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16,fontSize:13}}>
+          <div><div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>Segmento</div><div style={{color:"#111827",fontWeight:600}}>{detail.segmento||"—"}</div></div>
+          <div><div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>Bairro</div><div style={{color:"#111827",fontWeight:600}}>{detail.bairro||"—"}</div></div>
+          <div><div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>Instagram</div><div style={{color:"#111827",fontWeight:600}}>{detail.instagram||"—"}</div></div>
+          <div><div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>WhatsApp</div><div style={{color:"#111827",fontWeight:600}}>{detail.whatsapp||"—"}</div></div>
+          <div><div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>Responsável</div><div style={{color:"#111827",fontWeight:600}}>{detail.responsavel||"—"}</div></div>
+          <div><div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>Vendedor</div><div style={{color:"#111827",fontWeight:600}}>{detail.vendedor||"—"}</div></div>
+          <div><div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>Origem</div><div style={{color:"#111827",fontWeight:600}}>{ORIGEM_OPTS.find(o=>o.value===detail.origem)?.label||detail.origem||"—"}</div></div>
+          <div><div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>Valor estimado</div><div style={{color:"#111827",fontWeight:600}}>{detail.valor_estimado?`R$ ${Number(detail.valor_estimado).toLocaleString("pt-BR")}`:"—"}</div></div>
+        </div>
+        {detail.servicos?.length>0&&<div style={{marginBottom:16}}>
+          <div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase",marginBottom:6}}>Serviços de interesse</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{detail.servicos.map(s=><span key={s} style={{background:"#FFF7F3",color:"#FF6200",borderRadius:8,padding:"4px 12px",fontSize:12,fontWeight:700}}>{SERVICOS_OPTS.find(o=>o.value===s)?.label||s}</span>)}</div>
+        </div>}
+        {(detail.proxima_acao||detail.proxima_acao_data)&&<div style={{background:"#EEF3F8",borderRadius:10,padding:"12px 14px",marginBottom:16,fontSize:13}}>
+          <div style={{fontWeight:700,color:"#111827"}}>Próxima ação: {detail.proxima_acao||"—"}</div>
+          {detail.proxima_acao_data&&<div style={{color:"#64748B",fontSize:12,marginTop:2}}>{fmtDate(detail.proxima_acao_data)}</div>}
+        </div>}
+        {detail.observacoes&&<div style={{marginBottom:16}}>
+          <div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase",marginBottom:6}}>Observações</div>
+          <div style={{fontSize:13,color:"#374151",lineHeight:1.6,background:"#F8FAFC",borderRadius:10,padding:"12px 14px"}}>{detail.observacoes}</div>
+        </div>}
+        {detail.status==="perdido"&&detail.motivo_perda&&<div style={{marginBottom:16,background:"#FEF2F2",borderRadius:10,padding:"12px 14px",fontSize:13,color:"#991B1B"}}>Motivo da perda: {MOTIVO_PERDA_OPTS.find(o=>o.value===detail.motivo_perda)?.label||detail.motivo_perda}</div>}
+
+        <Btn style={{width:"100%",marginBottom:20,background:"linear-gradient(135deg,#7C3AED,#A855F7)"}} onClick={()=>setIaOpen(true)}>🤖 Gerar abordagem com IA</Btn>
+
+        <div style={{fontSize:12,fontWeight:700,color:"#64748B",textTransform:"uppercase",letterSpacing:0.5,marginBottom:10}}>Histórico</div>
+        <div style={{display:"flex",gap:8,marginBottom:14}}>
+          <input value={novoHist} onChange={e=>setNovoHist(e.target.value)} placeholder="Adicionar registro ao histórico..." onKeyDown={e=>{if(e.key==="Enter")addHistorico();}} style={{flex:1,padding:"8px 12px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,color:"#111827",outline:"none",fontFamily:"inherit"}}/>
+          <Btn size="sm" onClick={addHistorico}>Adicionar</Btn>
+        </div>
+        <div style={{maxHeight:220,overflowY:"auto"}}>
+          {histLoading?<div style={{color:"#94A3B8",fontSize:12,textAlign:"center",padding:"14px 0"}}>Carregando...</div>:historico.length===0?<div style={{color:"#94A3B8",fontSize:12,textAlign:"center",padding:"14px 0"}}>Nenhum registro ainda.</div>:historico.map(h=>(
+            <div key={h.id} style={{padding:"10px 0",borderBottom:"1px solid #EEF3F8"}}>
+              <div style={{fontSize:12,color:"#374151"}}>{h.texto}</div>
+              <div style={{fontSize:10,color:"#94A3B8",marginTop:2}}>{new Date(h.created_at).toLocaleString("pt-BR")}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{display:"flex",gap:10,marginTop:20}}>
+          <Btn variant="ghost" style={{flex:1}} onClick={()=>{const p=detail;closeDetail();openEdit(p);}}>{IC.edit} Editar</Btn>
+          <Btn variant="danger" style={{flex:1}} onClick={()=>setConfirm(detail)}>{IC.trash} Excluir</Btn>
+        </div>
+      </Modal>}
+
+      {iaOpen&&detail&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(17,24,39,0.5)",zIndex:1200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:640,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.25)"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 24px",borderBottom:"1px solid #EEF3F8"}}>
+              <div style={{fontSize:17,fontWeight:800,color:"#111827"}}>🤖 Gerar abordagem — {detail.empresa}</div>
+              <button onClick={()=>setIaOpen(false)} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#64748B"}}>×</button>
+            </div>
+            <div style={{display:"flex",gap:6,padding:"14px 24px 0",flexWrap:"wrap",borderBottom:"1px solid #EEF3F8"}}>
+              {IA_TABS.map(t=><button key={t.id} onClick={()=>setIaTab(t.id)} style={{background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,padding:"8px 10px",color:iaTab===t.id?"#FF6200":"#64748B",borderBottom:iaTab===t.id?"2px solid #FF6200":"2px solid transparent",marginBottom:-1}}>{t.label}</button>)}
+            </div>
+            <div style={{padding:24}}>
+              {iaLoading&&<div style={{textAlign:"center",padding:"40px 0",color:"#64748B",fontSize:13}}>Gerando conteúdo com IA...</div>}
+              {!iaLoading&&iaErr&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",color:"#991B1B",borderRadius:8,padding:"12px 14px",fontSize:13,marginBottom:14}}>{iaErr}</div>}
+              {!iaLoading&&!iaErr&&iaCache[iaTab]&&(
+                <div style={{background:"#F8FAFC",borderRadius:10,padding:"16px 18px",fontSize:13,color:"#374151",lineHeight:1.7,whiteSpace:"pre-wrap",marginBottom:16}}>{iaCache[iaTab]}</div>
+              )}
+              {!iaLoading&&(
+                <div style={{display:"flex",gap:10}}>
+                  <Btn variant={iaCopied?"success":"ghost"} style={{flex:1}} onClick={()=>copyIA(iaCache[iaTab]||"")} disabled={!iaCache[iaTab]}>{iaCopied?"Copiado!":"Copiar"}</Btn>
+                  <Btn variant="secondary" style={{flex:1}} onClick={()=>gerarIA(iaTab,true)}>⟳ Regenerar</Btn>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirm&&<ConfirmModal msg={`Remover "${confirm.empresa}" da prospecção?`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
     </div>
   );
 };
@@ -1090,6 +1499,7 @@ const [nomeUser,setNomeUser]=useState("erikklinder");(()=>{
   const [tasks,setTasks]=useState([]);
   const [despesas,setDespesas]=useState([]);
   const [equipe,setEquipe]=useState([]);
+  const [prospeccao,setProspeccao]=useState([]);
   const [loadingData,setLoadingData]=useState(true);
 
   // Seed se tabela vazia
@@ -1138,6 +1548,8 @@ const load = async () => {
     if(d) setDespesas(d);
     const {data:e} = await supabase.from("colaboradores").select("*");
     if(e) setEquipe(e);
+    const {data:pr} = await supabase.from("prospeccao").select("*");
+    if(pr) setProspeccao(pr);
   } catch(err) {
     console.error("Erro ao carregar dados:", err);
     alert("Erro: " + JSON.stringify(err));
@@ -1156,6 +1568,7 @@ load();
   const pages = {
     hoje:<HojePage setPage={setPage} clients={clients} cobr={cobr} tasks={tasks} perfil={perfil} nomeUser={nomeUser}/>,
     dashboard:<DashboardPage clients={clients} cobr={cobr} despesas={despesas}/>,
+    prospeccao:<ProspeccaoPage prospeccao={prospeccao} setProspeccao={setProspeccao} equipe={equipe} loading={loadingData}/>,
     clientes:<ClientesPage clients={clients} setClients={setClients} loading={loadingData}/>,
     financeiro:<FinanceiroPage clients={clients} cobr={cobr} despesas={despesas}/>,
     cobr:<CobrancasPage cobr={cobr} setCobr={setCobr} clients={clients} loading={loadingData}/>,
@@ -1169,7 +1582,7 @@ load();
 
   return (
     <div style={{fontFamily:"'Sora','Segoe UI',sans-serif",background:"#EEF3F8",minHeight:"100vh"}}>
-      <Sidebar page={page} setPage={setPage} perfil={perfil} open={menuOpen} setOpen={setMenuOpen} onLogout={()=>{supabase.auth.signOut();setLoggedIn(false);setPerfil("operacional");setClients([]);setCobr([]);setTasks([]);setDespesas([]);setEquipe([]);}} cobrPend={cobrPend}/>
+      <Sidebar page={page} setPage={setPage} perfil={perfil} open={menuOpen} setOpen={setMenuOpen} onLogout={()=>{supabase.auth.signOut();setLoggedIn(false);setPerfil("operacional");setClients([]);setCobr([]);setTasks([]);setDespesas([]);setEquipe([]);setProspeccao([]);}} cobrPend={cobrPend}/>
       <Topbar page={page} nomeUser={nomeUser} perfil={perfil} onMenuClick={()=>setMenuOpen(true)}/>
       <main style={{marginLeft:typeof window!=="undefined"&&window.innerWidth<768?0:230,paddingTop:62}}>
         <div style={{padding:"28px 30px",minHeight:"calc(100vh - 62px)"}}>
