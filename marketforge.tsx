@@ -69,6 +69,7 @@ const IC = {
   trash:<svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>,
   image:<svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>,
   target:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
+  report:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="9" y2="17"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="15" y1="10" x2="15" y2="17"/></svg>,
 };
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -216,9 +217,9 @@ const LoginPage = ({onLogin}) => {
 };
 
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
-const NAV_ADMIN=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"mensagens",label:"Modelos",icon:IC.msg}];
+const NAV_ADMIN=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"relatorios",label:"Relatórios",icon:IC.report},{id:"mensagens",label:"Modelos",icon:IC.msg}];
 const NAV_OP=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"mensagens",label:"Modelos",icon:IC.msg}];
-const LABELS={hoje:"Hoje",dashboard:"Dashboard",prospeccao:"Prospecção CRM",clientes:"Clientes",financeiro:"Financeiro",cobr:"Cobranças",despesas:"Despesas",tarefas:"Tarefas",calendario:"Calendário Estratégico",equipe:"Equipe",trafego:"Saldo de Tráfego",mensagens:"Modelos de Mensagem"};
+const LABELS={hoje:"Hoje",dashboard:"Dashboard",prospeccao:"Prospecção CRM",clientes:"Clientes",financeiro:"Financeiro",cobr:"Cobranças",despesas:"Despesas",tarefas:"Tarefas",calendario:"Calendário Estratégico",equipe:"Equipe",trafego:"Saldo de Tráfego",relatorios:"Relatórios de Tráfego Pago",mensagens:"Modelos de Mensagem"};
 
 const Sidebar=({page,setPage,onLogout,cobrPend,perfil,open,setOpen})=>{
 const NAV = perfil==="admin" ? NAV_ADMIN : NAV_OP;
@@ -1483,6 +1484,209 @@ const MensagensPage=()=>{
   );
 };
 
+// ── RELATÓRIOS DE TRÁFEGO PAGO ─────────────────────────────────────────────────
+const BLANK_RELATORIO_FORM={clienteId:"",campanhaNome:"",objetivo:"",dataInicial:"",dataFinal:"",valorInvestido:"",valorGasto:"",valorProduto:"",qtdVendas:""};
+
+const calcDiasCampanha=(ini,fim)=>{
+  if(!ini||!fim) return 0;
+  const d1=new Date(ini+"T00:00:00"),d2=new Date(fim+"T00:00:00");
+  const diff=Math.round((d2-d1)/86400000)+1;
+  return diff>0?diff:0;
+};
+
+const RelatoriosTrafegoPage=({clients})=>{
+  const [relatorios,setRelatorios]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState(BLANK_RELATORIO_FORM);
+  const [desempenho,setDesempenho]=useState([{dia:"",mensagens:""}]);
+  const [confirm,setConfirm]=useState(null);
+  const [gerando,setGerando]=useState(false);
+  const [etapa,setEtapa]=useState("");
+  const [erro,setErro]=useState("");
+  const [pronto,setPronto]=useState(null);
+
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  const carregar=async()=>{
+    setLoading(true);
+    const {data,error}=await supabase.from("relatorios_trafego").select("*").order("created_at",{ascending:false});
+    if(!error&&data) setRelatorios(data);
+    setLoading(false);
+  };
+  useEffect(()=>{carregar();},[]);
+
+  const openNew=()=>{setForm(BLANK_RELATORIO_FORM);setDesempenho([{dia:"",mensagens:""}]);setErro("");setModal(true);};
+
+  const addLinha=()=>setDesempenho(p=>[...p,{dia:"",mensagens:""}]);
+  const removeLinha=(i)=>setDesempenho(p=>p.filter((_,idx)=>idx!==i));
+  const setLinha=(i,k,v)=>setDesempenho(p=>p.map((row,idx)=>idx===i?{...row,[k]:v}:row));
+
+  const dias=calcDiasCampanha(form.dataInicial,form.dataFinal);
+
+  const remove=async(id)=>{
+    await supabase.from("relatorios_trafego").delete().eq("id",id);
+    setRelatorios(prev=>prev.filter(r=>r.id!==id));
+    setConfirm(null);
+  };
+
+  const gerar=async()=>{
+    if(!form.clienteId||!form.campanhaNome||!form.dataInicial||!form.dataFinal||!form.valorInvestido){
+      setErro("Preencha cliente, campanha, período e valor investido.");
+      return;
+    }
+    const cliente=clients.find(c=>c.id===form.clienteId);
+    setErro("");setGerando(true);
+
+    const linhasValidas=desempenho.filter(d=>d.dia&&d.mensagens!=="").map(d=>({dia:d.dia,mensagens:Number(d.mensagens)}));
+    const totalMensagens=linhasValidas.reduce((a,d)=>a+d.mensagens,0);
+    const mediaDiaria=linhasValidas.length?Math.round((totalMensagens/linhasValidas.length)*10)/10:0;
+    const melhorDia=linhasValidas.length?linhasValidas.reduce((a,d)=>d.mensagens>a.mensagens?d:a):null;
+    const piorDia=linhasValidas.length?linhasValidas.reduce((a,d)=>d.mensagens<a.mensagens?d:a):null;
+    const valorInvestido=Number(form.valorInvestido);
+    const valorGasto=form.valorGasto?Number(form.valorGasto):null;
+    const valorProduto=form.valorProduto?Number(form.valorProduto):null;
+    const qtdVendas=form.qtdVendas?Number(form.qtdVendas):null;
+    const custoPorMensagem=totalMensagens>0?Math.round((valorInvestido/totalMensagens)*100)/100:null;
+    const faturamentoEstimado=(qtdVendas&&valorProduto)?qtdVendas*valorProduto:null;
+    const roi=(faturamentoEstimado!=null&&valorInvestido>0)?Math.round(((faturamentoEstimado-valorInvestido)/valorInvestido)*1000)/10:null;
+
+    const metricas={clienteNome:cliente?.name,campanhaNome:form.campanhaNome,objetivo:form.objetivo,dias,valorInvestido,valorGasto,totalMensagens,mediaDiaria,melhorDia,piorDia,custoPorMensagem,qtdVendas,valorProduto,faturamentoEstimado,roi};
+
+    try{
+      setEtapa("Gerando análise com IA...");
+      const resIA=await fetch("/api/gerar-relatorio-trafego",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(metricas)});
+      const jsonIA=await resIA.json();
+      if(!resIA.ok||jsonIA.error) throw new Error(jsonIA.error||"Erro ao gerar textos com IA");
+
+      setEtapa("Salvando relatório...");
+      const registro={
+        cliente_id:form.clienteId,cliente_nome:cliente?.name||"",campanha_nome:form.campanhaNome,objetivo:form.objetivo,
+        data_inicial:form.dataInicial,data_final:form.dataFinal,valor_investido:valorInvestido,valor_gasto:valorGasto,
+        valor_produto:valorProduto,qtd_vendas:qtdVendas,desempenho_diario:linhasValidas,
+        analise_ia:jsonIA.analise_resultados,resumo_executivo_ia:jsonIA.resumo_executivo,
+        recomendacoes_ia:(jsonIA.recomendacoes||[]).map(r=>`- ${r}`).join("\n"),
+      };
+      const {data:ins,error:insErr}=await supabase.from("relatorios_trafego").insert([registro]).select();
+      if(insErr||!ins) throw new Error(insErr?.message||"Erro ao salvar relatório");
+      const novo=ins[0];
+      setRelatorios(prev=>[novo,...prev]);
+
+      setEtapa("Gerando PDF...");
+      const resPDF=await fetch("/api/gerar-pdf-trafego",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        relatorioId:novo.id,clienteNome:cliente?.name,clienteLogoUrl:cliente?.logo_url,campanhaNome:form.campanhaNome,objetivo:form.objetivo,
+        dataInicial:form.dataInicial,dataFinal:form.dataFinal,dias,valorInvestido,valorGasto,valorProduto,qtdVendas,
+        desempenhoDiario:linhasValidas,totalMensagens,mediaDiaria,melhorDia,piorDia,custoPorMensagem,faturamentoEstimado,roi,
+        resumoExecutivo:jsonIA.resumo_executivo,analiseResultados:jsonIA.analise_resultados,recomendacoes:jsonIA.recomendacoes,
+      })});
+      const jsonPDF=await resPDF.json();
+      if(!resPDF.ok||jsonPDF.error) throw new Error(jsonPDF.error||"Erro ao gerar PDF");
+
+      await supabase.from("relatorios_trafego").update({pdf_url:jsonPDF.pdfUrl}).eq("id",novo.id);
+      setRelatorios(prev=>prev.map(r=>r.id===novo.id?{...r,pdf_url:jsonPDF.pdfUrl}:r));
+
+      setPronto({pdfUrl:jsonPDF.pdfUrl,campanhaNome:form.campanhaNome});
+      setModal(false);
+    }catch(e){
+      setErro(e.message||"Erro ao gerar relatório");
+    }
+    setGerando(false);setEtapa("");
+  };
+
+  if(loading) return <Loading/>;
+
+  return (
+    <div>
+      <ST action={<Btn onClick={openNew} size="lg">+ Novo Relatório</Btn>}>Relatórios de Tráfego Pago</ST>
+
+      {relatorios.length===0?(
+        <Card style={{textAlign:"center",padding:48,color:"#64748B"}}>Nenhum relatório gerado ainda.</Card>
+      ):(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:16}}>
+          {relatorios.map(r=>{
+            const clienteRef=clients.find(c=>c.id===r.cliente_id);
+            return (
+              <Card key={r.id}>
+                <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:14}}>
+                  <ClientLogo url={clienteRef?.logo_url} name={r.cliente_nome} size={40}/>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:14,fontWeight:800,color:"#111827"}}>{r.cliente_nome}</div>
+                    <div style={{fontSize:12,color:"#64748B"}}>{r.campanha_nome}</div>
+                  </div>
+                  <Btn size="sm" variant="danger" onClick={()=>setConfirm(r)}>{IC.trash}</Btn>
+                </div>
+                <div style={{fontSize:12,color:"#64748B",marginBottom:14}}>{fmtDate(r.data_inicial)} — {fmtDate(r.data_final)}</div>
+                <div style={{display:"flex",gap:8}}>
+                  {r.pdf_url?(
+                    <>
+                      <Btn size="sm" style={{flex:1}} onClick={()=>window.open(r.pdf_url,"_blank")}>👁️ Ver PDF</Btn>
+                      <Btn size="sm" variant="ghost" style={{flex:1}} onClick={()=>{const a=document.createElement("a");a.href=r.pdf_url;a.download="";a.click();}}>⬇ Baixar</Btn>
+                    </>
+                  ):<span style={{fontSize:12,color:"#94A3B8"}}>PDF indisponível</span>}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {modal&&(
+        <Modal title="Novo Relatório de Tráfego Pago" onClose={()=>!gerando&&setModal(false)} width={640}>
+          <FSel label="Cliente" value={form.clienteId} onChange={v=>f("clienteId",v)} options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.id,label:c.name}))]}/>
+          <FInput label="Nome da campanha" value={form.campanhaNome} onChange={v=>f("campanhaNome",v)} placeholder="Ex: Campanha Dia das Mães"/>
+          <div style={{marginBottom:14}}>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>Objetivo da campanha</label>
+            <textarea value={form.objetivo} onChange={e=>f("objetivo",e.target.value)} rows={2} placeholder="Ex: Gerar mensagens no WhatsApp para agendamento de consultas"
+              style={{width:"100%",padding:"9px 13px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit",boxSizing:"border-box",background:"#FAFBFD",resize:"vertical"}}/>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <FInput label="Data inicial" value={form.dataInicial} onChange={v=>f("dataInicial",v)} type="date"/>
+            <FInput label="Data final" value={form.dataFinal} onChange={v=>f("dataFinal",v)} type="date"/>
+          </div>
+          {form.dataInicial&&form.dataFinal&&<div style={{fontSize:12,color:"#64748B",marginTop:-8,marginBottom:14}}>{dias>0?`${dias} dias de campanha`:"Data final deve ser depois da inicial"}</div>}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+            <FInput label="Valor investido (R$)" value={form.valorInvestido} onChange={v=>f("valorInvestido",v)} type="number" placeholder="1000"/>
+            <FInput label="Valor gasto (opcional)" value={form.valorGasto} onChange={v=>f("valorGasto",v)} type="number" placeholder="980"/>
+            <FInput label="Qtd. vendas (opcional)" value={form.qtdVendas} onChange={v=>f("qtdVendas",v)} type="number" placeholder="12"/>
+          </div>
+          <FInput label="Valor do produto/serviço (opcional)" value={form.valorProduto} onChange={v=>f("valorProduto",v)} type="number" placeholder="150"/>
+
+          <div style={{marginTop:18,marginBottom:10,fontSize:13,fontWeight:800,color:"#111827"}}>Desempenho diário</div>
+          {desempenho.map((row,i)=>(
+            <div key={i} style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
+              <input type="date" value={row.dia} onChange={e=>setLinha(i,"dia",e.target.value)} style={{flex:2,padding:"8px 10px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,fontFamily:"inherit",background:"#FAFBFD"}}/>
+              <input type="number" value={row.mensagens} onChange={e=>setLinha(i,"mensagens",e.target.value)} placeholder="Mensagens" style={{flex:1,padding:"8px 10px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,fontFamily:"inherit",background:"#FAFBFD"}}/>
+              <button onClick={()=>removeLinha(i)} disabled={desempenho.length===1} style={{background:"none",border:"none",cursor:desempenho.length===1?"not-allowed":"pointer",color:"#EF4444",opacity:desempenho.length===1?0.4:1}}>{IC.trash}</button>
+            </div>
+          ))}
+          <Btn variant="ghost" size="sm" onClick={addLinha} style={{marginBottom:20}}>+ Adicionar dia</Btn>
+
+          {erro&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",color:"#991B1B",borderRadius:8,padding:"10px 14px",fontSize:13,marginBottom:16}}>{erro}</div>}
+
+          <Btn onClick={gerar} disabled={gerando} size="lg" style={{width:"100%",background:"linear-gradient(135deg,#FF6200,#FF8C00)"}}>
+            {gerando?(etapa||"Gerando..."):"📄 Gerar Relatório"}
+          </Btn>
+        </Modal>
+      )}
+
+      {pronto&&(
+        <Modal title="Relatório pronto!" onClose={()=>setPronto(null)} width={420}>
+          <div style={{textAlign:"center",padding:"10px 0"}}>
+            <div style={{fontSize:40,marginBottom:14}}>✅</div>
+            <div style={{fontSize:14,color:"#374151",marginBottom:24}}>O relatório da campanha "{pronto.campanhaNome}" foi gerado com sucesso.</div>
+            <div style={{display:"flex",gap:10}}>
+              <Btn style={{flex:1}} onClick={()=>window.open(pronto.pdfUrl,"_blank")}>Ver PDF</Btn>
+              <Btn variant="ghost" style={{flex:1}} onClick={()=>setPronto(null)}>Fechar</Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {confirm&&<ConfirmModal msg={`Remover relatório de "${confirm.cliente_nome}" (${confirm.campanha_nome})?`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
 // ── APP ROOT ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [loggedIn,setLoggedIn]=useState(false);
@@ -1579,6 +1783,7 @@ load();
     calendario:<CalendarioPage/>,
     equipe:<EquipePage equipe={equipe} setEquipe={setEquipe} tasks={tasks} loading={loadingData}/>,
     trafego:<TráfegoPage/>,
+    relatorios:<RelatoriosTrafegoPage clients={clients}/>,
     mensagens:<MensagensPage/>,
   };
 
