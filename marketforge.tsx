@@ -69,15 +69,56 @@ const IC = {
   trash:<svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>,
   image:<svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>,
   target:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
+  video:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>,
   report:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="9" y2="17"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="15" y1="10" x2="15" y2="17"/></svg>,
 };
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 const fmtDate = (d) => { if(!d) return "—"; try { const s=String(d).split("T")[0]; const [a,m,dia]=s.split("-"); if(a&&m&&dia) return `${dia}/${m}/${a}`; return new Date(d).toLocaleDateString("pt-BR"); } catch { return d; } };
 const genId = () => Date.now();
+const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const todayStr = () => ymd(new Date());
+// Soma meses numa data "AAAA-MM-DD" mantendo o dia (limitado ao último dia do mês: 31/01 + 1 → 28/02)
+const addMonths = (dateStr, n) => {
+  const [a,m,d] = String(dateStr||todayStr()).split("T")[0].split("-").map(Number);
+  const ultimoDia = new Date(a, m-1+n+1, 0).getDate();
+  return ymd(new Date(a, m-1+n, Math.min(d, ultimoDia)));
+};
+
+// ── ALERTAS DE GRAVAÇÃO ───────────────────────────────────────────────────────
+const FREQ_GRAV = [{value:"1x/semana",label:"1x/semana",min:1},{value:"2x/semana",label:"2x/semana",min:2},{value:"Eventual",label:"Eventual",min:0}];
+const semanaAtual = () => {
+  const hoje = new Date(); const dow = (hoje.getDay()+6)%7; // segunda = 0
+  const ini = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()-dow);
+  const fim = new Date(ini.getFullYear(), ini.getMonth(), ini.getDate()+6);
+  return [ymd(ini), ymd(fim)];
+};
+// Frequência vigente = a da gravação mais recente do estabelecimento. Conta gravações agendadas/feitas na semana (seg–dom).
+const gravacaoAlertas = (gravacoes, clients) => {
+  const [ini,fim] = semanaAtual();
+  const porCliente = {};
+  gravacoes.forEach(g=>{ if(g.estabelecimento) (porCliente[g.estabelecimento] ||= []).push(g); });
+  return Object.entries(porCliente).flatMap(([cid,gs])=>{
+    const cli = clients.find(c=>String(c.id)===String(cid));
+    if(!cli || cli.status==="cancelado" || cli.status==="pausado") return [];
+    const ultima = [...gs].sort((a,b)=>String(b.data).localeCompare(String(a.data))||String(b.created_at).localeCompare(String(a.created_at)))[0];
+    const min = FREQ_GRAV.find(f=>f.value===ultima.frequencia_acordada)?.min||0;
+    const qtd = gs.filter(g=>(g.status==="agendada"||g.status==="feita")&&g.data>=ini&&g.data<=fim).length;
+    return qtd<min ? [{cliente:cli.name, frequencia:ultima.frequencia_acordada, qtd, min}] : [];
+  });
+};
+const AlertasGravacao = ({alertas}) => alertas.length===0 ? null : (
+  <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
+    {alertas.map(a=>(
+      <div key={a.cliente} style={{background:"#FFFBEB",border:"1px solid #FDE68A",color:"#92400E",borderRadius:10,padding:"10px 14px",fontSize:13,fontWeight:600}}>
+        ⚠️ Você precisa marcar gravação em {a.cliente} - Frequência acordada: {a.frequencia} <span style={{fontWeight:500,opacity:0.8}}>({a.qtd}/{a.min} nesta semana)</span>
+      </div>
+    ))}
+  </div>
+);
 
 const StatusBadge = ({status}) => {
-  const m = {ativo:["#DCFCE7","#166534","Ativo"],pausado:["#FEF9C3","#854D0E","Pausado"],cancelado:["#FEE2E2","#991B1B","Cancelado"],inadimplente:["#FEE2E2","#991B1B","Inadimplente"],pago:["#DCFCE7","#166534","Pago"],pendente:["#FEF9C3","#92400E","Pendente"],atrasado:["#FEE2E2","#991B1B","Atrasado"],a_fazer:["#EFF6FF","#1D4ED8","A Fazer"],em_producao:["#FFF7ED","#C2410C","Em Produção"],aguardando:["#F5F3FF","#7C3AED","Aguardando"],finalizado:["#DCFCE7","#166534","Finalizado"],urgente:["#FEE2E2","#991B1B","Urgente"],ok:["#DCFCE7","#166534","OK"],baixo:["#FEF9C3","#92400E","Baixo"],zerado:["#FEE2E2","#991B1B","Zerado"],planejar:["#EFF6FF","#1D4ED8","Planejar"],futuro:["#F3F4F6","#6B7280","Futuro"],ajustes:["#FEF9C3","#92400E","Ajustes"]};
+  const m = {ativo:["#DCFCE7","#166534","Ativo"],pausado:["#FEF9C3","#854D0E","Pausado"],cancelado:["#FEE2E2","#991B1B","Cancelado"],inadimplente:["#FEE2E2","#991B1B","Inadimplente"],pago:["#DCFCE7","#166534","Pago"],pendente:["#FEF9C3","#92400E","Pendente"],atrasado:["#FEE2E2","#991B1B","Atrasado"],a_fazer:["#EFF6FF","#1D4ED8","A Fazer"],em_producao:["#FFF7ED","#C2410C","Em Produção"],aguardando:["#F5F3FF","#7C3AED","Aguardando"],finalizado:["#DCFCE7","#166534","Finalizado"],urgente:["#FEE2E2","#991B1B","Urgente"],ok:["#DCFCE7","#166534","OK"],baixo:["#FEF9C3","#92400E","Baixo"],zerado:["#FEE2E2","#991B1B","Zerado"],planejar:["#EFF6FF","#1D4ED8","Planejar"],futuro:["#F3F4F6","#6B7280","Futuro"],ajustes:["#FEF9C3","#92400E","Ajustes"],agendada:["#EFF6FF","#1D4ED8","Agendada"],feita:["#DCFCE7","#166534","Feita"],cancelada:["#F3F4F6","#6B7280","Cancelada"],nao_foi:["#FEE2E2","#991B1B","Não foi"]};
   const [bg,color,label] = m[status]||["#F3F4F6","#6B7280",status];
   return <span style={{background:bg,color,fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:20}}>{label}</span>;
 };
@@ -217,9 +258,9 @@ const LoginPage = ({onLogin}) => {
 };
 
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
-const NAV_ADMIN=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"relatorios",label:"Relatórios",icon:IC.report},{id:"mensagens",label:"Modelos",icon:IC.msg}];
-const NAV_OP=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"mensagens",label:"Modelos",icon:IC.msg}];
-const LABELS={hoje:"Hoje",dashboard:"Dashboard",prospeccao:"Prospecção CRM",clientes:"Clientes",financeiro:"Financeiro",cobr:"Cobranças",despesas:"Despesas",tarefas:"Tarefas",calendario:"Calendário Estratégico",equipe:"Equipe",trafego:"Saldo de Tráfego",relatorios:"Relatórios de Tráfego Pago",mensagens:"Modelos de Mensagem"};
+const NAV_ADMIN=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"gravacoes",label:"Gravações",icon:IC.video},{id:"equipe",label:"Equipe",icon:IC.user},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"relatorios",label:"Relatórios",icon:IC.report},{id:"mensagens",label:"Modelos",icon:IC.msg}];
+const NAV_OP=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"gravacoes",label:"Gravações",icon:IC.video},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"mensagens",label:"Modelos",icon:IC.msg}];
+const LABELS={hoje:"Hoje",dashboard:"Dashboard",prospeccao:"Prospecção CRM",clientes:"Clientes",financeiro:"Financeiro",cobr:"Cobranças",despesas:"Despesas",tarefas:"Tarefas",calendario:"Calendário Estratégico",gravacoes:"Agenda de Gravações",equipe:"Equipe",trafego:"Saldo de Tráfego",relatorios:"Relatórios de Tráfego Pago",mensagens:"Modelos de Mensagem"};
 
 const Sidebar=({page,setPage,onLogout,cobrPend,perfil,open,setOpen})=>{
 const NAV = perfil==="admin" ? NAV_ADMIN : NAV_OP;
@@ -268,8 +309,9 @@ return (
 );};
 
 // ── HOJE ──────────────────────────────────────────────────────────────────────
-const HojePage=({setPage,clients,cobr,tasks,perfil,nomeUser})=>{
+const HojePage=({setPage,clients,cobr,tasks,gravacoes,perfil,nomeUser})=>{
   const atrasadas=tasks.filter(t=>t.status==="atrasado");
+  const gravHoje=gravacoes.filter(g=>String(g.data).split("T")[0]===todayStr());
   const cobHoje=cobr.filter(c=>c.status==="pendente"||c.status==="atrasado").slice(0,4);
   return (
     <div>
@@ -305,13 +347,22 @@ const HojePage=({setPage,clients,cobr,tasks,perfil,nomeUser})=>{
             </div>
           ))}
         </Card>
+        <Card>
+          <ST action={<Btn size="sm" variant="ghost" onClick={()=>setPage("gravacoes")}>Ver agenda</Btn>}>Gravações de hoje</ST>
+          {gravHoje.length===0?<div style={{color:"#64748B",textAlign:"center",padding:"20px 0",fontSize:13}}>Nenhuma gravação hoje.</div>:gravHoje.map(g=>(
+            <div key={g.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"#F8FAFC",borderRadius:10,marginBottom:8}}>
+              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{clients.find(c=>String(c.id)===String(g.estabelecimento))?.name||"—"}</div><div style={{fontSize:12,color:"#64748B"}}>{g.responsavel||"Sem responsável"}{g.notas?` · ${g.notas}`:""}</div></div>
+              <StatusBadge status={g.status}/>
+            </div>
+          ))}
+        </Card>
       </div>
     </div>
   );
 };
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
-const DashboardPage=({clients,cobr,despesas})=>{
+const DashboardPage=({clients,cobr,despesas,gravacoes})=>{
   const recR=cobr.filter(c=>c.status==="pago").reduce((a,c)=>a+Number(c.valor),0);
   const recP=cobr.filter(c=>c.status==="pendente").reduce((a,c)=>a+Number(c.valor),0);
   const recA=cobr.filter(c=>c.status==="atrasado").reduce((a,c)=>a+Number(c.valor),0);
@@ -319,6 +370,7 @@ const DashboardPage=({clients,cobr,despesas})=>{
   const atv=clients.filter(c=>c.status==="ativo").length;
   return (
     <div>
+      <AlertasGravacao alertas={gravacaoAlertas(gravacoes,clients)}/>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:14,marginBottom:24}}>
         <MC label="Receita recebida" value={`R$ ${recR.toLocaleString()}`} icon={IC.check} bg="#ECFDF5"/>
         <MC label="Em aberto" value={`R$ ${recP.toLocaleString()}`} icon={IC.clock} bg="#FFFBEB"/>
@@ -936,18 +988,18 @@ const CobrancasPage=({cobr,setCobr,clients,loading})=>{
   const openEdit=(c)=>{setForm({...c,vencimento:c.vencimento?.split("T")[0]||c.vencimento});setEditing(c.id);setModal(true);};
 
   const marcarPago=async(id)=>{
-  const cobAtual=cobr.find(c=>c.id===id);
-  await supabase.from("cobrancas").update({status:"pago",pagamento:"Pix"}).eq("id",id);
-  setCobr(prev=>prev.map(c=>c.id===id?{...c,status:"pago",pagamento:"Pix"}:c));
-  if(cobAtual){
-    const venc=new Date(cobAtual.vencimento);
-    venc.setMonth(venc.getMonth()+1);
-    const novaData=`${venc.getFullYear()}-${String(venc.getMonth()+1).padStart(2,"0")}-${String(venc.getDate()).padStart(2,"0")}`;
+    const cobAtual=cobr.find(c=>c.id===id);
+    if(!cobAtual) return;
+    const pagamento=cobAtual.pagamento||"Pix";
+    await supabase.from("cobrancas").update({status:"pago",pagamento}).eq("id",id);
+    setCobr(prev=>prev.map(c=>c.id===id?{...c,status:"pago",pagamento}:c));
+    // Gera a cobrança do mês seguinte (mesmo cliente, valor e dia), se ainda não existir
+    const novaData=addMonths(cobAtual.vencimento,1);
+    if(cobr.some(c=>c.cliente===cobAtual.cliente&&String(c.vencimento).split("T")[0]===novaData)) return;
     const novaCob={cliente:cobAtual.cliente,valor:cobAtual.valor,vencimento:novaData,status:"pendente",pagamento:""};
     const {data:ins}=await supabase.from("cobrancas").insert([novaCob]).select();
     if(ins) setCobr(prev=>[...prev,...ins]);
-  }
-};
+  };
 
   const save=async()=>{
     if(!form.cliente||!form.valor){return;}
@@ -1005,7 +1057,7 @@ const CobrancasPage=({cobr,setCobr,clients,loading})=>{
 };
 
 // ── DESPESAS ──────────────────────────────────────────────────────────────────
-const BLANK_DESP={nome:"",categoria:"Ferramentas",valor:"",vencimento:"",status:"pendente"};
+const BLANK_DESP={nome:"",categoria:"Ferramentas",valor:"",vencimento:"",status:"pendente",tipo:"uma_vez",parcelado_em:"1"};
 
 const DespesasPage=({despesas,setDespesas,loading})=>{
   const [modal,setModal]=useState(false);
@@ -1018,23 +1070,41 @@ const DespesasPage=({despesas,setDespesas,loading})=>{
   const total=despesas.reduce((a,d)=>a+Number(d.valor),0);
   const pagas=despesas.filter(d=>d.status==="pago").reduce((a,d)=>a+Number(d.valor),0);
 
-  const openNew=()=>{setForm(BLANK_DESP);setEditing(null);setModal(true);};
-  const openEdit=(d)=>{setForm({...d,vencimento:d.vencimento?.split("T")[0]||d.vencimento});setEditing(d.id);setModal(true);};
+  const openNew=()=>{setForm({...BLANK_DESP,vencimento:todayStr()});setEditing(null);setModal(true);};
+  const openEdit=(d)=>{setForm({...d,tipo:d.tipo||"uma_vez",parcelado_em:String(d.parcelado_em||1),vencimento:d.vencimento?.split("T")[0]||d.vencimento});setEditing(d.id);setModal(true);};
 
   const marcarPago=async(id)=>{
+    const desp=despesas.find(d=>d.id===id);
+    if(!desp) return;
     await supabase.from("despesas").update({status:"pago"}).eq("id",id);
     setDespesas(prev=>prev.map(d=>d.id===id?{...d,status:"pago"}:d));
+    // Conta fixa: cria a do mês seguinte (a atual fica registrada como paga)
+    if(desp.tipo!=="fixa") return;
+    const novaData=addMonths(desp.vencimento,1);
+    if(despesas.some(d=>d.tipo==="fixa"&&d.nome===desp.nome&&String(d.vencimento).split("T")[0]===novaData)) return;
+    const nova={nome:desp.nome,categoria:desp.categoria,valor:desp.valor,vencimento:novaData,status:"pendente",tipo:"fixa",parcelado_em:1,parcela_numero:1};
+    const {data:ins}=await supabase.from("despesas").insert([nova]).select();
+    if(ins) setDespesas(prev=>[...prev,...ins]);
+  };
+
+  const desativarFixa=async(id)=>{
+    await supabase.from("despesas").update({tipo:"uma_vez"}).eq("id",id);
+    setDespesas(prev=>prev.map(d=>d.id===id?{...d,tipo:"uma_vez"}:d));
   };
 
   const save=async()=>{
     if(!form.nome){return;}
     setSaving(true);
-    const data={nome:form.nome,categoria:form.categoria,valor:Number(form.valor),vencimento:form.vencimento,status:form.status};
+    const base={nome:form.nome,categoria:form.categoria,valor:Number(form.valor),vencimento:form.vencimento||null,status:form.status,tipo:form.tipo};
     if(editing){
-      await supabase.from("despesas").update(data).eq("id",editing);
-      setDespesas(prev=>prev.map(d=>d.id===editing?{...d,...data}:d));
+      await supabase.from("despesas").update(base).eq("id",editing);
+      setDespesas(prev=>prev.map(d=>d.id===editing?{...d,...base}:d));
     } else {
-      const {data:ins}=await supabase.from("despesas").insert([data]).select();
+      // Parcelada: uma linha por parcela, vencendo mês a mês a partir da data informada
+      const n=form.tipo==="uma_vez"?Math.max(1,parseInt(form.parcelado_em)||1):1;
+      const venc0=form.vencimento||todayStr();
+      const rows=Array.from({length:n},(_,i)=>({...base,vencimento:addMonths(venc0,i),parcelado_em:n,parcela_numero:i+1,status:i===0?form.status:"pendente"}));
+      const {data:ins}=await supabase.from("despesas").insert(rows).select();
       if(ins) setDespesas(prev=>[...prev,...ins]);
     }
     setSaving(false);setModal(false);
@@ -1056,15 +1126,19 @@ const DespesasPage=({despesas,setDespesas,loading})=>{
         <div style={{marginLeft:"auto"}}><Btn onClick={openNew}>+ Adicionar Despesa</Btn></div>
       </div>
       <Card style={{padding:0}}>
-        <Tbl cols={["Nome","Categoria","Valor","Vencimento","Status","Ações"]}
+        <Tbl cols={["Nome","Categoria","Tipo","Valor","Vencimento","Status","Ações"]}
           rows={despesas.map(d=>[
             <span style={{fontWeight:700,color:"#111827"}}>{d.nome}</span>,
             <span style={{background:"#EEF3F8",borderRadius:6,padding:"2px 8px",fontSize:12,fontWeight:600,color:"#64748B"}}>{d.categoria}</span>,
+            d.tipo==="fixa"?<span style={{background:"#F5F3FF",color:"#7C3AED",borderRadius:6,padding:"2px 8px",fontSize:12,fontWeight:700}}>Fixa</span>
+              :d.parcelado_em>1?<span style={{background:"#FFF7ED",color:"#C2410C",borderRadius:6,padding:"2px 8px",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>Parcela {d.parcela_numero}/{d.parcelado_em}</span>
+              :<span style={{color:"#94A3B8",fontSize:12}}>Uma vez</span>,
             <span style={{fontWeight:800}}>R$ {Number(d.valor).toLocaleString()}</span>,
             fmtDate(d.vencimento),
             <StatusBadge status={d.status}/>,
             <div style={{display:"flex",gap:6}}>
               {d.status!=="pago"&&<Btn size="sm" variant="success" onClick={()=>marcarPago(d.id)}>Pago</Btn>}
+              {d.tipo==="fixa"&&d.status!=="pago"&&<Btn size="sm" variant="ghost" onClick={()=>desativarFixa(d.id)} style={{whiteSpace:"nowrap"}}>Parar de repetir</Btn>}
               <Btn size="sm" variant="ghost" onClick={()=>openEdit(d)}>{IC.edit}</Btn>
               <Btn size="sm" variant="danger" onClick={()=>setConfirm(d)}>{IC.trash}</Btn>
             </div>
@@ -1073,12 +1147,101 @@ const DespesasPage=({despesas,setDespesas,loading})=>{
       {modal&&<Modal title={editing?"Editar Despesa":"Nova Despesa"} onClose={()=>setModal(false)}>
         <FInput label="Nome da despesa *" value={form.nome} onChange={v=>f("nome",v)} placeholder="Adobe Creative Cloud"/>
         <FSel label="Categoria" value={form.categoria} onChange={v=>f("categoria",v)} options={["Ferramentas","Assinaturas","Colaboradores","Internet","Equipamentos","Outros"].map(c=>({value:c,label:c}))}/>
-        <FInput label="Valor (R$)" value={form.valor} onChange={v=>f("valor",v)} placeholder="349"/>
-        <FInput label="Data de vencimento" value={form.vencimento} onChange={v=>f("vencimento",v)} type="date"/>
+        <FSel label="Tipo" value={form.tipo} onChange={v=>f("tipo",v)} options={[{value:"uma_vez",label:"Uma vez"},{value:"fixa",label:"Fixa (repete todo mês)"}]}/>
+        {!editing&&form.tipo==="uma_vez"&&<FSel label="Parcelado em" value={form.parcelado_em} onChange={v=>f("parcelado_em",v)} options={Array.from({length:24},(_,i)=>({value:String(i+1),label:i===0?"À vista (1x)":`${i+1}x`}))}/>}
+        <FInput label={Number(form.parcelado_em)>1&&!editing&&form.tipo==="uma_vez"?"Valor de cada parcela (R$)":"Valor (R$)"} value={form.valor} onChange={v=>f("valor",v)} placeholder="349"/>
+        <FInput label={Number(form.parcelado_em)>1&&!editing&&form.tipo==="uma_vez"?"Vencimento da 1ª parcela":"Data de vencimento"} value={form.vencimento} onChange={v=>f("vencimento",v)} type="date"/>
+        {form.tipo==="fixa"&&<div style={{fontSize:12,color:"#64748B",marginTop:-6,marginBottom:14}}>Ao marcar como paga, a conta do mês seguinte é criada automaticamente.</div>}
         <FSel label="Status" value={form.status} onChange={v=>f("status",v)} options={[{value:"pendente",label:"Pendente"},{value:"pago",label:"Pago"}]}/>
         <div style={{display:"flex",gap:10}}><Btn style={{flex:1}} onClick={save} disabled={saving}>{saving?"Salvando...":"Salvar"}</Btn><Btn variant="ghost" onClick={()=>setModal(false)} style={{flex:1}}>Cancelar</Btn></div>
       </Modal>}
       {confirm&&<ConfirmModal msg={`Remover "${confirm.nome}"?`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
+// ── GRAVAÇÕES ─────────────────────────────────────────────────────────────────
+const BLANK_GRAV={estabelecimento:"",data:"",frequencia_acordada:"1x/semana",status:"agendada",responsavel:"",notas:""};
+const STATUS_GRAV=[{value:"agendada",label:"Agendada"},{value:"feita",label:"Feita"},{value:"cancelada",label:"Cancelada"},{value:"nao_foi",label:"Não foi"}];
+
+const GravacoesPage=({gravacoes,setGravacoes,clients,equipe,loading})=>{
+  const [filter,setFilter]=useState("todos");
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState(BLANK_GRAV);
+  const [editing,setEditing]=useState(null);
+  const [confirm,setConfirm]=useState(null);
+  const [saving,setSaving]=useState(false);
+
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const nomeCli=(id)=>clients.find(c=>String(c.id)===String(id))?.name||"—";
+  const fl=gravacoes.filter(g=>filter==="todos"||g.status===filter).sort((a,b)=>String(b.data).localeCompare(String(a.data)));
+
+  // Ao escolher o estabelecimento, sugere a última frequência acordada com ele
+  const escolherCliente=(id)=>{
+    const ultima=gravacoes.filter(g=>String(g.estabelecimento)===String(id)).sort((a,b)=>String(b.data).localeCompare(String(a.data)))[0];
+    setForm(p=>({...p,estabelecimento:id,frequencia_acordada:ultima?.frequencia_acordada||p.frequencia_acordada}));
+  };
+
+  const openNew=()=>{setForm({...BLANK_GRAV,data:todayStr()});setEditing(null);setModal(true);};
+  const openEdit=(g)=>{setForm({...BLANK_GRAV,...g,notas:g.notas||"",responsavel:g.responsavel||"",data:String(g.data).split("T")[0]});setEditing(g.id);setModal(true);};
+
+  const marcarFeita=async(id)=>{
+    await supabase.from("gravacoes").update({status:"feita"}).eq("id",id);
+    setGravacoes(prev=>prev.map(g=>g.id===id?{...g,status:"feita"}:g));
+  };
+
+  const save=async()=>{
+    if(!form.estabelecimento||!form.data){return;}
+    setSaving(true);
+    const data={estabelecimento:form.estabelecimento,data:form.data,frequencia_acordada:form.frequencia_acordada,status:form.status,responsavel:form.responsavel||null,notas:form.notas||null};
+    if(editing){
+      await supabase.from("gravacoes").update(data).eq("id",editing);
+      setGravacoes(prev=>prev.map(g=>g.id===editing?{...g,...data}:g));
+    } else {
+      const {data:ins}=await supabase.from("gravacoes").insert([data]).select();
+      if(ins) setGravacoes(prev=>[...prev,...ins]);
+    }
+    setSaving(false);setModal(false);
+  };
+
+  const remove=async(id)=>{
+    await supabase.from("gravacoes").delete().eq("id",id);
+    setGravacoes(prev=>prev.filter(g=>g.id!==id));
+    setConfirm(null);
+  };
+
+  if(loading) return <Loading/>;
+  return (
+    <div>
+      <AlertasGravacao alertas={gravacaoAlertas(gravacoes,clients)}/>
+      <div style={{display:"flex",gap:12,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
+        {[{value:"todos",label:"Todas"},...STATUS_GRAV].map(fi=><Btn key={fi.value} size="sm" variant={filter===fi.value?"secondary":"ghost"} onClick={()=>setFilter(fi.value)}>{fi.label} <span style={{marginLeft:6,background:filter===fi.value?"rgba(255,255,255,0.25)":"#EEF3F8",borderRadius:99,padding:"0 6px",fontSize:11,fontWeight:800,color:filter===fi.value?"#fff":"#64748B"}}>{gravacoes.filter(g=>fi.value==="todos"||g.status===fi.value).length}</span></Btn>)}
+        <div style={{flex:1}}/><Btn onClick={openNew}>+ Nova Gravação</Btn>
+      </div>
+      <Card style={{padding:0}}>
+        <Tbl cols={["Estabelecimento","Data","Status","Responsável","Ações"]}
+          rows={fl.map(g=>[
+            <div><div style={{fontWeight:700,color:"#111827"}}>{nomeCli(g.estabelecimento)}</div><div style={{fontSize:11,color:"#64748B"}}>{g.frequencia_acordada}{g.notas?` · ${g.notas}`:""}</div></div>,
+            <span style={{whiteSpace:"nowrap"}}>{fmtDate(g.data)}</span>,
+            <StatusBadge status={g.status}/>,
+            g.responsavel||<span style={{color:"#94A3B8"}}>—</span>,
+            <div style={{display:"flex",gap:6}}>
+              {g.status!=="feita"&&<Btn size="sm" variant="success" onClick={()=>marcarFeita(g.id)}>Feita</Btn>}
+              <Btn size="sm" variant="ghost" onClick={()=>openEdit(g)}>{IC.edit}</Btn>
+              <Btn size="sm" variant="danger" onClick={()=>setConfirm(g)}>{IC.trash}</Btn>
+            </div>
+          ])}/>
+      </Card>
+      {modal&&<Modal title={editing?"Editar Gravação":"Nova Gravação"} onClose={()=>setModal(false)}>
+        <FSel label="Estabelecimento *" value={form.estabelecimento} onChange={escolherCliente} options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.id,label:c.name}))]}/>
+        <FInput label="Data *" value={form.data} onChange={v=>f("data",v)} type="date"/>
+        <FSel label="Frequência acordada" value={form.frequencia_acordada} onChange={v=>f("frequencia_acordada",v)} options={FREQ_GRAV}/>
+        <FSel label="Status" value={form.status} onChange={v=>f("status",v)} options={STATUS_GRAV}/>
+        <FSel label="Responsável" value={form.responsavel} onChange={v=>f("responsavel",v)} options={[{value:"",label:"Selecione..."},...equipe.map(e=>({value:e.nome,label:e.nome}))]}/>
+        <FInput label="Notas" value={form.notas} onChange={v=>f("notas",v)} placeholder="Ex.: gravar cardápio novo"/>
+        <div style={{display:"flex",gap:10}}><Btn style={{flex:1}} onClick={save} disabled={saving||!form.estabelecimento||!form.data}>{saving?"Salvando...":"Salvar"}</Btn><Btn variant="ghost" onClick={()=>setModal(false)} style={{flex:1}}>Cancelar</Btn></div>
+      </Modal>}
+      {confirm&&<ConfirmModal msg={`Remover gravação de "${nomeCli(confirm.estabelecimento)}" em ${fmtDate(confirm.data)}?`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
     </div>
   );
 };
@@ -1707,6 +1870,7 @@ const [nomeUser,setNomeUser]=useState("erikklinder");(()=>{
   const [despesas,setDespesas]=useState([]);
   const [equipe,setEquipe]=useState([]);
   const [prospeccao,setProspeccao]=useState([]);
+  const [gravacoes,setGravacoes]=useState([]);
   const [loadingData,setLoadingData]=useState(true);
 
   // Seed se tabela vazia
@@ -1757,6 +1921,8 @@ const load = async () => {
     if(e) setEquipe(e);
     const {data:pr} = await supabase.from("prospeccao").select("*");
     if(pr) setProspeccao(pr);
+    const {data:gr} = await supabase.from("gravacoes").select("*");
+    if(gr) setGravacoes(gr);
   } catch(err) {
     console.error("Erro ao carregar dados:", err);
     alert("Erro: " + JSON.stringify(err));
@@ -1773,8 +1939,8 @@ load();
   const cobrPend = cobr.filter(c=>c.status==="pendente"||c.status==="atrasado").length;
 
   const pages = {
-    hoje:<HojePage setPage={setPage} clients={clients} cobr={cobr} tasks={tasks} perfil={perfil} nomeUser={nomeUser}/>,
-    dashboard:<DashboardPage clients={clients} cobr={cobr} despesas={despesas}/>,
+    hoje:<HojePage setPage={setPage} clients={clients} cobr={cobr} tasks={tasks} gravacoes={gravacoes} perfil={perfil} nomeUser={nomeUser}/>,
+    dashboard:<DashboardPage clients={clients} cobr={cobr} despesas={despesas} gravacoes={gravacoes}/>,
     prospeccao:<ProspeccaoPage prospeccao={prospeccao} setProspeccao={setProspeccao} equipe={equipe} loading={loadingData}/>,
     clientes:<ClientesPage clients={clients} setClients={setClients} loading={loadingData}/>,
     financeiro:<FinanceiroPage clients={clients} cobr={cobr} despesas={despesas}/>,
@@ -1782,6 +1948,7 @@ load();
     despesas:<DespesasPage despesas={despesas} setDespesas={setDespesas} loading={loadingData}/>,
     tarefas:<TarefasPage tasks={tasks} setTasks={setTasks} clients={clients} equipe={equipe} loading={loadingData}/>,
     calendario:<CalendarioPage/>,
+    gravacoes:<GravacoesPage gravacoes={gravacoes} setGravacoes={setGravacoes} clients={clients} equipe={equipe} loading={loadingData}/>,
     equipe:<EquipePage equipe={equipe} setEquipe={setEquipe} tasks={tasks} loading={loadingData}/>,
     trafego:<TráfegoPage/>,
     relatorios:<RelatoriosTrafegoPage clients={clients}/>,
@@ -1790,7 +1957,7 @@ load();
 
   return (
     <div style={{fontFamily:"'Sora','Segoe UI',sans-serif",background:"#EEF3F8",minHeight:"100vh"}}>
-      <Sidebar page={page} setPage={setPage} perfil={perfil} open={menuOpen} setOpen={setMenuOpen} onLogout={()=>{supabase.auth.signOut();setLoggedIn(false);setPerfil("operacional");setClients([]);setCobr([]);setTasks([]);setDespesas([]);setEquipe([]);setProspeccao([]);}} cobrPend={cobrPend}/>
+      <Sidebar page={page} setPage={setPage} perfil={perfil} open={menuOpen} setOpen={setMenuOpen} onLogout={()=>{supabase.auth.signOut();setLoggedIn(false);setPerfil("operacional");setClients([]);setCobr([]);setTasks([]);setDespesas([]);setEquipe([]);setProspeccao([]);setGravacoes([]);}} cobrPend={cobrPend}/>
       <Topbar page={page} nomeUser={nomeUser} perfil={perfil} onMenuClick={()=>setMenuOpen(true)}/>
       <main style={{marginLeft:typeof window!=="undefined"&&window.innerWidth<768?0:230,paddingTop:62}}>
         <div style={{padding:"28px 30px",minHeight:"calc(100vh - 62px)"}}>
