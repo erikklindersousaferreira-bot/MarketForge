@@ -71,6 +71,7 @@ const IC = {
   target:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
   video:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>,
   report:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="9" y2="17"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="15" y1="10" x2="15" y2="17"/></svg>,
+  repeat:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>,
 };
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -258,9 +259,9 @@ const LoginPage = ({onLogin}) => {
 };
 
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
-const NAV_ADMIN=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"gravacoes",label:"Gravações",icon:IC.video},{id:"equipe",label:"Equipe",icon:IC.user},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"relatorios",label:"Relatórios",icon:IC.report},{id:"mensagens",label:"Modelos",icon:IC.msg}];
-const NAV_OP=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"gravacoes",label:"Gravações",icon:IC.video},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"mensagens",label:"Modelos",icon:IC.msg}];
-const LABELS={hoje:"Hoje",dashboard:"Dashboard",prospeccao:"Prospecção CRM",clientes:"Clientes",financeiro:"Financeiro",cobr:"Cobranças",despesas:"Despesas",tarefas:"Tarefas",calendario:"Calendário Estratégico",gravacoes:"Agenda de Gravações",equipe:"Equipe",trafego:"Saldo de Tráfego",relatorios:"Relatórios de Tráfego Pago",mensagens:"Modelos de Mensagem"};
+const NAV_ADMIN=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"gravacoes",label:"Gravações",icon:IC.video},{id:"agenda",label:"Agenda",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"relatorios",label:"Relatórios",icon:IC.report},{id:"mensagens",label:"Modelos",icon:IC.msg}];
+const NAV_OP=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"gravacoes",label:"Gravações",icon:IC.video},{id:"agenda",label:"Agenda",icon:IC.cal},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"mensagens",label:"Modelos",icon:IC.msg}];
+const LABELS={hoje:"Hoje",dashboard:"Dashboard",prospeccao:"Prospecção CRM",clientes:"Clientes",financeiro:"Financeiro",cobr:"Cobranças",despesas:"Despesas",tarefas:"Tarefas",calendario:"Calendário Estratégico",gravacoes:"Agenda de Gravações",agenda:"Agenda Recorrente",equipe:"Equipe",trafego:"Saldo de Tráfego",relatorios:"Relatórios de Tráfego Pago",mensagens:"Modelos de Mensagem"};
 
 const Sidebar=({page,setPage,onLogout,cobrPend,perfil,open,setOpen})=>{
 const NAV = perfil==="admin" ? NAV_ADMIN : NAV_OP;
@@ -1246,6 +1247,266 @@ const GravacoesPage=({gravacoes,setGravacoes,clients,equipe,loading})=>{
   );
 };
 
+// ── AGENDA RECORRENTE ─────────────────────────────────────────────────────────
+const DIAS_SEMANA=[{label:"Seg",value:1},{label:"Ter",value:2},{label:"Qua",value:3},{label:"Qui",value:4},{label:"Sex",value:5},{label:"Sáb",value:6},{label:"Dom",value:0}];
+const TIPO_AGENDA={gravacao:{label:"Gravação",emoji:"📹",color:"#7C3AED",bg:"#F5F3FF"},reuniao:{label:"Reunião",emoji:"📞",color:"#1D4ED8",bg:"#EFF6FF"},atendimento:{label:"Atendimento",emoji:"🤝",color:"#166534",bg:"#DCFCE7"}};
+const BLANK_AGENDA={cliente_id:"",tipo:"gravacao",dias_semana:[],horario:"",local_descricao:"",responsavel_id:"",briefing:""};
+const AGENDA_SEMANAS=12;
+
+// Gera as ocorrências futuras (próximas 12 semanas) de uma agenda recorrente
+const gerarOcorrencias=(ag,semanas=AGENDA_SEMANAS)=>{
+  const agora=new Date();
+  const hoje=new Date(agora);hoje.setHours(0,0,0,0);
+  const [h,m]=String(ag.horario).split(":").map(Number);
+  const out=[];
+  for(let s=0;s<semanas;s++){
+    for(const dia of ag.dias_semana||[]){
+      const d=new Date(hoje);
+      d.setDate(d.getDate()+((dia-hoje.getDay()+7)%7)+s*7);
+      d.setHours(h,m,0,0);
+      if(d>agora) out.push({agenda_recorrente_id:ag.id,data_hora:d.toISOString(),status:"pendente",notificacao_enviada:false});
+    }
+  }
+  return out.sort((a,b)=>a.data_hora.localeCompare(b.data_hora));
+};
+
+const fmtHora=(iso)=>new Date(iso).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+const mesmoDia=(iso,offset=0)=>{const d=new Date();d.setDate(d.getDate()+offset);return new Date(iso).toDateString()===d.toDateString();};
+const diasLabel=(dias)=>DIAS_SEMANA.filter(d=>(dias||[]).includes(d.value)).map(d=>d.label).join(", ");
+
+// Notificações PWA: usa o service worker quando houver (obrigatório no Android), senão a API direta
+const notificar=async(titulo,corpo)=>{
+  if(typeof window==="undefined"||!("Notification" in window)||Notification.permission!=="granted") return;
+  const opts={body:corpo,icon:"/icon.png",badge:"/icon.png"};
+  try{
+    const reg=await navigator.serviceWorker?.getRegistration();
+    if(reg){await reg.showNotification(titulo,opts);return;}
+    new Notification(titulo,opts);
+  }catch(e){console.error("Erro ao notificar",e);}
+};
+
+const TipoAgendaBadge=({tipo})=>{const t=TIPO_AGENDA[tipo];return t?<span style={{background:t.bg,color:t.color,fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:20,whiteSpace:"nowrap"}}>{t.emoji} {t.label}</span>:null;};
+
+const AgendaPage=({clients,equipe})=>{
+  const isMobile=typeof window!=="undefined"&&window.innerWidth<768;
+  const [agendas,setAgendas]=useState([]);
+  const [ocorrencias,setOcorrencias]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [filtro,setFiltro]=useState("todos");
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState(BLANK_AGENDA);
+  const [editing,setEditing]=useState(null);
+  const [confirm,setConfirm]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [notifOk,setNotifOk]=useState(typeof window!=="undefined"&&"Notification" in window&&Notification.permission==="granted");
+  const [banner,setBanner]=useState(null);
+
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const nomeCli=(id)=>clients.find(c=>String(c.id)===String(id))?.name||"—";
+  const nomeResp=(id)=>equipe.find(e=>String(e.id)===String(id))?.nome||"";
+  const agendaDe=(oc)=>agendas.find(a=>a.id===oc.agenda_recorrente_id);
+
+  const load=async()=>{
+    setLoading(true);
+    try{
+      const inicioHoje=new Date();inicioHoje.setHours(0,0,0,0);
+      const {data:ags,error}=await supabase.from("agenda_recorrente").select("*").eq("ativa",true).order("created_at",{ascending:false});
+      if(error) throw error;
+      // Completa a janela de 12 semanas (agendas antigas vão "andando" sozinhas)
+      const novas=(ags||[]).flatMap(a=>gerarOcorrencias(a));
+      if(novas.length) await supabase.from("agenda_ocorrencia").upsert(novas,{onConflict:"agenda_recorrente_id,data_hora",ignoreDuplicates:true});
+      const {data:ocs}=await supabase.from("agenda_ocorrencia").select("*").gte("data_hora",inicioHoje.toISOString()).order("data_hora");
+      const ativos=new Set((ags||[]).map(a=>a.id));
+      setAgendas(ags||[]);
+      setOcorrencias((ocs||[]).filter(o=>ativos.has(o.agenda_recorrente_id)));
+    }catch(e){console.error("Erro ao carregar agenda",e);}
+    setLoading(false);
+  };
+  useEffect(()=>{load();},[]);
+
+  // Alerta 24h antes de cada ocorrência pendente (uma única vez por ocorrência)
+  useEffect(()=>{
+    if(!notifOk||agendas.length===0) return;
+    const agora=Date.now(),em24h=agora+24*60*60*1000;
+    const alvo=ocorrencias.filter(o=>o.status==="pendente"&&!o.notificacao_enviada&&new Date(o.data_hora).getTime()>agora&&new Date(o.data_hora).getTime()<=em24h);
+    if(alvo.length===0) return;
+    alvo.forEach(o=>{
+      const ag=agendaDe(o);if(!ag) return;
+      const t=TIPO_AGENDA[ag.tipo];
+      notificar(`${t.emoji} ${t.label} — ${mesmoDia(o.data_hora)?"hoje":"amanhã"} ${fmtHora(o.data_hora)}`,`${nomeCli(ag.cliente_id)}${ag.local_descricao?` • ${ag.local_descricao}`:""}`);
+    });
+    const ids=alvo.map(o=>o.id);
+    supabase.from("agenda_ocorrencia").update({notificacao_enviada:true}).in("id",ids).then(()=>{});
+    setOcorrencias(prev=>prev.map(o=>ids.includes(o.id)?{...o,notificacao_enviada:true}:o));
+  },[ocorrencias,agendas,notifOk]);
+
+  const ativarNotif=async()=>{
+    if(!("Notification" in window)){setBanner(["err","Este navegador não suporta notificações."]);return;}
+    const r=await Notification.requestPermission();
+    setNotifOk(r==="granted");
+    setBanner(r==="granted"?["ok","Notificações ativadas! Você receberá alertas 24h antes."]:["err","Permissão negada. Ative nas configurações do navegador."]);
+    setTimeout(()=>setBanner(null),4000);
+  };
+
+  const openNew=()=>{setForm(BLANK_AGENDA);setEditing(null);setModal(true);};
+  const openEdit=(a)=>{setForm({cliente_id:a.cliente_id||"",tipo:a.tipo,dias_semana:a.dias_semana||[],horario:String(a.horario||"").slice(0,5),local_descricao:a.local_descricao||"",responsavel_id:a.responsavel_id||"",briefing:a.briefing||""});setEditing(a);setModal(true);};
+  const toggleDia=(v)=>setForm(p=>({...p,dias_semana:p.dias_semana.includes(v)?p.dias_semana.filter(d=>d!==v):[...p.dias_semana,v]}));
+
+  const save=async()=>{
+    if(!form.cliente_id||!form.tipo||form.dias_semana.length===0||!form.horario) return;
+    setSaving(true);
+    try{
+      const data={cliente_id:form.cliente_id,tipo:form.tipo,dias_semana:[...form.dias_semana].sort(),horario:form.horario,local_descricao:form.local_descricao||null,responsavel_id:form.responsavel_id||null,briefing:form.briefing||null};
+      let ag;
+      if(editing){
+        const {data:up,error}=await supabase.from("agenda_recorrente").update(data).eq("id",editing.id).select().single();
+        if(error) throw error;
+        ag=up;
+        // Regenera só as futuras pendentes; feitas/canceladas ficam no histórico
+        await supabase.from("agenda_ocorrencia").delete().eq("agenda_recorrente_id",ag.id).eq("status","pendente").gte("data_hora",new Date().toISOString());
+      } else {
+        const {data:ins,error}=await supabase.from("agenda_recorrente").insert([{...data,ativa:true}]).select().single();
+        if(error) throw error;
+        ag=ins;
+      }
+      const ocs=gerarOcorrencias(ag);
+      if(ocs.length) await supabase.from("agenda_ocorrencia").upsert(ocs,{onConflict:"agenda_recorrente_id,data_hora",ignoreDuplicates:true});
+      setModal(false);
+      await load();
+    }catch(e){
+      console.error("Erro ao salvar agenda",e);
+      alert("Erro ao salvar agenda. Tente novamente.");
+    }
+    setSaving(false);
+  };
+
+  const remove=async(a)=>{
+    await supabase.from("agenda_ocorrencia").delete().eq("agenda_recorrente_id",a.id).gte("data_hora",new Date().toISOString());
+    await supabase.from("agenda_recorrente").update({ativa:false}).eq("id",a.id);
+    setAgendas(prev=>prev.filter(x=>x.id!==a.id));
+    setOcorrencias(prev=>prev.filter(o=>o.agenda_recorrente_id!==a.id));
+    setConfirm(null);
+  };
+
+  const setStatusOc=async(id,status)=>{
+    await supabase.from("agenda_ocorrencia").update({status}).eq("id",id);
+    setOcorrencias(prev=>prev.map(o=>o.id===id?{...o,status}:o));
+  };
+
+  if(loading) return <Loading/>;
+
+  const limite30=Date.now()+30*24*60*60*1000;
+  const agora=Date.now(),em7=agora+7*24*60*60*1000;
+  const prox30=ocorrencias.filter(o=>new Date(o.data_hora).getTime()<=limite30);
+  const fl=prox30.filter(o=>filtro==="todos"||agendaDe(o)?.tipo===filtro);
+  const grupos=fl.reduce((acc,o)=>{const k=new Date(o.data_hora).toDateString();(acc[k]=acc[k]||[]).push(o);return acc;},{});
+  const pend=(o)=>o.status==="pendente";
+  const totalHoje=ocorrencias.filter(o=>pend(o)&&mesmoDia(o.data_hora)).length;
+  const totalAmanha=ocorrencias.filter(o=>pend(o)&&mesmoDia(o.data_hora,1)).length;
+  const totalSemana=ocorrencias.filter(o=>{const t=new Date(o.data_hora).getTime();return pend(o)&&t>=agora&&t<=em7;}).length;
+
+  return (
+    <div>
+      {banner&&<div style={{background:banner[0]==="ok"?"#DCFCE7":"#FEE2E2",color:banner[0]==="ok"?"#166534":"#991B1B",borderRadius:10,padding:"10px 14px",fontSize:13,fontWeight:600,marginBottom:16}}>{banner[1]}</div>}
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:isMobile?8:16,marginBottom:20}}>
+        <MC compact={isMobile} label="Hoje" value={totalHoje} icon={IC.cal}/>
+        <MC compact={isMobile} label="Amanhã" value={totalAmanha} icon={IC.clock} bg="#EFF6FF"/>
+        <MC compact={isMobile} label="Próx. 7 dias" value={totalSemana} icon={IC.repeat} bg="#F0FDF4"/>
+      </div>
+
+      <div style={{display:"flex",gap:isMobile?8:12,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
+        {[{value:"todos",label:"Todos"},...Object.entries(TIPO_AGENDA).map(([value,t])=>({value,label:`${t.emoji} ${t.label}`}))].map(fi=><Btn key={fi.value} size="sm" variant={filtro===fi.value?"secondary":"ghost"} onClick={()=>setFiltro(fi.value)}>{fi.label} <span style={{marginLeft:6,background:filtro===fi.value?"rgba(255,255,255,0.25)":"#EEF3F8",borderRadius:99,padding:"0 6px",fontSize:11,fontWeight:800,color:filtro===fi.value?"#fff":"#64748B"}}>{prox30.filter(o=>fi.value==="todos"||agendaDe(o)?.tipo===fi.value).length}</span></Btn>)}
+        <div style={{flex:1}}/>
+        {!notifOk&&<Btn variant="ghost" onClick={ativarNotif}>🔔 Ativar notificações</Btn>}
+        <Btn onClick={openNew}>+ Nova Agenda</Btn>
+      </div>
+
+      <Card style={{padding:0,marginBottom:24}}>
+        <div style={{padding:"16px 18px 12px",fontSize:14,fontWeight:800,color:"#111827",display:"flex",alignItems:"center",gap:8}}><span style={{color:"#FF6200",display:"flex"}}>{IC.repeat}</span>Agendas fixas <span style={{fontSize:12,color:"#64748B",fontWeight:600}}>· {agendas.length} ativa{agendas.length!==1?"s":""}</span></div>
+        <Tbl cols={["Cliente","Tipo","Dias","Horário","Responsável","Ações"]}
+          rows={agendas.map(a=>[
+            <div><div style={{fontWeight:700,color:"#111827"}}>{nomeCli(a.cliente_id)}</div>{a.local_descricao&&<div style={{fontSize:11,color:"#64748B"}}>{a.local_descricao}</div>}</div>,
+            <TipoAgendaBadge tipo={a.tipo}/>,
+            <span style={{whiteSpace:"nowrap"}}>{diasLabel(a.dias_semana)}</span>,
+            <span style={{fontWeight:700,whiteSpace:"nowrap"}}>{String(a.horario).slice(0,5)}</span>,
+            nomeResp(a.responsavel_id)||<span style={{color:"#94A3B8"}}>—</span>,
+            <div style={{display:"flex",gap:6}}>
+              <Btn size="sm" variant="ghost" onClick={()=>openEdit(a)}>{IC.edit}</Btn>
+              <Btn size="sm" variant="danger" onClick={()=>setConfirm(a)}>{IC.trash}</Btn>
+            </div>
+          ])}/>
+      </Card>
+
+      <ST>Próximos 30 dias</ST>
+      {fl.length===0?<Card><div style={{textAlign:"center",color:"#64748B",fontSize:13,padding:"16px 0"}}>Nenhuma ocorrência neste período.</div></Card>:
+        Object.keys(grupos).map(k=>{
+          const ocs=grupos[k];
+          const hoje=mesmoDia(ocs[0].data_hora),amanha=mesmoDia(ocs[0].data_hora,1);
+          const label=hoje?"Hoje":amanha?"Amanhã":new Date(k).toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});
+          return (
+            <div key={k} style={{marginBottom:18}}>
+              <div style={{fontSize:11,fontWeight:800,letterSpacing:0.5,textTransform:"uppercase",color:hoje?"#FF6200":amanha?"#1F2F46":"#64748B",marginBottom:8}}>{label}</div>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {ocs.map(o=>{
+                  const ag=agendaDe(o);if(!ag) return null;
+                  const t=TIPO_AGENDA[ag.tipo];
+                  return (
+                    <Card key={o.id} style={{padding:isMobile?"12px 14px":"14px 18px",borderLeft:`4px solid ${t.color}`,opacity:o.status==="pendente"?1:0.6}}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:12,minWidth:0}}>
+                          <div style={{fontSize:16,fontWeight:800,color:"#111827",minWidth:46}}>{fmtHora(o.data_hora)}</div>
+                          <div style={{minWidth:0}}>
+                            <div style={{fontWeight:700,fontSize:14,color:"#111827"}}>{nomeCli(ag.cliente_id)}</div>
+                            <div style={{fontSize:12,color:"#64748B",marginTop:2}}>{[ag.local_descricao&&`📍 ${ag.local_descricao}`,nomeResp(ag.responsavel_id)&&`👤 ${nomeResp(ag.responsavel_id)}`].filter(Boolean).join("  ·  ")}</div>
+                          </div>
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                          <TipoAgendaBadge tipo={ag.tipo}/>
+                          <StatusBadge status={o.status}/>
+                          {o.status==="pendente"&&<><Btn size="sm" variant="success" onClick={()=>setStatusOc(o.id,"feita")}>Feita</Btn><Btn size="sm" variant="ghost" onClick={()=>setStatusOc(o.id,"cancelada")}>Cancelar</Btn></>}
+                          {o.status!=="pendente"&&<Btn size="sm" variant="ghost" onClick={()=>setStatusOc(o.id,"pendente")}>Desfazer</Btn>}
+                        </div>
+                      </div>
+                      {ag.briefing&&<div style={{marginTop:10,fontSize:12,color:"#374151",background:"#F8FAFC",borderRadius:8,padding:"8px 12px"}}><b>Briefing:</b> {ag.briefing}</div>}
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+
+      {modal&&<Modal title={editing?"Editar Agenda":"Nova Agenda Recorrente"} onClose={()=>setModal(false)}>
+        <FSel label="Cliente *" value={form.cliente_id} onChange={v=>f("cliente_id",v)} options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.id,label:c.name}))]}/>
+        <FSel label="Tipo *" value={form.tipo} onChange={v=>f("tipo",v)} options={Object.entries(TIPO_AGENDA).map(([value,t])=>({value,label:`${t.emoji} ${t.label}`}))}/>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>Dias da semana *</label>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {DIAS_SEMANA.map(d=>{const on=form.dias_semana.includes(d.value);return (
+              <label key={d.value} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:700,border:`1.5px solid ${on?"#FF6200":"#DDE5EF"}`,background:on?"#FFF7F3":"#FAFBFD",color:on?"#FF6200":"#374151"}}>
+                <input type="checkbox" checked={on} onChange={()=>toggleDia(d.value)} style={{accentColor:"#FF6200",margin:0}}/>{d.label}
+              </label>
+            );})}
+          </div>
+        </div>
+        <FInput label="Horário *" value={form.horario} onChange={v=>f("horario",v)} type="time"/>
+        <FInput label="Local / Descrição" value={form.local_descricao} onChange={v=>f("local_descricao",v)} placeholder="Ex.: Studio da agência, sala de reuniões..."/>
+        <FSel label="Responsável" value={form.responsavel_id} onChange={v=>f("responsavel_id",v)} options={[{value:"",label:"Selecione..."},...equipe.map(e=>({value:e.id,label:e.nome}))]}/>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>Briefing</label>
+          <textarea value={form.briefing} onChange={e=>f("briefing",e.target.value)} rows={3} placeholder="O que será feito..." style={{width:"100%",padding:"9px 13px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit",boxSizing:"border-box",background:"#FAFBFD",resize:"vertical"}}/>
+        </div>
+        <div style={{background:"#FFF7F3",border:"1px solid #FFD8BF",color:"#9A3412",borderRadius:10,padding:"10px 14px",fontSize:12,fontWeight:600,marginBottom:16}}>
+          {editing?"Salvar vai regenerar as ocorrências pendentes futuras.":`Serão geradas automaticamente as ocorrências das próximas ${AGENDA_SEMANAS} semanas.`}
+        </div>
+        <div style={{display:"flex",gap:10}}><Btn style={{flex:1}} onClick={save} disabled={saving||!form.cliente_id||form.dias_semana.length===0||!form.horario}>{saving?"Salvando...":"Salvar"}</Btn><Btn variant="ghost" onClick={()=>setModal(false)} style={{flex:1}}>Cancelar</Btn></div>
+      </Modal>}
+      {confirm&&<ConfirmModal msg={`Excluir a agenda de "${nomeCli(confirm.cliente_id)}"? As ocorrências futuras também serão removidas.`} onConfirm={()=>remove(confirm)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
 // ── TAREFAS KANBAN ────────────────────────────────────────────────────────────
 const BLANK_TASK={titulo:"",cliente:"",responsavel:"",prioridade:"media",status:"a_fazer",tipo:"Design",entrega:""};
 
@@ -1949,6 +2210,7 @@ load();
     tarefas:<TarefasPage tasks={tasks} setTasks={setTasks} clients={clients} equipe={equipe} loading={loadingData}/>,
     calendario:<CalendarioPage/>,
     gravacoes:<GravacoesPage gravacoes={gravacoes} setGravacoes={setGravacoes} clients={clients} equipe={equipe} loading={loadingData}/>,
+    agenda:<AgendaPage clients={clients} equipe={equipe}/>,
     equipe:<EquipePage equipe={equipe} setEquipe={setEquipe} tasks={tasks} loading={loadingData}/>,
     trafego:<TráfegoPage/>,
     relatorios:<RelatoriosTrafegoPage clients={clients}/>,
