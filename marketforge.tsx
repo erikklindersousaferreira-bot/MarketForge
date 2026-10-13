@@ -1249,7 +1249,9 @@ const GravacoesPage=({gravacoes,setGravacoes,clients,equipe,loading})=>{
 
 // ── AGENDA RECORRENTE ─────────────────────────────────────────────────────────
 const DIAS_SEMANA=[{label:"Seg",value:1},{label:"Ter",value:2},{label:"Qua",value:3},{label:"Qui",value:4},{label:"Sex",value:5},{label:"Sáb",value:6},{label:"Dom",value:0}];
-const TIPO_AGENDA={gravacao:{label:"Gravação",emoji:"📹",color:"#7C3AED",bg:"#F5F3FF"},reuniao:{label:"Reunião",emoji:"📞",color:"#1D4ED8",bg:"#EFF6FF"},atendimento:{label:"Atendimento",emoji:"🤝",color:"#166534",bg:"#DCFCE7"}};
+const TIPO_AGENDA={gravacao:{label:"Gravação",emoji:"📹",color:"#FF6200",bg:"#FFF7F3"},reuniao:{label:"Reunião",emoji:"📞",color:"#3B82F6",bg:"#EFF6FF"},atendimento:{label:"Atendimento",emoji:"🤝",color:"#10B981",bg:"#ECFDF5"}};
+// Colunas do kanban semanal: segunda é o início da semana
+const SEMANA_COLS=[{label:"Seg",dia:1},{label:"Ter",dia:2},{label:"Qua",dia:3},{label:"Qui",dia:4},{label:"Sex",dia:5},{label:"Sáb",dia:6},{label:"Dom",dia:0}];
 const BLANK_AGENDA={cliente_id:"",tipo:"gravacao",dias_semana:[],horario:"",local_descricao:"",responsavel_id:"",briefing:""};
 const AGENDA_SEMANAS=12;
 
@@ -1270,6 +1272,7 @@ const gerarOcorrencias=(ag,semanas=AGENDA_SEMANAS)=>{
   return out.sort((a,b)=>a.data_hora.localeCompare(b.data_hora));
 };
 
+const getMondayOfWeek=(date)=>{const d=new Date(date);d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return d;};
 const fmtHora=(iso)=>new Date(iso).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
 const mesmoDia=(iso,offset=0)=>{const d=new Date();d.setDate(d.getDate()+offset);return new Date(iso).toDateString()===d.toDateString();};
 const diasLabel=(dias)=>DIAS_SEMANA.filter(d=>(dias||[]).includes(d.value)).map(d=>d.label).join(", ");
@@ -1300,6 +1303,9 @@ const AgendaPage=({clients,equipe})=>{
   const [saving,setSaving]=useState(false);
   const [notifOk,setNotifOk]=useState(typeof window!=="undefined"&&"Notification" in window&&Notification.permission==="granted");
   const [banner,setBanner]=useState(null);
+  const [semanaOffset,setSemanaOffset]=useState(0);
+  const [ocsSemana,setOcsSemana]=useState([]);
+  const [hojeKey,setHojeKey]=useState(()=>new Date().toDateString());
 
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
   const nomeCli=(id)=>clients.find(c=>String(c.id)===String(id))?.name||"—";
@@ -1323,6 +1329,24 @@ const AgendaPage=({clients,equipe})=>{
     setLoading(false);
   };
   useEffect(()=>{load();},[]);
+
+  // Vira o dia (ex.: domingo → segunda) sem recarregar a página: o kanban acompanha a nova semana
+  useEffect(()=>{
+    const t=setInterval(()=>setHojeKey(new Date().toDateString()),60000);
+    return ()=>clearInterval(t);
+  },[]);
+
+  const segunda=getMondayOfWeek(new Date(hojeKey));
+  segunda.setDate(segunda.getDate()+semanaOffset*7);
+  const domingoFim=new Date(segunda);domingoFim.setDate(domingoFim.getDate()+7);
+
+  // Ocorrências da semana exibida (inclui semanas passadas)
+  useEffect(()=>{
+    if(agendas.length===0){setOcsSemana([]);return;}
+    const ativos=new Set(agendas.map(a=>a.id));
+    supabase.from("agenda_ocorrencia").select("*").gte("data_hora",segunda.toISOString()).lt("data_hora",domingoFim.toISOString()).order("data_hora")
+      .then(({data})=>setOcsSemana((data||[]).filter(o=>ativos.has(o.agenda_recorrente_id))));
+  },[semanaOffset,agendas,hojeKey]);
 
   // Alerta 24h antes de cada ocorrência pendente (uma única vez por ocorrência)
   useEffect(()=>{
@@ -1385,21 +1409,23 @@ const AgendaPage=({clients,equipe})=>{
     await supabase.from("agenda_recorrente").update({ativa:false}).eq("id",a.id);
     setAgendas(prev=>prev.filter(x=>x.id!==a.id));
     setOcorrencias(prev=>prev.filter(o=>o.agenda_recorrente_id!==a.id));
+    setOcsSemana(prev=>prev.filter(o=>o.agenda_recorrente_id!==a.id));
     setConfirm(null);
   };
 
   const setStatusOc=async(id,status)=>{
     await supabase.from("agenda_ocorrencia").update({status}).eq("id",id);
     setOcorrencias(prev=>prev.map(o=>o.id===id?{...o,status}:o));
+    setOcsSemana(prev=>prev.map(o=>o.id===id?{...o,status}:o));
   };
 
   if(loading) return <Loading/>;
 
-  const limite30=Date.now()+30*24*60*60*1000;
   const agora=Date.now(),em7=agora+7*24*60*60*1000;
-  const prox30=ocorrencias.filter(o=>new Date(o.data_hora).getTime()<=limite30);
-  const fl=prox30.filter(o=>filtro==="todos"||agendaDe(o)?.tipo===filtro);
-  const grupos=fl.reduce((acc,o)=>{const k=new Date(o.data_hora).toDateString();(acc[k]=acc[k]||[]).push(o);return acc;},{});
+  const fl=ocsSemana.filter(o=>filtro==="todos"||agendaDe(o)?.tipo===filtro);
+  const diasSemana=SEMANA_COLS.map((c,i)=>{const d=new Date(segunda);d.setDate(d.getDate()+i);return {...c,data:d,ocs:fl.filter(o=>new Date(o.data_hora).toDateString()===d.toDateString())};});
+  const fimSemana=diasSemana[6].data;
+  const fmtDM=(d)=>d.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"}).replace(".","");
   const pend=(o)=>o.status==="pendente";
   const totalHoje=ocorrencias.filter(o=>pend(o)&&mesmoDia(o.data_hora)).length;
   const totalAmanha=ocorrencias.filter(o=>pend(o)&&mesmoDia(o.data_hora,1)).length;
@@ -1416,7 +1442,7 @@ const AgendaPage=({clients,equipe})=>{
       </div>
 
       <div style={{display:"flex",gap:isMobile?8:12,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
-        {[{value:"todos",label:"Todos"},...Object.entries(TIPO_AGENDA).map(([value,t])=>({value,label:`${t.emoji} ${t.label}`}))].map(fi=><Btn key={fi.value} size="sm" variant={filtro===fi.value?"secondary":"ghost"} onClick={()=>setFiltro(fi.value)}>{fi.label} <span style={{marginLeft:6,background:filtro===fi.value?"rgba(255,255,255,0.25)":"#EEF3F8",borderRadius:99,padding:"0 6px",fontSize:11,fontWeight:800,color:filtro===fi.value?"#fff":"#64748B"}}>{prox30.filter(o=>fi.value==="todos"||agendaDe(o)?.tipo===fi.value).length}</span></Btn>)}
+        {[{value:"todos",label:"Todos"},...Object.entries(TIPO_AGENDA).map(([value,t])=>({value,label:`${t.emoji} ${t.label}`}))].map(fi=><Btn key={fi.value} size="sm" variant={filtro===fi.value?"secondary":"ghost"} onClick={()=>setFiltro(fi.value)}>{fi.label} <span style={{marginLeft:6,background:filtro===fi.value?"rgba(255,255,255,0.25)":"#EEF3F8",borderRadius:99,padding:"0 6px",fontSize:11,fontWeight:800,color:filtro===fi.value?"#fff":"#64748B"}}>{ocsSemana.filter(o=>fi.value==="todos"||agendaDe(o)?.tipo===fi.value).length}</span></Btn>)}
         <div style={{flex:1}}/>
         {!notifOk&&<Btn variant="ghost" onClick={ativarNotif}>🔔 Ativar notificações</Btn>}
         <Btn onClick={openNew}>+ Nova Agenda</Btn>
@@ -1438,44 +1464,48 @@ const AgendaPage=({clients,equipe})=>{
           ])}/>
       </Card>
 
-      <ST>Próximos 30 dias</ST>
-      {fl.length===0?<Card><div style={{textAlign:"center",color:"#64748B",fontSize:13,padding:"16px 0"}}>Nenhuma ocorrência neste período.</div></Card>:
-        Object.keys(grupos).map(k=>{
-          const ocs=grupos[k];
-          const hoje=mesmoDia(ocs[0].data_hora),amanha=mesmoDia(ocs[0].data_hora,1);
-          const label=hoje?"Hoje":amanha?"Amanhã":new Date(k).toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});
-          return (
-            <div key={k} style={{marginBottom:18}}>
-              <div style={{fontSize:11,fontWeight:800,letterSpacing:0.5,textTransform:"uppercase",color:hoje?"#FF6200":amanha?"#1F2F46":"#64748B",marginBottom:8}}>{label}</div>
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {ocs.map(o=>{
-                  const ag=agendaDe(o);if(!ag) return null;
-                  const t=TIPO_AGENDA[ag.tipo];
-                  return (
-                    <Card key={o.id} style={{padding:isMobile?"12px 14px":"14px 18px",borderLeft:`4px solid ${t.color}`,opacity:o.status==="pendente"?1:0.6}}>
-                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:12,minWidth:0}}>
-                          <div style={{fontSize:16,fontWeight:800,color:"#111827",minWidth:46}}>{fmtHora(o.data_hora)}</div>
-                          <div style={{minWidth:0}}>
-                            <div style={{fontWeight:700,fontSize:14,color:"#111827"}}>{nomeCli(ag.cliente_id)}</div>
-                            <div style={{fontSize:12,color:"#64748B",marginTop:2}}>{[ag.local_descricao&&`📍 ${ag.local_descricao}`,nomeResp(ag.responsavel_id)&&`👤 ${nomeResp(ag.responsavel_id)}`].filter(Boolean).join("  ·  ")}</div>
-                          </div>
-                        </div>
-                        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                          <TipoAgendaBadge tipo={ag.tipo}/>
-                          <StatusBadge status={o.status}/>
-                          {o.status==="pendente"&&<><Btn size="sm" variant="success" onClick={()=>setStatusOc(o.id,"feita")}>Feita</Btn><Btn size="sm" variant="ghost" onClick={()=>setStatusOc(o.id,"cancelada")}>Cancelar</Btn></>}
-                          {o.status!=="pendente"&&<Btn size="sm" variant="ghost" onClick={()=>setStatusOc(o.id,"pendente")}>Desfazer</Btn>}
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+        <h2 style={{margin:0,fontSize:18,fontWeight:800,color:"#111827",marginRight:"auto"}}>{semanaOffset===0?"Esta semana":semanaOffset===1?"Próxima semana":semanaOffset===-1?"Semana passada":"Semana"} <span style={{fontSize:13,fontWeight:600,color:"#64748B"}}>· {fmtDM(segunda)} – {fmtDM(fimSemana)}</span></h2>
+        <Btn size="sm" variant="ghost" onClick={()=>setSemanaOffset(o=>o-1)}>← Anterior</Btn>
+        <Btn size="sm" variant={semanaOffset===0?"secondary":"ghost"} onClick={()=>setSemanaOffset(0)}>Hoje</Btn>
+        <Btn size="sm" variant="ghost" onClick={()=>setSemanaOffset(o=>o+1)}>Próxima →</Btn>
+      </div>
+      <div style={{overflowX:"auto",paddingBottom:8}}>
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(7,minmax(140px,1fr))":"repeat(7,1fr)",gap:10}}>
+          {diasSemana.map(col=>{
+            const ehHoje=col.data.toDateString()===hojeKey;
+            return (
+              <div key={col.dia} style={{display:"flex",flexDirection:"column",minHeight:200,background:"#F0F4F9",borderRadius:12,overflow:"hidden",minWidth:0}}>
+                <div style={{background:ehHoje?"#FF6200":"#F8FAFC",color:ehHoje?"#fff":"#1F2F46",padding:"8px 10px",textAlign:"center",borderBottom:ehHoje?"none":"1px solid #DDE5EF"}}>
+                  <div style={{fontSize:13,fontWeight:800}}>{col.label}</div>
+                  <div style={{fontSize:11,fontWeight:600,opacity:ehHoje?0.9:0.6}}>{col.data.getDate()}</div>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8,padding:8,flex:1}}>
+                  {col.ocs.map(o=>{
+                    const ag=agendaDe(o);if(!ag) return null;
+                    const t=TIPO_AGENDA[ag.tipo];
+                    const resp=nomeResp(ag.responsavel_id);
+                    return (
+                      <div key={o.id} title={ag.briefing||""} style={{background:"#fff",borderRadius:8,padding:10,boxShadow:"0 1px 3px rgba(0,0,0,0.06)",borderLeft:`3px solid ${t.color}`,opacity:o.status==="pendente"?1:0.55}}>
+                        <div style={{fontSize:13,fontWeight:800,color:"#111827",textDecoration:o.status==="cancelada"?"line-through":"none"}}>{fmtHora(o.data_hora)}</div>
+                        <div style={{fontSize:12,fontWeight:700,color:"#1F2F46",margin:"2px 0 6px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nomeCli(ag.cliente_id)}</div>
+                        <TipoAgendaBadge tipo={ag.tipo}/>
+                        {resp&&<div style={{fontSize:11,color:"#64748B",marginTop:6,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>👤 {resp}</div>}
+                        <div style={{display:"flex",gap:4,marginTop:8,alignItems:"center"}}>
+                          {o.status==="pendente"
+                            ?<><Btn size="sm" variant="success" style={{flex:1,padding:"3px 6px"}} onClick={()=>setStatusOc(o.id,"feita")}>✓</Btn><Btn size="sm" variant="ghost" style={{flex:1,padding:"3px 6px"}} onClick={()=>setStatusOc(o.id,"cancelada")}>✕</Btn></>
+                            :<><div style={{flex:1}}><StatusBadge status={o.status}/></div><Btn size="sm" variant="ghost" style={{padding:"3px 6px"}} onClick={()=>setStatusOc(o.id,"pendente")}>↺</Btn></>}
                         </div>
                       </div>
-                      {ag.briefing&&<div style={{marginTop:10,fontSize:12,color:"#374151",background:"#F8FAFC",borderRadius:8,padding:"8px 12px"}}><b>Briefing:</b> {ag.briefing}</div>}
-                    </Card>
-                  );
-                })}
+                    );
+                  })}
+                  {col.ocs.length===0&&<div style={{color:"#94A3B8",fontSize:12,textAlign:"center",padding:"20px 0"}}>—</div>}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+      </div>
 
       {modal&&<Modal title={editing?"Editar Agenda":"Nova Agenda Recorrente"} onClose={()=>setModal(false)}>
         <FSel label="Cliente *" value={form.cliente_id} onChange={v=>f("cliente_id",v)} options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.id,label:c.name}))]}/>
