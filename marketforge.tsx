@@ -86,37 +86,6 @@ const addMonths = (dateStr, n) => {
   return ymd(new Date(a, m-1+n, Math.min(d, ultimoDia)));
 };
 
-// ── ALERTAS DE GRAVAÇÃO ───────────────────────────────────────────────────────
-const FREQ_GRAV = [{value:"1x/semana",label:"1x/semana",min:1},{value:"2x/semana",label:"2x/semana",min:2},{value:"Eventual",label:"Eventual",min:0}];
-const semanaAtual = () => {
-  const hoje = new Date(); const dow = (hoje.getDay()+6)%7; // segunda = 0
-  const ini = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()-dow);
-  const fim = new Date(ini.getFullYear(), ini.getMonth(), ini.getDate()+6);
-  return [ymd(ini), ymd(fim)];
-};
-// Frequência vigente = a da gravação mais recente do estabelecimento. Conta gravações agendadas/feitas na semana (seg–dom).
-const gravacaoAlertas = (gravacoes, clients) => {
-  const [ini,fim] = semanaAtual();
-  const porCliente = {};
-  gravacoes.forEach(g=>{ if(g.estabelecimento) (porCliente[g.estabelecimento] ||= []).push(g); });
-  return Object.entries(porCliente).flatMap(([cid,gs])=>{
-    const cli = clients.find(c=>String(c.id)===String(cid));
-    if(!cli || cli.status==="cancelado" || cli.status==="pausado") return [];
-    const ultima = [...gs].sort((a,b)=>String(b.data).localeCompare(String(a.data))||String(b.created_at).localeCompare(String(a.created_at)))[0];
-    const min = FREQ_GRAV.find(f=>f.value===ultima.frequencia_acordada)?.min||0;
-    const qtd = gs.filter(g=>(g.status==="agendada"||g.status==="feita")&&g.data>=ini&&g.data<=fim).length;
-    return qtd<min ? [{cliente:cli.name, frequencia:ultima.frequencia_acordada, qtd, min}] : [];
-  });
-};
-const AlertasGravacao = ({alertas}) => alertas.length===0 ? null : (
-  <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
-    {alertas.map(a=>(
-      <div key={a.cliente} style={{background:"#FFFBEB",border:"1px solid #FDE68A",color:"#92400E",borderRadius:10,padding:"10px 14px",fontSize:13,fontWeight:600}}>
-        ⚠️ Você precisa marcar gravação em {a.cliente} - Frequência acordada: {a.frequencia} <span style={{fontWeight:500,opacity:0.8}}>({a.qtd}/{a.min} nesta semana)</span>
-      </div>
-    ))}
-  </div>
-);
 
 const StatusBadge = ({status}) => {
   const m = {ativo:["#DCFCE7","#166534","Ativo"],pausado:["#FEF9C3","#854D0E","Pausado"],cancelado:["#FEE2E2","#991B1B","Cancelado"],inadimplente:["#FEE2E2","#991B1B","Inadimplente"],pago:["#DCFCE7","#166534","Pago"],pendente:["#FEF9C3","#92400E","Pendente"],atrasado:["#FEE2E2","#991B1B","Atrasado"],a_fazer:["#EFF6FF","#1D4ED8","A Fazer"],em_producao:["#FFF7ED","#C2410C","Em Produção"],aguardando:["#F5F3FF","#7C3AED","Aguardando"],finalizado:["#DCFCE7","#166534","Finalizado"],urgente:["#FEE2E2","#991B1B","Urgente"],ok:["#DCFCE7","#166534","OK"],baixo:["#FEF9C3","#92400E","Baixo"],zerado:["#FEE2E2","#991B1B","Zerado"],planejar:["#EFF6FF","#1D4ED8","Planejar"],futuro:["#F3F4F6","#6B7280","Futuro"],ajustes:["#FEF9C3","#92400E","Ajustes"],agendada:["#EFF6FF","#1D4ED8","Agendada"],feita:["#DCFCE7","#166534","Feita"],cancelada:["#F3F4F6","#6B7280","Cancelada"],nao_foi:["#FEE2E2","#991B1B","Não foi"]};
@@ -259,9 +228,9 @@ const LoginPage = ({onLogin}) => {
 };
 
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
-const NAV_ADMIN=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"gravacoes",label:"Gravações",icon:IC.video},{id:"agenda",label:"Agenda",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"relatorios",label:"Relatórios",icon:IC.report},{id:"mensagens",label:"Modelos",icon:IC.msg}];
-const NAV_OP=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"gravacoes",label:"Gravações",icon:IC.video},{id:"agenda",label:"Agenda",icon:IC.cal},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"mensagens",label:"Modelos",icon:IC.msg}];
-const LABELS={hoje:"Hoje",dashboard:"Dashboard",prospeccao:"Prospecção CRM",clientes:"Clientes",financeiro:"Financeiro",cobr:"Cobranças",despesas:"Despesas",tarefas:"Tarefas",calendario:"Calendário Estratégico",gravacoes:"Agenda de Gravações",agenda:"Agenda Recorrente",equipe:"Equipe",trafego:"Saldo de Tráfego",relatorios:"Relatórios de Tráfego Pago",mensagens:"Modelos de Mensagem"};
+const NAV_ADMIN=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"agenda",label:"Agenda",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"mensagens",label:"Modelos",icon:IC.msg}];
+const NAV_OP=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"agenda",label:"Agenda",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"mensagens",label:"Modelos",icon:IC.msg}];
+const LABELS={hoje:"Hoje",dashboard:"Dashboard",prospeccao:"Prospecção CRM",clientes:"Clientes",financeiro:"Financeiro",cobr:"Cobranças",despesas:"Despesas",tarefas:"Tarefas",calendario:"Calendário Estratégico",agenda:"Agenda Recorrente",equipe:"Equipe",mensagens:"Modelos de Mensagem"};
 
 const Sidebar=({page,setPage,onLogout,cobrPend,perfil,open,setOpen})=>{
 const NAV = perfil==="admin" ? NAV_ADMIN : NAV_OP;
@@ -310,9 +279,8 @@ return (
 );};
 
 // ── HOJE ──────────────────────────────────────────────────────────────────────
-const HojePage=({setPage,clients,cobr,tasks,gravacoes,perfil,nomeUser})=>{
+const HojePage=({setPage,clients,cobr,tasks,perfil,nomeUser})=>{
   const atrasadas=tasks.filter(t=>t.status==="atrasado");
-  const gravHoje=gravacoes.filter(g=>String(g.data).split("T")[0]===todayStr());
   const cobHoje=cobr.filter(c=>c.status==="pendente"||c.status==="atrasado").slice(0,4);
   return (
     <div>
@@ -349,13 +317,8 @@ const HojePage=({setPage,clients,cobr,tasks,gravacoes,perfil,nomeUser})=>{
           ))}
         </Card>
         <Card>
-          <ST action={<Btn size="sm" variant="ghost" onClick={()=>setPage("gravacoes")}>Ver agenda</Btn>}>Gravações de hoje</ST>
-          {gravHoje.length===0?<div style={{color:"#64748B",textAlign:"center",padding:"20px 0",fontSize:13}}>Nenhuma gravação hoje.</div>:gravHoje.map(g=>(
-            <div key={g.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"#F8FAFC",borderRadius:10,marginBottom:8}}>
-              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{clients.find(c=>String(c.id)===String(g.estabelecimento))?.name||"—"}</div><div style={{fontSize:12,color:"#64748B"}}>{g.responsavel||"Sem responsável"}{g.notas?` · ${g.notas}`:""}</div></div>
-              <StatusBadge status={g.status}/>
-            </div>
-          ))}
+          <ST action={<Btn size="sm" variant="ghost" onClick={()=>setPage("agenda")}>Ver agenda</Btn>}>Agenda de hoje</ST>
+          <div style={{color:"#64748B",textAlign:"center",padding:"20px 0",fontSize:13}}>Acesse a Agenda para ver os compromissos do dia.</div>
         </Card>
       </div>
     </div>
@@ -363,7 +326,7 @@ const HojePage=({setPage,clients,cobr,tasks,gravacoes,perfil,nomeUser})=>{
 };
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
-const DashboardPage=({clients,cobr,despesas,gravacoes})=>{
+const DashboardPage=({clients,cobr,despesas})=>{
   const recR=cobr.filter(c=>c.status==="pago").reduce((a,c)=>a+Number(c.valor),0);
   const recP=cobr.filter(c=>c.status==="pendente").reduce((a,c)=>a+Number(c.valor),0);
   const recA=cobr.filter(c=>c.status==="atrasado").reduce((a,c)=>a+Number(c.valor),0);
@@ -371,7 +334,6 @@ const DashboardPage=({clients,cobr,despesas,gravacoes})=>{
   const atv=clients.filter(c=>c.status==="ativo").length;
   return (
     <div>
-      <AlertasGravacao alertas={gravacaoAlertas(gravacoes,clients)}/>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:14,marginBottom:24}}>
         <MC label="Receita recebida" value={`R$ ${recR.toLocaleString()}`} icon={IC.check} bg="#ECFDF5"/>
         <MC label="Em aberto" value={`R$ ${recP.toLocaleString()}`} icon={IC.clock} bg="#FFFBEB"/>
@@ -407,7 +369,7 @@ const DashboardPage=({clients,cobr,despesas,gravacoes})=>{
 // ── CLIENTES ──────────────────────────────────────────────────────────────────
 const BLANK_CLIENT = {name:"",nicho:"",valor:"",vencimento:"",status:"ativo",responsavel:"",whatsapp:"",logo_url:"",cidade:"Marabá",plano:"Básico"};
 
-const ClientesPage=({clients,setClients,loading})=>{
+const ClientesPage=({clients,setClients,cobr,setCobr,loading})=>{
   const [search,setSearch]=useState("");
   const [filter,setFilter]=useState("todos");
   const [modal,setModal]=useState(false);
@@ -415,6 +377,20 @@ const ClientesPage=({clients,setClients,loading})=>{
   const [editing,setEditing]=useState(null);
   const [confirm,setConfirm]=useState(null);
   const [saving,setSaving]=useState(false);
+  const [uploadingLogo,setUploadingLogo]=useState(false);
+
+  const uploadLogo=async(file)=>{
+    if(!file) return;
+    setUploadingLogo(true);
+    const ext=file.name.split(".").pop();
+    const path=`logos/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    const {error}=await supabase.storage.from("clientes-logos").upload(path,file,{upsert:true,contentType:file.type});
+    if(!error){
+      const {data:{publicUrl}}=supabase.storage.from("clientes-logos").getPublicUrl(path);
+      setForm(p=>({...p,logo_url:publicUrl}));
+    }
+    setUploadingLogo(false);
+  };
 
   const fl=clients.filter(c=>(c.name?.toLowerCase().includes(search.toLowerCase())||c.nicho?.toLowerCase().includes(search.toLowerCase()))&&(filter==="todos"||c.status===filter));
 
@@ -490,10 +466,17 @@ const ClientesPage=({clients,setClients,loading})=>{
       </div>
 
       {modal&&<Modal title={editing?"Editar Cliente":"Novo Cliente"} onClose={()=>setModal(false)}>
-        <div style={{marginBottom:14,textAlign:"center"}}>
+        <div style={{marginBottom:16,display:"flex",alignItems:"center",gap:16}}>
           <ClientLogo url={form.logo_url} name={form.name} size={64}/>
+          <div style={{flex:1}}>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:6}}>Logo do cliente</label>
+            <label style={{display:"inline-flex",alignItems:"center",gap:8,padding:"8px 16px",background:"#F1F5F9",borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:600,color:"#374151",border:"1.5px dashed #CBD5E1",transition:"background 0.15s"}}>
+              <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>uploadLogo(e.target.files?.[0])}/>
+              {uploadingLogo?<span>Enviando...</span>:<><span style={{fontSize:16}}>{IC.image}</span><span>Enviar imagem</span></>}
+            </label>
+            {form.logo_url&&<div style={{fontSize:10,color:"#10B981",marginTop:4,fontWeight:600}}>✓ Logo carregada</div>}
+          </div>
         </div>
-        <FInput label="URL da Logo (opcional)" value={form.logo_url} onChange={v=>f("logo_url",v)} placeholder="https://exemplo.com/logo.png" icon={IC.image}/>
         <FInput label="Nome da empresa *" value={form.name} onChange={v=>f("name",v)} placeholder="Churrascaria Pantanal"/>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
           <FInput label="Nicho" value={form.nicho} onChange={v=>f("nicho",v)} placeholder="Alimentação"/>
@@ -1161,92 +1144,6 @@ const DespesasPage=({despesas,setDespesas,loading})=>{
   );
 };
 
-// ── GRAVAÇÕES ─────────────────────────────────────────────────────────────────
-const BLANK_GRAV={estabelecimento:"",data:"",frequencia_acordada:"1x/semana",status:"agendada",responsavel:"",notas:""};
-const STATUS_GRAV=[{value:"agendada",label:"Agendada"},{value:"feita",label:"Feita"},{value:"cancelada",label:"Cancelada"},{value:"nao_foi",label:"Não foi"}];
-
-const GravacoesPage=({gravacoes,setGravacoes,clients,equipe,loading})=>{
-  const [filter,setFilter]=useState("todos");
-  const [modal,setModal]=useState(false);
-  const [form,setForm]=useState(BLANK_GRAV);
-  const [editing,setEditing]=useState(null);
-  const [confirm,setConfirm]=useState(null);
-  const [saving,setSaving]=useState(false);
-
-  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
-  const nomeCli=(id)=>clients.find(c=>String(c.id)===String(id))?.name||"—";
-  const fl=gravacoes.filter(g=>filter==="todos"||g.status===filter).sort((a,b)=>String(b.data).localeCompare(String(a.data)));
-
-  // Ao escolher o estabelecimento, sugere a última frequência acordada com ele
-  const escolherCliente=(id)=>{
-    const ultima=gravacoes.filter(g=>String(g.estabelecimento)===String(id)).sort((a,b)=>String(b.data).localeCompare(String(a.data)))[0];
-    setForm(p=>({...p,estabelecimento:id,frequencia_acordada:ultima?.frequencia_acordada||p.frequencia_acordada}));
-  };
-
-  const openNew=()=>{setForm({...BLANK_GRAV,data:todayStr()});setEditing(null);setModal(true);};
-  const openEdit=(g)=>{setForm({...BLANK_GRAV,...g,notas:g.notas||"",responsavel:g.responsavel||"",data:String(g.data).split("T")[0]});setEditing(g.id);setModal(true);};
-
-  const marcarFeita=async(id)=>{
-    await supabase.from("gravacoes").update({status:"feita"}).eq("id",id);
-    setGravacoes(prev=>prev.map(g=>g.id===id?{...g,status:"feita"}:g));
-  };
-
-  const save=async()=>{
-    if(!form.estabelecimento||!form.data){return;}
-    setSaving(true);
-    const data={estabelecimento:form.estabelecimento,data:form.data,frequencia_acordada:form.frequencia_acordada,status:form.status,responsavel:form.responsavel||null,notas:form.notas||null};
-    if(editing){
-      await supabase.from("gravacoes").update(data).eq("id",editing);
-      setGravacoes(prev=>prev.map(g=>g.id===editing?{...g,...data}:g));
-    } else {
-      const {data:ins}=await supabase.from("gravacoes").insert([data]).select();
-      if(ins) setGravacoes(prev=>[...prev,...ins]);
-    }
-    setSaving(false);setModal(false);
-  };
-
-  const remove=async(id)=>{
-    await supabase.from("gravacoes").delete().eq("id",id);
-    setGravacoes(prev=>prev.filter(g=>g.id!==id));
-    setConfirm(null);
-  };
-
-  if(loading) return <Loading/>;
-  return (
-    <div>
-      <AlertasGravacao alertas={gravacaoAlertas(gravacoes,clients)}/>
-      <div style={{display:"flex",gap:12,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
-        {[{value:"todos",label:"Todas"},...STATUS_GRAV].map(fi=><Btn key={fi.value} size="sm" variant={filter===fi.value?"secondary":"ghost"} onClick={()=>setFilter(fi.value)}>{fi.label} <span style={{marginLeft:6,background:filter===fi.value?"rgba(255,255,255,0.25)":"#EEF3F8",borderRadius:99,padding:"0 6px",fontSize:11,fontWeight:800,color:filter===fi.value?"#fff":"#64748B"}}>{gravacoes.filter(g=>fi.value==="todos"||g.status===fi.value).length}</span></Btn>)}
-        <div style={{flex:1}}/><Btn onClick={openNew}>+ Nova Gravação</Btn>
-      </div>
-      <Card style={{padding:0}}>
-        <Tbl cols={["Estabelecimento","Data","Status","Responsável","Ações"]}
-          rows={fl.map(g=>[
-            <div><div style={{fontWeight:700,color:"#111827"}}>{nomeCli(g.estabelecimento)}</div><div style={{fontSize:11,color:"#64748B"}}>{g.frequencia_acordada}{g.notas?` · ${g.notas}`:""}</div></div>,
-            <span style={{whiteSpace:"nowrap"}}>{fmtDate(g.data)}</span>,
-            <StatusBadge status={g.status}/>,
-            g.responsavel||<span style={{color:"#94A3B8"}}>—</span>,
-            <div style={{display:"flex",gap:6}}>
-              {g.status!=="feita"&&<Btn size="sm" variant="success" onClick={()=>marcarFeita(g.id)}>Feita</Btn>}
-              <Btn size="sm" variant="ghost" onClick={()=>openEdit(g)}>{IC.edit}</Btn>
-              <Btn size="sm" variant="danger" onClick={()=>setConfirm(g)}>{IC.trash}</Btn>
-            </div>
-          ])}/>
-      </Card>
-      {modal&&<Modal title={editing?"Editar Gravação":"Nova Gravação"} onClose={()=>setModal(false)}>
-        <FSel label="Estabelecimento *" value={form.estabelecimento} onChange={escolherCliente} options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.id,label:c.name}))]}/>
-        <FInput label="Data *" value={form.data} onChange={v=>f("data",v)} type="date"/>
-        <FSel label="Frequência acordada" value={form.frequencia_acordada} onChange={v=>f("frequencia_acordada",v)} options={FREQ_GRAV}/>
-        <FSel label="Status" value={form.status} onChange={v=>f("status",v)} options={STATUS_GRAV}/>
-        <FSel label="Responsável" value={form.responsavel} onChange={v=>f("responsavel",v)} options={[{value:"",label:"Selecione..."},...equipe.map(e=>({value:e.nome,label:e.nome}))]}/>
-        <FInput label="Notas" value={form.notas} onChange={v=>f("notas",v)} placeholder="Ex.: gravar cardápio novo"/>
-        <div style={{display:"flex",gap:10}}><Btn style={{flex:1}} onClick={save} disabled={saving||!form.estabelecimento||!form.data}>{saving?"Salvando...":"Salvar"}</Btn><Btn variant="ghost" onClick={()=>setModal(false)} style={{flex:1}}>Cancelar</Btn></div>
-      </Modal>}
-      {confirm&&<ConfirmModal msg={`Remover gravação de "${nomeCli(confirm.estabelecimento)}" em ${fmtDate(confirm.data)}?`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
-    </div>
-  );
-};
-
 // ── AGENDA RECORRENTE ─────────────────────────────────────────────────────────
 const DIAS_SEMANA=[{label:"Seg",value:1},{label:"Ter",value:2},{label:"Qua",value:3},{label:"Qui",value:4},{label:"Sex",value:5},{label:"Sáb",value:6},{label:"Dom",value:0}];
 const TIPO_AGENDA={gravacao:{label:"Gravação",emoji:"📹",color:"#FF6200",bg:"#FFF7F3"},reuniao:{label:"Reunião",emoji:"📞",color:"#3B82F6",bg:"#EFF6FF"},atendimento:{label:"Atendimento",emoji:"🤝",color:"#10B981",bg:"#ECFDF5"}};
@@ -1540,29 +1437,63 @@ const AgendaPage=({clients,equipe})=>{
 // ── TAREFAS KANBAN ────────────────────────────────────────────────────────────
 const BLANK_TASK={titulo:"",cliente:"",responsavel:"",prioridade:"media",status:"a_fazer",tipo:"Design",entrega:""};
 
+const isAtrasada=(t:any)=>{
+  if(!t.entrega||t.status==="finalizado"||t.status==="cancelado") return false;
+  const hoje=new Date(); hoje.setHours(0,0,0,0);
+  const dt=new Date(t.entrega+"T00:00:00");
+  return dt<hoje;
+};
+const diasAtraso=(t:any)=>{
+  if(!isAtrasada(t)) return 0;
+  const hoje=new Date(); hoje.setHours(0,0,0,0);
+  const dt=new Date(t.entrega+"T00:00:00");
+  return Math.floor((hoje.getTime()-dt.getTime())/(86400000));
+};
+
 const TarefasPage=({tasks,setTasks,clients,equipe,loading})=>{
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState(BLANK_TASK);
   const [editing,setEditing]=useState(null);
   const [confirm,setConfirm]=useState(null);
   const [dragId,setDragId]=useState(null);
-  const [filter,setFilter]=useState("");
+  const [dragOver,setDragOver]=useState<string|null>(null);
+  const [search,setSearch]=useState("");
+  const [filterResp,setFilterResp]=useState("");
+  const [filterPrio,setFilterPrio]=useState("");
   const [saving,setSaving]=useState(false);
 
-  const cols=[{id:"a_fazer",label:"A Fazer",color:"#1D4ED8"},{id:"em_producao",label:"Em Produção",color:"#FF6200"},{id:"aguardando",label:"Aguardando",color:"#7C3AED"},{id:"ajustes",label:"Ajustes",color:"#F59E0B"},{id:"finalizado",label:"Finalizado",color:"#10B981"},{id:"atrasado",label:"Atrasado",color:"#EF4444"}];
-  const fl=tasks.filter(t=>filter===""||t.cliente?.toLowerCase().includes(filter.toLowerCase())||t.responsavel?.toLowerCase().includes(filter.toLowerCase()));
-  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const cols=[
+    {id:"a_fazer",label:"A Fazer",color:"#1D4ED8",bg:"#EFF6FF"},
+    {id:"em_producao",label:"Em Produção",color:"#FF6200",bg:"#FFF7ED"},
+    {id:"aguardando",label:"Aguardando",color:"#7C3AED",bg:"#F5F3FF"},
+    {id:"ajustes",label:"Ajustes",color:"#F59E0B",bg:"#FFFBEB"},
+    {id:"finalizado",label:"Finalizado",color:"#10B981",bg:"#ECFDF5"},
+    {id:"atrasado",label:"Atrasado",color:"#EF4444",bg:"#FEF2F2"},
+  ];
 
+  const responsaveis=[...new Set(tasks.map(t=>t.responsavel).filter(Boolean))];
+
+  const fl=tasks.filter(t=>{
+    if(search&&!t.titulo?.toLowerCase().includes(search.toLowerCase())&&!t.cliente?.toLowerCase().includes(search.toLowerCase())) return false;
+    if(filterResp&&t.responsavel!==filterResp) return false;
+    if(filterPrio&&t.prioridade!==filterPrio) return false;
+    return true;
+  });
+
+  const atrasadasCount=tasks.filter(t=>isAtrasada(t)&&t.status!=="atrasado").length;
+
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
   const openNew=()=>{setForm(BLANK_TASK);setEditing(null);setModal(true);};
   const openEdit=(t)=>{setForm({...t,entrega:t.entrega?.split("T")[0]||t.entrega});setEditing(t.id);setModal(true);};
 
-const drop=async(newStatus,taskId?)=>{
-  const id=taskId||dragId;
-  if(!id) return;
-  await supabase.from("tarefas").update({status:newStatus}).eq("id",id);
-  setTasks(prev=>prev.map(t=>t.id===id?{...t,status:newStatus}:t));
-  setDragId(null);
-};
+  const drop=async(newStatus,taskId?)=>{
+    const id=taskId||dragId;
+    if(!id) return;
+    await supabase.from("tarefas").update({status:newStatus}).eq("id",id);
+    setTasks(prev=>prev.map(t=>t.id===id?{...t,status:newStatus}:t));
+    setDragId(null);setDragOver(null);
+  };
+
   const save=async()=>{
     if(!form.titulo){return;}
     setSaving(true);
@@ -1586,43 +1517,76 @@ const drop=async(newStatus,taskId?)=>{
   if(loading) return <Loading/>;
   return (
     <div>
-      <div style={{display:"flex",gap:12,marginBottom:18,alignItems:"center"}}>
-        <input value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Filtrar por cliente ou responsável..." style={{flex:1,padding:"9px 14px",borderRadius:9,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit"}}/>
+      {/* Aviso de tarefas não marcadas como atrasadas */}
+      {atrasadasCount>0&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,padding:"10px 16px",marginBottom:16,display:"flex",alignItems:"center",gap:10}}>
+        <span style={{color:"#EF4444",fontSize:16}}>{IC.alert}</span>
+        <span style={{fontSize:13,color:"#7F1D1D",fontWeight:600}}>{atrasadasCount} tarefa{atrasadasCount>1?"s":""} com prazo vencido — considere mover para "Atrasado".</span>
+      </div>}
+
+      {/* Filtros */}
+      <div style={{display:"flex",gap:10,marginBottom:18,alignItems:"center",flexWrap:"wrap"}}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar tarefa ou cliente..." style={{flex:1,minWidth:200,padding:"9px 14px",borderRadius:9,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit"}}/>
+        <select value={filterResp} onChange={e=>setFilterResp(e.target.value)} style={{padding:"9px 12px",borderRadius:9,border:"1.5px solid #DDE5EF",fontSize:12,color:filterResp?"#111827":"#94A3B8",background:"#fff",fontFamily:"inherit",outline:"none"}}>
+          <option value="">Todos responsáveis</option>
+          {responsaveis.map(r=><option key={r} value={r}>{r}</option>)}
+        </select>
+        <select value={filterPrio} onChange={e=>setFilterPrio(e.target.value)} style={{padding:"9px 12px",borderRadius:9,border:"1.5px solid #DDE5EF",fontSize:12,color:filterPrio?"#111827":"#94A3B8",background:"#fff",fontFamily:"inherit",outline:"none"}}>
+          <option value="">Todas prioridades</option>
+          {["baixa","media","alta","urgente"].map(p=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
+        </select>
+        {(search||filterResp||filterPrio)&&<Btn size="sm" variant="ghost" onClick={()=>{setSearch("");setFilterResp("");setFilterPrio("");}}>✕ Limpar</Btn>}
         <Btn onClick={openNew}>+ Nova Tarefa</Btn>
       </div>
+
+      {/* Kanban board */}
       <div style={{display:"flex",gap:14,overflowX:"auto",paddingBottom:16}}>
         {cols.map(col=>{
           const ct=fl.filter(t=>t.status===col.id);
+          const isOver=dragOver===col.id;
           return (
-            <div key={col.id} style={{minWidth:240,flex:"0 0 240px"}} onDragOver={e=>e.preventDefault()} onDrop={()=>drop(col.id)}>
+            <div key={col.id} style={{minWidth:240,flex:"0 0 240px"}}
+              onDragOver={e=>{e.preventDefault();setDragOver(col.id);}}
+              onDragLeave={()=>setDragOver(null)}
+              onDrop={()=>drop(col.id)}>
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
                 <div style={{width:10,height:10,borderRadius:99,background:col.color}}/>
                 <span style={{fontSize:13,fontWeight:800,color:"#1F2F46"}}>{col.label}</span>
-                <span style={{marginLeft:"auto",background:"#EEF3F8",borderRadius:99,padding:"1px 9px",fontSize:11,fontWeight:700,color:"#64748B"}}>{ct.length}</span>
+                <span style={{marginLeft:"auto",background:col.bg,borderRadius:99,padding:"1px 9px",fontSize:11,fontWeight:700,color:col.color}}>{ct.length}</span>
               </div>
-              <div style={{display:"flex",flexDirection:"column",gap:10,minHeight:120,background:"#F0F4F9",borderRadius:12,padding:10}}>
-                {ct.map(t=>(
-                  <div key={t.id} draggable onDragStart={()=>setDragId(t.id)} style={{background:"#fff",borderRadius:10,padding:"12px 14px",boxShadow:"0 1px 3px rgba(0,0,0,0.06)",cursor:"grab",borderLeft:`3px solid ${col.color}`,userSelect:"none"}}>
-  <div style={{fontSize:13,fontWeight:700,color:"#111827",marginBottom:4}}>{t.titulo}</div>
-  <div style={{fontSize:11,color:"#64748B",marginBottom:8}}>{t.cliente}</div>
-  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><PBadge p={t.prioridade}/><div style={{fontSize:11,color:"#64748B"}}>{t.responsavel}</div></div>
-  <div style={{fontSize:11,color:"#94A3B8",display:"flex",alignItems:"center",gap:4,marginBottom:8}}>{IC.clock} {fmtDate(t.entrega)}</div>
-  <div style={{display:"flex",gap:6,marginBottom:6}}>
-    <Btn size="sm" variant="ghost" style={{flex:1,padding:"4px 8px"}} onClick={()=>openEdit(t)}>{IC.edit}</Btn>
-    <Btn size="sm" variant="danger" style={{flex:1,padding:"4px 8px"}} onClick={()=>setConfirm(t)}>{IC.trash}</Btn>
-  </div>
-  <select onChange={e=>{if(e.target.value)drop(e.target.value,t.id);e.target.value="";}} style={{width:"100%",padding:"6px 10px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,color:"#64748B",background:"#F8FAFC",fontFamily:"inherit"}}>
-    <option value="">Mover para...</option>
-    {cols.filter(c=>c.id!==col.id).map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
-  </select>
-</div>
-                ))}
-                {ct.length===0&&<div style={{color:"#94A3B8",fontSize:12,textAlign:"center",padding:"20px 0"}}>Solte aqui</div>}
+              <div style={{display:"flex",flexDirection:"column",gap:10,minHeight:120,background:isOver?"#E0F2FE":"#F0F4F9",borderRadius:12,padding:10,transition:"background 0.15s",border:isOver?`2px dashed ${col.color}`:"2px solid transparent"}}>
+                {ct.map(t=>{
+                  const atrasado=isAtrasada(t);
+                  const dias=diasAtraso(t);
+                  return (
+                    <div key={t.id} draggable onDragStart={()=>setDragId(t.id)} onDragEnd={()=>{setDragId(null);setDragOver(null);}}
+                      style={{background:"#fff",borderRadius:10,padding:"12px 14px",boxShadow:atrasado?"0 0 0 2px #EF4444,0 2px 8px rgba(239,68,68,0.12)":"0 1px 3px rgba(0,0,0,0.06)",cursor:"grab",borderLeft:`3px solid ${atrasado?"#EF4444":col.color}`,userSelect:"none",opacity:dragId===t.id?0.5:1}}>
+                      {/* Indicador de atraso */}
+                      {atrasado&&<div style={{background:"#FEF2F2",borderRadius:6,padding:"3px 8px",fontSize:10,fontWeight:700,color:"#EF4444",marginBottom:8,display:"flex",alignItems:"center",gap:4}}>{IC.alert} {dias}d atrasada</div>}
+                      <div style={{fontSize:13,fontWeight:700,color:"#111827",marginBottom:4,lineHeight:1.3}}>{t.titulo}</div>
+                      <div style={{fontSize:11,color:"#64748B",marginBottom:8,fontWeight:500}}>{t.cliente}</div>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                        <PBadge p={t.prioridade}/>
+                        <div style={{fontSize:11,color:"#64748B",fontWeight:600}}>{t.responsavel}</div>
+                      </div>
+                      {t.entrega&&<div style={{fontSize:11,color:atrasado?"#EF4444":"#94A3B8",display:"flex",alignItems:"center",gap:4,marginBottom:8,fontWeight:atrasado?700:400}}>{IC.clock} {fmtDate(t.entrega)}</div>}
+                      <div style={{display:"flex",gap:6,marginBottom:6}}>
+                        <Btn size="sm" variant="ghost" style={{flex:1,padding:"4px 8px"}} onClick={()=>openEdit(t)}>{IC.edit}</Btn>
+                        <Btn size="sm" variant="danger" style={{flex:1,padding:"4px 8px"}} onClick={()=>setConfirm(t)}>{IC.trash}</Btn>
+                      </div>
+                      <select onChange={e=>{if(e.target.value)drop(e.target.value,t.id);e.target.value="";}} style={{width:"100%",padding:"6px 10px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,color:"#64748B",background:"#F8FAFC",fontFamily:"inherit",cursor:"pointer"}}>
+                        <option value="">Mover para...</option>
+                        {cols.filter(c=>c.id!==col.id).map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+                      </select>
+                    </div>
+                  );
+                })}
+                {ct.length===0&&<div style={{color:isOver?col.color:"#94A3B8",fontSize:12,textAlign:"center",padding:"20px 0",fontWeight:isOver?700:400}}>{isOver?"Soltar aqui":"Vazio"}</div>}
               </div>
             </div>
           );
         })}
       </div>
+
       {modal&&<Modal title={editing?"Editar Tarefa":"Nova Tarefa"} onClose={()=>setModal(false)}>
         <FInput label="Título *" value={form.titulo} onChange={v=>f("titulo",v)} placeholder="Arte Dia dos Namorados"/>
         <FSel label="Cliente" value={form.cliente} onChange={v=>f("cliente",v)} options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.name,label:c.name}))]}/>
@@ -1640,20 +1604,70 @@ const drop=async(newStatus,taskId?)=>{
   );
 };
 
-// ── EQUIPE ────────────────────────────────────────────────────────────────────
+// ── EQUIPE + SISTEMA DE PENALIDADES ──────────────────────────────────────────
 const BLANK_EQ={nome:"",funcao:"",tipo:"fixo",status:"ativo",whatsapp:""};
+const PENALIDADE_VALOR=50; // R$ de referência por ponto
 
-const EquipePage=({equipe,setEquipe,tasks,loading})=>{
+const EquipePage=({equipe,setEquipe,tasks,loading,perfil})=>{
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState(BLANK_EQ);
   const [editing,setEditing]=useState(null);
   const [confirm,setConfirm]=useState(null);
   const [verTarefas,setVerTarefas]=useState(null);
   const [saving,setSaving]=useState(false);
+  const [penalidades,setPenalidades]=useState([]);
+  const [loadingPen,setLoadingPen]=useState(true);
+  const [verPenalidades,setVerPenalidades]=useState(null);
+  const [cancelando,setCancelando]=useState(null);
+  const [justificativa,setJustificativa]=useState("");
 
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
   const openNew=()=>{setForm(BLANK_EQ);setEditing(null);setModal(true);};
   const openEdit=(e)=>{setForm({...e});setEditing(e.id);setModal(true);};
+
+  // ── Carrega penalidades e detecta tarefas vencidas sem penalidade ──
+  const loadPenalidades=async()=>{
+    setLoadingPen(true);
+    const {data:pens}=await supabase.from("penalidades").select("*").order("created_at",{ascending:false});
+    const penAtivas=pens||[];
+    setPenalidades(penAtivas);
+
+    // Detecta tarefas vencidas sem penalidade registrada
+    const hoje=new Date();hoje.setHours(0,0,0,0);
+    const vencidas=tasks.filter(t=>{
+      if(!t.entrega||t.status==="finalizado"||t.status==="cancelado") return false;
+      const dt=new Date(t.entrega+"T00:00:00");
+      return dt<hoje;
+    });
+    const idsComPenalidade=new Set(penAtivas.filter(p=>p.status!=="cancelada").map(p=>p.tarefa_id));
+    const semPenalidade=vencidas.filter(t=>!idsComPenalidade.has(t.id));
+    if(semPenalidade.length===0){setLoadingPen(false);return;}
+
+    // Aplica penalidade automática a cada uma (uma só vez por tarefa)
+    const novas=semPenalidade.map(t=>({
+      colaborador_nome:t.responsavel||"Sem responsável",
+      tarefa_id:t.id,
+      tarefa_titulo:t.titulo,
+      tarefa_cliente:t.cliente||"",
+      tarefa_entrega:t.entrega,
+      pontos:-1,
+      status:"ativa",
+    }));
+    if(novas.length){
+      const {data:ins}=await supabase.from("penalidades").insert(novas).select();
+      if(ins) setPenalidades(prev=>[...ins,...prev]);
+    }
+    setLoadingPen(false);
+  };
+
+  useEffect(()=>{if(!loading) loadPenalidades();},[loading,tasks]);
+
+  const cancelarPenalidade=async(pen)=>{
+    if(!justificativa.trim()){return;}
+    await supabase.from("penalidades").update({status:"cancelada",justificativa_cancelamento:justificativa,cancelado_em:new Date().toISOString()}).eq("id",pen.id);
+    setPenalidades(prev=>prev.map(p=>p.id===pen.id?{...p,status:"cancelada",justificativa_cancelamento:justificativa}:p));
+    setCancelando(null);setJustificativa("");
+  };
 
   const save=async()=>{
     if(!form.nome){return;}
@@ -1675,25 +1689,44 @@ const EquipePage=({equipe,setEquipe,tasks,loading})=>{
     setConfirm(null);
   };
 
+  const getPontos=(nome)=>penalidades.filter(p=>p.colaborador_nome===nome.split(" ")[0]&&p.status==="ativa").reduce((a,p)=>a+p.pontos,0);
+  const getPenaidadesAtivas=(nome)=>penalidades.filter(p=>p.colaborador_nome===nome.split(" ")[0]&&p.status==="ativa");
+
   if(loading) return <Loading/>;
   return (
     <div>
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:18}}><Btn onClick={openNew}>+ Adicionar Colaborador</Btn></div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:16}}>
         {equipe.map(e=>{
           const primeiroNome=e.nome.split(" ")[0];
           const tf=tasks.filter(t=>t.responsavel===primeiroNome);
           const at=tf.filter(t=>t.status==="atrasado");
+          const pontos=getPontos(e.nome);
+          const penAtivas=getPenaidadesAtivas(e.nome);
           return (
             <Card key={e.id}>
               <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:14}}>
-                <div style={{width:50,height:50,background:"linear-gradient(135deg,#1F2F46,#2D4A6A)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:20,fontWeight:800}}>{e.nome.charAt(0)}</div>
+                <div style={{position:"relative"}}>
+                  <div style={{width:50,height:50,background:"linear-gradient(135deg,#1F2F46,#2D4A6A)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:20,fontWeight:800}}>{e.nome.charAt(0)}</div>
+                  {pontos<0&&<div style={{position:"absolute",top:-6,right:-6,background:"#EF4444",color:"#fff",borderRadius:99,width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800}}>{pontos}</div>}
+                </div>
                 <div>
                   <div style={{fontSize:15,fontWeight:800,color:"#111827"}}>{e.nome}</div>
                   <div style={{fontSize:12,color:"#64748B"}}>{e.funcao}</div>
                   <span style={{background:e.tipo==="fixo"?"#EFF6FF":"#F5F3FF",color:e.tipo==="fixo"?"#1D4ED8":"#7C3AED",fontSize:11,fontWeight:700,borderRadius:6,padding:"2px 8px"}}>{e.tipo?.charAt(0).toUpperCase()+e.tipo?.slice(1)}</span>
                 </div>
               </div>
+
+              {/* Score de pontuação */}
+              <div style={{background:pontos<0?"#FEF2F2":pontos===0?"#F8FAFC":"#ECFDF5",borderRadius:10,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
+                <div style={{fontSize:22,fontWeight:900,color:pontos<0?"#EF4444":pontos===0?"#94A3B8":"#10B981"}}>{pontos}</div>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#374151"}}>Pontuação</div>
+                  <div style={{fontSize:11,color:"#64748B"}}>Ref: R$ {Math.abs(pontos)*PENALIDADE_VALOR} {pontos<0?"dedução":pontos===0?"sem pendências":"bônus"}</div>
+                </div>
+                {penAtivas.length>0&&<div style={{marginLeft:"auto"}}><Btn size="sm" variant="danger" onClick={()=>setVerPenalidades({nome:e.nome,pens:penalidades.filter(p=>p.colaborador_nome===primeiroNome)})}>{IC.alert} {penAtivas.length}</Btn></div>}
+              </div>
+
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
                 <div style={{background:"#F8FAFC",borderRadius:8,padding:"8px 10px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:"#111827"}}>{tf.length}</div><div style={{fontSize:10,color:"#64748B",fontWeight:600}}>Total</div></div>
                 <div style={{background:"#ECFDF5",borderRadius:8,padding:"8px 10px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:"#10B981"}}>{tf.filter(t=>t.status==="finalizado").length}</div><div style={{fontSize:10,color:"#10B981",fontWeight:600}}>Feitas</div></div>
@@ -1710,6 +1743,7 @@ const EquipePage=({equipe,setEquipe,tasks,loading})=>{
         })}
       </div>
 
+      {/* Modal: tarefas do colaborador */}
       {verTarefas&&<Modal title={`Tarefas — ${verTarefas.nome}`} onClose={()=>setVerTarefas(null)}>
         {verTarefas.tasks.length===0?<div style={{textAlign:"center",color:"#64748B",padding:"20px 0"}}>Nenhuma tarefa atribuída.</div>:verTarefas.tasks.map(t=>(
           <div key={t.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:"#F8FAFC",borderRadius:10,marginBottom:8}}>
@@ -1717,6 +1751,42 @@ const EquipePage=({equipe,setEquipe,tasks,loading})=>{
             <div style={{display:"flex",gap:8,alignItems:"center"}}><PBadge p={t.prioridade}/><StatusBadge status={t.status}/></div>
           </div>
         ))}
+      </Modal>}
+
+      {/* Modal: histórico de penalidades */}
+      {verPenalidades&&<Modal title={`Penalidades — ${verPenalidades.nome}`} onClose={()=>setVerPenalidades(null)} width={560}>
+        <div style={{marginBottom:12,fontSize:12,color:"#64748B"}}>Cada tarefa vencida sem entrega gera -1 ponto (referência: R$ {PENALIDADE_VALOR}).</div>
+        {verPenalidades.pens.length===0?<div style={{textAlign:"center",color:"#64748B",padding:"20px 0"}}>Nenhuma penalidade registrada.</div>:verPenalidades.pens.map(p=>(
+          <div key={p.id} style={{padding:"12px 14px",background:p.status==="cancelada"?"#F8FAFC":"#FEF2F2",borderRadius:10,marginBottom:8,border:`1px solid ${p.status==="cancelada"?"#E2E8F0":"#FECACA"}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+              <div>
+                <div style={{fontSize:13,fontWeight:700,color:"#111827",textDecoration:p.status==="cancelada"?"line-through":"none"}}>{p.tarefa_titulo}</div>
+                <div style={{fontSize:11,color:"#64748B"}}>{p.tarefa_cliente} · Venceu: {fmtDate(p.tarefa_entrega)}</div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:13,fontWeight:900,color:p.status==="cancelada"?"#94A3B8":"#EF4444"}}>{p.pontos} ponto</span>
+                {p.status==="cancelada"?<span style={{background:"#F3F4F6",color:"#6B7280",fontSize:10,fontWeight:700,borderRadius:6,padding:"2px 8px"}}>Cancelada</span>:
+                perfil==="admin"&&<Btn size="sm" variant="ghost" onClick={()=>{setCancelando(p);setVerPenalidades(null);}}>Cancelar</Btn>}
+              </div>
+            </div>
+            {p.status==="cancelada"&&p.justificativa_cancelamento&&<div style={{fontSize:11,color:"#64748B",marginTop:4,fontStyle:"italic"}}>Motivo: {p.justificativa_cancelamento}</div>}
+          </div>
+        ))}
+      </Modal>}
+
+      {/* Modal: cancelar penalidade (só admin) */}
+      {cancelando&&<Modal title="Cancelar Penalidade" onClose={()=>{setCancelando(null);setJustificativa("");}}>
+        <div style={{background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10,padding:"12px 14px",fontSize:13,color:"#92400E",marginBottom:16}}>
+          Você está cancelando a penalidade de <strong>{cancelando.colaborador_nome}</strong> pela tarefa "<strong>{cancelando.tarefa_titulo}</strong>".
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>Justificativa *</label>
+          <textarea value={justificativa} onChange={e=>setJustificativa(e.target.value)} rows={3} placeholder="Ex.: Prazo foi estendido pelo cliente, entrega ocorreu sem registro..." style={{width:"100%",padding:"9px 13px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit",boxSizing:"border-box",background:"#FAFBFD",resize:"vertical"}}/>
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          <Btn style={{flex:1}} onClick={()=>cancelarPenalidade(cancelando)} disabled={!justificativa.trim()}>Confirmar cancelamento</Btn>
+          <Btn variant="ghost" style={{flex:1}} onClick={()=>{setCancelando(null);setJustificativa("");}}>Voltar</Btn>
+        </div>
       </Modal>}
 
       {modal&&<Modal title={editing?"Editar Colaborador":"Novo Colaborador"} onClose={()=>setModal(false)}>
@@ -1786,126 +1856,6 @@ const CalendarioPage=()=>{
   );
 };
 
-// ── TRÁFEGO ───────────────────────────────────────────────────────────────────
-const META_TOKEN = "EAANu31tVGzQBRj3NDQ4dzbRJB8OqmKypfUtmZCOdhgdsCU3yeyn4IEWIAP4qAR3yQ8F6YZCUsQKLAoijwM9dHMrkZAW62jk8LwvC95zuwYRYACEIOoNZC4kmJQ7bTywjGLW0bJCI54ZAFuov9Fs83AK1kNZBZAm2vDw0o5kPczdS2klWnFdJEstet5rCgU1lt30PAZDZD";
-
-const META_CONTAS = [
-  { id: "65170252229843",    cliente: "Medellin",     plataforma: "Meta Ads" },
-  { id: "750043358048860",   cliente: "Lá em Casa",   plataforma: "Meta Ads" },
-  { id: "141116179588051",   cliente: "Ki-Burg",      plataforma: "Meta Ads" },
-  { id: "1104013311850054",  cliente: "Di Chinello",  plataforma: "Meta Ads" },
-  { id: "861354603644905",   cliente: "L&A Pneus",    plataforma: "Meta Ads" },
-  { id: "1383953866799392",  cliente: "MarketForge",  plataforma: "Meta Ads" },
-  { id: "286396705545158",  cliente: "Dolce Morena",  plataforma: "Meta Ads" },
-];
-
-const TráfegoPage = () => {
-  const [contas, setContas] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [ultimaAtualizacao, setUltimaAtualizacao] = useState(null);
-  const [erro, setErro] = useState("");
-
-  const getStatus = (saldo) => {
-    if (saldo <= 0) return "zerado";
-    if (saldo < 100) return "baixo";
-    return "ok";
-  };
-
-  const buscarSaldos = async () => {
-    setLoading(true);
-    setErro("");
-    const resultados = [];
-    for (const conta of META_CONTAS) {
-      try {
-        const res = await fetch(
-  `https://graph.facebook.com/v25.0/act_${conta.id}?fields=name,balance,currency,amount_spent,spend_cap&access_token=${META_TOKEN}`
-);
-        const json = await res.json();
-        if (json.error) {
-          resultados.push({ ...conta, saldo: null, gasto: null, moeda: "BRL", erro: json.error.message, status: "zerado" });
-        } else {
-          const balance = Number(json.balance);
-const spendCap = Number(json.spend_cap);
-const amountSpent = Number(json.amount_spent);
-
-// Se tem spend_cap, calcula saldo como cap - gasto
-const saldo = spendCap > 0
-  ? (spendCap - amountSpent) / 100
-  : balance / 100;
-const gasto = amountSpent / 100;
-          resultados.push({ ...conta, nomeReal: json.name, saldo, gasto, moeda: json.currency || "BRL", status: getStatus(saldo), erro: null });
-        }
-      } catch (e) {
-        resultados.push({ ...conta, saldo: null, gasto: null, erro: "Erro de rede", status: "zerado" });
-      }
-    }
-    setContas(resultados);
-    setUltimaAtualizacao(new Date().toLocaleTimeString("pt-BR"));
-    setLoading(false);
-  };
-
-  useEffect(() => { buscarSaldos(); }, []);
-
-  const totalSaldo = contas.filter(c => c.saldo !== null).reduce((a, c) => a + c.saldo, 0);
-  const totalGasto = contas.filter(c => c.gasto !== null).reduce((a, c) => a + c.gasto, 0);
-  const semSaldo = contas.filter(c => c.status !== "ok").length;
-
-  return (
-    <div>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:12}}>
-        <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
-          <MC label="Saldo total" value={`R$ ${totalSaldo.toLocaleString("pt-BR",{minimumFractionDigits:2})}`} icon={IC.money} bg="#ECFDF5"/>
-          <MC label="Total gasto" value={`R$ ${totalGasto.toLocaleString("pt-BR",{minimumFractionDigits:2})}`} icon={IC.chart} bg="#FEF2F2"/>
-          <MC label="Atenção" value={semSaldo} icon={IC.alert} bg="#FFFBEB"/>
-        </div>
-        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
-          <Btn onClick={buscarSaldos} disabled={loading} variant="secondary">{loading?"Atualizando...":"⟳ Atualizar Saldos"}</Btn>
-          {ultimaAtualizacao&&<span style={{fontSize:11,color:"#94A3B8"}}>Última atualização: {ultimaAtualizacao}</span>}
-        </div>
-      </div>
-      {erro&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,padding:"12px 16px",marginBottom:16,fontSize:13,color:"#991B1B"}}>{erro}</div>}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:16}}>
-        {contas.length===0&&loading&&[1,2,3,4,5,6].map(i=>(
-          <Card key={i} style={{borderLeft:"4px solid #EEF3F8",opacity:0.5}}>
-            <div style={{height:80,background:"#F8FAFC",borderRadius:8}}/>
-          </Card>
-        ))}
-        {contas.map((t,i)=>{
-          const cor=t.status==="ok"?"#10B981":t.status==="baixo"?"#F59E0B":"#EF4444";
-          return (
-            <Card key={i} style={{borderLeft:`4px solid ${cor}`}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
-                <div>
-                  <div style={{fontSize:15,fontWeight:800,color:"#111827"}}>{t.cliente}</div>
-                  <div style={{fontSize:12,color:"#64748B"}}>{t.plataforma}</div>
-                  {t.nomeReal&&t.nomeReal!==t.cliente&&<div style={{fontSize:11,color:"#94A3B8",marginTop:2}}>{t.nomeReal}</div>}
-                </div>
-                <StatusBadge status={t.status}/>
-              </div>
-              {t.erro?(
-                <div style={{background:"#FEF2F2",borderRadius:8,padding:"10px 12px",fontSize:12,color:"#991B1B"}}>⚠️ {t.erro}</div>
-              ):(
-                <>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-                    <div style={{background:"#F8FAFC",borderRadius:8,padding:"10px 12px"}}>
-                      <div style={{fontSize:10,color:"#64748B",fontWeight:700,textTransform:"uppercase",marginBottom:4}}>Saldo Disponível</div>
-                      <div style={{fontSize:18,fontWeight:800,color:t.saldo<100?"#EF4444":"#10B981"}}>R$ {t.saldo?.toLocaleString("pt-BR",{minimumFractionDigits:2})??"—"}</div>
-                    </div>
-                    <div style={{background:"#F8FAFC",borderRadius:8,padding:"10px 12px"}}>
-                      <div style={{fontSize:10,color:"#64748B",fontWeight:700,textTransform:"uppercase",marginBottom:4}}>Total Gasto</div>
-                      <div style={{fontSize:18,fontWeight:800,color:"#EF4444"}}>R$ {t.gasto?.toLocaleString("pt-BR",{minimumFractionDigits:2})??"—"}</div>
-                    </div>
-                  </div>
-                  {t.status!=="ok"&&<div style={{marginTop:4}}><Btn size="sm" style={{width:"100%"}}>{t.status==="zerado"?"🚨 Campanha pausada — Solicitar recarga":"⚠️ Saldo baixo — Solicitar recarga"}</Btn></div>}
-                </>
-              )}
-            </Card>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
 // ── MODELOS ───────────────────────────────────────────────────────────────────
 const MODELOS=[
   {cat:"Cobrança",nome:"Lembrete 3 dias antes",msg:"Olá, {{nome}}! Passando para lembrar que a mensalidade referente aos serviços da MarketForge vence no dia {{data}}. Valor: R$ {{valor}}. Qualquer dúvida, estou à disposição."},
@@ -1938,210 +1888,6 @@ const MensagensPage=()=>{
   );
 };
 
-// ── RELATÓRIOS DE TRÁFEGO PAGO ─────────────────────────────────────────────────
-const BLANK_RELATORIO_FORM={clienteId:"",campanhaNome:"",objetivo:"",dataInicial:"",dataFinal:"",valorInvestido:"",valorGasto:"",valorProduto:"",qtdVendas:""};
-
-const calcDiasCampanha=(ini,fim)=>{
-  if(!ini||!fim) return 0;
-  const d1=new Date(ini+"T00:00:00"),d2=new Date(fim+"T00:00:00");
-  const diff=Math.round((d2-d1)/86400000)+1;
-  return diff>0?diff:0;
-};
-
-const RelatoriosTrafegoPage=({clients})=>{
-  const [relatorios,setRelatorios]=useState([]);
-  const [loading,setLoading]=useState(true);
-  const [modal,setModal]=useState(false);
-  const [form,setForm]=useState(BLANK_RELATORIO_FORM);
-  const [desempenho,setDesempenho]=useState([{dia:"",mensagens:""}]);
-  const [confirm,setConfirm]=useState(null);
-  const [gerando,setGerando]=useState(false);
-  const [etapa,setEtapa]=useState("");
-  const [erro,setErro]=useState("");
-  const [pronto,setPronto]=useState(null);
-
-  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
-
-  const carregar=async()=>{
-    setLoading(true);
-    const {data,error}=await supabase.from("relatorios_trafego").select("*").order("created_at",{ascending:false});
-    if(!error&&data) setRelatorios(data);
-    setLoading(false);
-  };
-  useEffect(()=>{carregar();},[]);
-
-  const openNew=()=>{setForm(BLANK_RELATORIO_FORM);setDesempenho([{dia:"",mensagens:""}]);setErro("");setModal(true);};
-
-  const addLinha=()=>setDesempenho(p=>[...p,{dia:"",mensagens:""}]);
-  const removeLinha=(i)=>setDesempenho(p=>p.filter((_,idx)=>idx!==i));
-  const setLinha=(i,k,v)=>setDesempenho(p=>p.map((row,idx)=>idx===i?{...row,[k]:v}:row));
-
-  const dias=calcDiasCampanha(form.dataInicial,form.dataFinal);
-
-  const remove=async(id)=>{
-    await supabase.from("relatorios_trafego").delete().eq("id",id);
-    setRelatorios(prev=>prev.filter(r=>r.id!==id));
-    setConfirm(null);
-  };
-
-  const gerar=async()=>{
-    if(!form.clienteId||!form.campanhaNome||!form.dataInicial||!form.dataFinal||!form.valorInvestido){
-      setErro("Preencha cliente, campanha, período e valor investido.");
-      return;
-    }
-    const cliente=clients.find(c=>c.id===form.clienteId);
-    setErro("");setGerando(true);
-
-    const linhasValidas=desempenho.filter(d=>d.dia&&d.mensagens!=="").map(d=>({dia:d.dia,mensagens:Number(d.mensagens)}));
-    const totalMensagens=linhasValidas.reduce((a,d)=>a+d.mensagens,0);
-    const mediaDiaria=linhasValidas.length?Math.round((totalMensagens/linhasValidas.length)*10)/10:0;
-    const melhorDia=linhasValidas.length?linhasValidas.reduce((a,d)=>d.mensagens>a.mensagens?d:a):null;
-    const piorDia=linhasValidas.length?linhasValidas.reduce((a,d)=>d.mensagens<a.mensagens?d:a):null;
-    const valorInvestido=Number(form.valorInvestido);
-    const valorGasto=form.valorGasto?Number(form.valorGasto):null;
-    const valorProduto=form.valorProduto?Number(form.valorProduto):null;
-    const qtdVendas=form.qtdVendas?Number(form.qtdVendas):null;
-    const baseCusto=valorGasto!=null?valorGasto:valorInvestido;
-    const custoPorMensagem=totalMensagens>0?Math.round((baseCusto/totalMensagens)*100)/100:null;
-    const faturamentoEstimado=(qtdVendas&&valorProduto)?qtdVendas*valorProduto:null;
-    const roi=(faturamentoEstimado!=null&&valorInvestido>0)?Math.round(((faturamentoEstimado-valorInvestido)/valorInvestido)*1000)/10:null;
-
-    const metricas={clienteNome:cliente?.name,campanhaNome:form.campanhaNome,objetivo:form.objetivo,dias,valorInvestido,valorGasto,totalMensagens,mediaDiaria,melhorDia,piorDia,custoPorMensagem,qtdVendas,valorProduto,faturamentoEstimado,roi};
-
-    try{
-      setEtapa("Gerando análise com IA...");
-      const resIA=await fetch("/api/gerar-relatorio-trafego",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(metricas)});
-      const jsonIA=await resIA.json();
-      if(!resIA.ok||jsonIA.error) throw new Error(jsonIA.error||"Erro ao gerar textos com IA");
-
-      setEtapa("Salvando relatório...");
-      const registro={
-        cliente_id:form.clienteId,cliente_nome:cliente?.name||"",campanha_nome:form.campanhaNome,objetivo:form.objetivo,
-        data_inicial:form.dataInicial,data_final:form.dataFinal,valor_investido:valorInvestido,valor_gasto:valorGasto,
-        valor_produto:valorProduto,qtd_vendas:qtdVendas,desempenho_diario:linhasValidas,
-        analise_ia:jsonIA.analise_resultados,resumo_executivo_ia:jsonIA.resumo_executivo,
-        recomendacoes_ia:(jsonIA.recomendacoes||[]).map(r=>`- ${r}`).join("\n"),
-      };
-      const {data:ins,error:insErr}=await supabase.from("relatorios_trafego").insert([registro]).select();
-      if(insErr||!ins) throw new Error(insErr?.message||"Erro ao salvar relatório");
-      const novo=ins[0];
-      setRelatorios(prev=>[novo,...prev]);
-
-      setEtapa("Gerando PDF...");
-      const resPDF=await fetch("/api/gerar-pdf-trafego",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        relatorioId:novo.id,clienteNome:cliente?.name,clienteLogoUrl:cliente?.logo_url,campanhaNome:form.campanhaNome,objetivo:form.objetivo,
-        dataInicial:form.dataInicial,dataFinal:form.dataFinal,dias,valorInvestido,valorGasto,valorProduto,qtdVendas,
-        desempenhoDiario:linhasValidas,totalMensagens,mediaDiaria,melhorDia,piorDia,custoPorMensagem,faturamentoEstimado,roi,
-        resumoExecutivo:jsonIA.resumo_executivo,analiseResultados:jsonIA.analise_resultados,recomendacoes:jsonIA.recomendacoes,
-      })});
-      const jsonPDF=await resPDF.json();
-      if(!resPDF.ok||jsonPDF.error) throw new Error(jsonPDF.error||"Erro ao gerar PDF");
-
-      await supabase.from("relatorios_trafego").update({pdf_url:jsonPDF.pdfUrl}).eq("id",novo.id);
-      setRelatorios(prev=>prev.map(r=>r.id===novo.id?{...r,pdf_url:jsonPDF.pdfUrl}:r));
-
-      setPronto({pdfUrl:jsonPDF.pdfUrl,campanhaNome:form.campanhaNome});
-      setModal(false);
-    }catch(e){
-      setErro(e.message||"Erro ao gerar relatório");
-    }
-    setGerando(false);setEtapa("");
-  };
-
-  if(loading) return <Loading/>;
-
-  return (
-    <div>
-      <ST action={<Btn onClick={openNew} size="lg">+ Novo Relatório</Btn>}>Relatórios de Tráfego Pago</ST>
-
-      {relatorios.length===0?(
-        <Card style={{textAlign:"center",padding:48,color:"#64748B"}}>Nenhum relatório gerado ainda.</Card>
-      ):(
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:16}}>
-          {relatorios.map(r=>{
-            const clienteRef=clients.find(c=>c.id===r.cliente_id);
-            return (
-              <Card key={r.id}>
-                <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:14}}>
-                  <ClientLogo url={clienteRef?.logo_url} name={r.cliente_nome} size={40}/>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:14,fontWeight:800,color:"#111827"}}>{r.cliente_nome}</div>
-                    <div style={{fontSize:12,color:"#64748B"}}>{r.campanha_nome}</div>
-                  </div>
-                  <Btn size="sm" variant="danger" onClick={()=>setConfirm(r)}>{IC.trash}</Btn>
-                </div>
-                <div style={{fontSize:12,color:"#64748B",marginBottom:14}}>{fmtDate(r.data_inicial)} — {fmtDate(r.data_final)}</div>
-                <div style={{display:"flex",gap:8}}>
-                  {r.pdf_url?(
-                    <>
-                      <Btn size="sm" style={{flex:1}} onClick={()=>window.open(r.pdf_url,"_blank")}>👁️ Ver PDF</Btn>
-                      <Btn size="sm" variant="ghost" style={{flex:1}} onClick={()=>{const a=document.createElement("a");a.href=r.pdf_url;a.download="";a.click();}}>⬇ Baixar</Btn>
-                    </>
-                  ):<span style={{fontSize:12,color:"#94A3B8"}}>PDF indisponível</span>}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      {modal&&(
-        <Modal title="Novo Relatório de Tráfego Pago" onClose={()=>!gerando&&setModal(false)} width={640}>
-          <FSel label="Cliente" value={form.clienteId} onChange={v=>f("clienteId",v)} options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.id,label:c.name}))]}/>
-          <FInput label="Nome da campanha" value={form.campanhaNome} onChange={v=>f("campanhaNome",v)} placeholder="Ex: Campanha Dia das Mães"/>
-          <div style={{marginBottom:14}}>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>Objetivo da campanha</label>
-            <textarea value={form.objetivo} onChange={e=>f("objetivo",e.target.value)} rows={2} placeholder="Ex: Gerar mensagens no WhatsApp para agendamento de consultas"
-              style={{width:"100%",padding:"9px 13px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit",boxSizing:"border-box",background:"#FAFBFD",resize:"vertical"}}/>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <FInput label="Data inicial" value={form.dataInicial} onChange={v=>f("dataInicial",v)} type="date"/>
-            <FInput label="Data final" value={form.dataFinal} onChange={v=>f("dataFinal",v)} type="date"/>
-          </div>
-          {form.dataInicial&&form.dataFinal&&<div style={{fontSize:12,color:"#64748B",marginTop:-8,marginBottom:14}}>{dias>0?`${dias} dias de campanha`:"Data final deve ser depois da inicial"}</div>}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
-            <FInput label="Valor investido (R$)" value={form.valorInvestido} onChange={v=>f("valorInvestido",v)} type="number" placeholder="1000"/>
-            <FInput label="Valor gasto (opcional)" value={form.valorGasto} onChange={v=>f("valorGasto",v)} type="number" placeholder="980"/>
-            <FInput label="Qtd. vendas (opcional)" value={form.qtdVendas} onChange={v=>f("qtdVendas",v)} type="number" placeholder="12"/>
-          </div>
-          <FInput label="Valor do produto/serviço (opcional)" value={form.valorProduto} onChange={v=>f("valorProduto",v)} type="number" placeholder="150"/>
-
-          <div style={{marginTop:18,marginBottom:10,fontSize:13,fontWeight:800,color:"#111827"}}>Desempenho diário</div>
-          {desempenho.map((row,i)=>(
-            <div key={i} style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
-              <input type="date" value={row.dia} onChange={e=>setLinha(i,"dia",e.target.value)} style={{flex:2,padding:"8px 10px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,fontFamily:"inherit",background:"#FAFBFD"}}/>
-              <input type="number" value={row.mensagens} onChange={e=>setLinha(i,"mensagens",e.target.value)} placeholder="Mensagens" style={{flex:1,padding:"8px 10px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,fontFamily:"inherit",background:"#FAFBFD"}}/>
-              <button onClick={()=>removeLinha(i)} disabled={desempenho.length===1} style={{background:"none",border:"none",cursor:desempenho.length===1?"not-allowed":"pointer",color:"#EF4444",opacity:desempenho.length===1?0.4:1}}>{IC.trash}</button>
-            </div>
-          ))}
-          <Btn variant="ghost" size="sm" onClick={addLinha} style={{marginBottom:20}}>+ Adicionar dia</Btn>
-
-          {erro&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",color:"#991B1B",borderRadius:8,padding:"10px 14px",fontSize:13,marginBottom:16}}>{erro}</div>}
-
-          <Btn onClick={gerar} disabled={gerando} size="lg" style={{width:"100%",background:"linear-gradient(135deg,#FF6200,#FF8C00)"}}>
-            {gerando?(etapa||"Gerando..."):"📄 Gerar Relatório"}
-          </Btn>
-        </Modal>
-      )}
-
-      {pronto&&(
-        <Modal title="Relatório pronto!" onClose={()=>setPronto(null)} width={420}>
-          <div style={{textAlign:"center",padding:"10px 0"}}>
-            <div style={{fontSize:40,marginBottom:14}}>✅</div>
-            <div style={{fontSize:14,color:"#374151",marginBottom:24}}>O relatório da campanha "{pronto.campanhaNome}" foi gerado com sucesso.</div>
-            <div style={{display:"flex",gap:10}}>
-              <Btn style={{flex:1}} onClick={()=>window.open(pronto.pdfUrl,"_blank")}>Ver PDF</Btn>
-              <Btn variant="ghost" style={{flex:1}} onClick={()=>setPronto(null)}>Fechar</Btn>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {confirm&&<ConfirmModal msg={`Remover relatório de "${confirm.cliente_nome}" (${confirm.campanha_nome})?`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
-    </div>
-  );
-};
-
 // ── APP ROOT ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [loggedIn,setLoggedIn]=useState(false);
@@ -2161,7 +1907,6 @@ const [nomeUser,setNomeUser]=useState("erikklinder");(()=>{
   const [despesas,setDespesas]=useState([]);
   const [equipe,setEquipe]=useState([]);
   const [prospeccao,setProspeccao]=useState([]);
-  const [gravacoes,setGravacoes]=useState([]);
   const [loadingData,setLoadingData]=useState(true);
 
   // Seed se tabela vazia
@@ -2212,8 +1957,6 @@ const load = async () => {
     if(e) setEquipe(e);
     const {data:pr} = await supabase.from("prospeccao").select("*");
     if(pr) setProspeccao(pr);
-    const {data:gr} = await supabase.from("gravacoes").select("*");
-    if(gr) setGravacoes(gr);
   } catch(err) {
     console.error("Erro ao carregar dados:", err);
     alert("Erro: " + JSON.stringify(err));
@@ -2230,26 +1973,23 @@ load();
   const cobrPend = cobr.filter(c=>c.status==="pendente"||c.status==="atrasado").length;
 
   const pages = {
-    hoje:<HojePage setPage={setPage} clients={clients} cobr={cobr} tasks={tasks} gravacoes={gravacoes} perfil={perfil} nomeUser={nomeUser}/>,
-    dashboard:<DashboardPage clients={clients} cobr={cobr} despesas={despesas} gravacoes={gravacoes}/>,
+    hoje:<HojePage setPage={setPage} clients={clients} cobr={cobr} tasks={tasks} perfil={perfil} nomeUser={nomeUser}/>,
+    dashboard:<DashboardPage clients={clients} cobr={cobr} despesas={despesas}/>,
     prospeccao:<ProspeccaoPage prospeccao={prospeccao} setProspeccao={setProspeccao} equipe={equipe} loading={loadingData}/>,
-    clientes:<ClientesPage clients={clients} setClients={setClients} loading={loadingData}/>,
+    clientes:<ClientesPage clients={clients} setClients={setClients} cobr={cobr} setCobr={setCobr} loading={loadingData}/>,
     financeiro:<FinanceiroPage clients={clients} cobr={cobr} despesas={despesas}/>,
     cobr:<CobrancasPage cobr={cobr} setCobr={setCobr} clients={clients} loading={loadingData}/>,
     despesas:<DespesasPage despesas={despesas} setDespesas={setDespesas} loading={loadingData}/>,
     tarefas:<TarefasPage tasks={tasks} setTasks={setTasks} clients={clients} equipe={equipe} loading={loadingData}/>,
     calendario:<CalendarioPage/>,
-    gravacoes:<GravacoesPage gravacoes={gravacoes} setGravacoes={setGravacoes} clients={clients} equipe={equipe} loading={loadingData}/>,
     agenda:<AgendaPage clients={clients} equipe={equipe}/>,
-    equipe:<EquipePage equipe={equipe} setEquipe={setEquipe} tasks={tasks} loading={loadingData}/>,
-    trafego:<TráfegoPage/>,
-    relatorios:<RelatoriosTrafegoPage clients={clients}/>,
+    equipe:<EquipePage equipe={equipe} setEquipe={setEquipe} tasks={tasks} loading={loadingData} perfil={perfil}/>,
     mensagens:<MensagensPage/>,
   };
 
   return (
     <div style={{fontFamily:"'Sora','Segoe UI',sans-serif",background:"#EEF3F8",minHeight:"100vh"}}>
-      <Sidebar page={page} setPage={setPage} perfil={perfil} open={menuOpen} setOpen={setMenuOpen} onLogout={()=>{supabase.auth.signOut();setLoggedIn(false);setPerfil("operacional");setClients([]);setCobr([]);setTasks([]);setDespesas([]);setEquipe([]);setProspeccao([]);setGravacoes([]);}} cobrPend={cobrPend}/>
+      <Sidebar page={page} setPage={setPage} perfil={perfil} open={menuOpen} setOpen={setMenuOpen} onLogout={()=>{supabase.auth.signOut();setLoggedIn(false);setPerfil("operacional");setClients([]);setCobr([]);setTasks([]);setDespesas([]);setEquipe([]);setProspeccao([]);}} cobrPend={cobrPend}/>
       <Topbar page={page} nomeUser={nomeUser} perfil={perfil} onMenuClick={()=>setMenuOpen(true)}/>
       <main style={{marginLeft:typeof window!=="undefined"&&window.innerWidth<768?0:230,paddingTop:62}}>
         <div style={{padding:"28px 30px",minHeight:"calc(100vh - 62px)"}}>
