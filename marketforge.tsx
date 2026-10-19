@@ -99,19 +99,34 @@ const PBadge = ({p}) => {
   return <span style={{background:bg,color:c,fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20}}>{p.charAt(0).toUpperCase()+p.slice(1)}</span>;
 };
 
-const Card = ({children,style={},onClick}) => <div onClick={onClick} style={{background:"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07),0 0 0 1px #DDE5EF",padding:22,...style,cursor:onClick?"pointer":undefined}}>{children}</div>;
+const Card = ({children,style={},onClick}) => <div onClick={onClick} style={{background:"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07),0 0 0 1px rgba(221,229,239,0.8)",padding:22,transition:"box-shadow 0.18s,transform 0.18s",...style,cursor:onClick?"pointer":undefined}} onMouseEnter={onClick?e=>{e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.1),0 0 0 1px rgba(221,229,239,0.8)";e.currentTarget.style.transform="translateY(-1px)";}:undefined} onMouseLeave={onClick?e=>{e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.07),0 0 0 1px rgba(221,229,239,0.8)";e.currentTarget.style.transform="";}:undefined}>{children}</div>;
 
-const MC = ({label,value,sub,icon,bg="#FFF7F3",compact}) => (
+const MC = ({label,value,sub,icon,bg="#FFF7F3",compact,trend}) => (
   <Card style={{display:"flex",alignItems:"flex-start",gap:compact?8:14,minWidth:compact?0:160,padding:compact?12:22}}>
-    <div style={{background:bg,borderRadius:compact?9:12,width:compact?34:46,height:compact?34:46,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#FF6200"}}>{icon}</div>
-    <div><div style={{fontSize:compact?9.5:11,color:"#64748B",fontWeight:600,letterSpacing:0.4,textTransform:"uppercase"}}>{label}</div><div style={{fontSize:compact?16:22,fontWeight:800,color:"#111827",lineHeight:1.2,marginTop:2}}>{value}</div>{sub&&<div style={{fontSize:12,color:"#64748B",marginTop:2}}>{sub}</div>}</div>
+    <div style={{background:bg,borderRadius:compact?9:12,width:compact?34:46,height:compact?34:46,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#FF6200",boxShadow:`0 4px 12px ${bg}cc`}}>{icon}</div>
+    <div style={{flex:1}}>
+      <div style={{fontSize:compact?9.5:11,color:"#94A3B8",fontWeight:600,letterSpacing:0.5,textTransform:"uppercase",marginBottom:2}}>{label}</div>
+      <div style={{fontSize:compact?16:22,fontWeight:800,color:"#111827",lineHeight:1.2}}>{value}</div>
+      {sub&&<div style={{fontSize:12,color:"#64748B",marginTop:2}}>{sub}</div>}
+    </div>
+    {trend&&<div style={{fontSize:11,fontWeight:700,color:trend>0?"#10B981":"#EF4444",background:trend>0?"#ECFDF5":"#FEF2F2",borderRadius:6,padding:"2px 7px",alignSelf:"flex-start",marginTop:2}}>{trend>0?"+":""}{trend}%</div>}
   </Card>
 );
 
 const Btn = ({children,onClick,variant="primary",size="md",style={},disabled}) => {
   const sz = {sm:{padding:"5px 12px",fontSize:12},md:{padding:"9px 18px",fontSize:13},lg:{padding:"12px 26px",fontSize:15}};
-  const vr = {primary:{background:"#FF6200",color:"#fff"},secondary:{background:"#1F2F46",color:"#fff"},ghost:{background:"transparent",color:"#64748B",boxShadow:"0 0 0 1px #DDE5EF"},danger:{background:"#EF4444",color:"#fff"},success:{background:"#10B981",color:"#fff"},warn:{background:"#F59E0B",color:"#fff"}};
-  return <button onClick={onClick} disabled={disabled} style={{borderRadius:8,fontWeight:700,cursor:disabled?"not-allowed":"pointer",border:"none",letterSpacing:0.2,fontFamily:"inherit",...sz[size],...vr[variant],opacity:disabled?0.5:1,...style}}>{children}</button>;
+  const vr = {
+    primary:{background:"linear-gradient(135deg,#FF6200,#FF7A20)",color:"#fff",boxShadow:"0 2px 8px rgba(255,98,0,0.3)"},
+    secondary:{background:"linear-gradient(135deg,#1F2F46,#2D4A6A)",color:"#fff",boxShadow:"0 2px 8px rgba(31,47,70,0.3)"},
+    ghost:{background:"transparent",color:"#64748B",boxShadow:"0 0 0 1.5px #DDE5EF"},
+    danger:{background:"linear-gradient(135deg,#EF4444,#DC2626)",color:"#fff",boxShadow:"0 2px 8px rgba(239,68,68,0.25)"},
+    success:{background:"linear-gradient(135deg,#10B981,#059669)",color:"#fff",boxShadow:"0 2px 8px rgba(16,185,129,0.25)"},
+    warn:{background:"linear-gradient(135deg,#F59E0B,#D97706)",color:"#fff",boxShadow:"0 2px 8px rgba(245,158,11,0.25)"}
+  };
+  return <button onClick={onClick} disabled={disabled} style={{borderRadius:8,fontWeight:700,cursor:disabled?"not-allowed":"pointer",border:"none",letterSpacing:0.2,fontFamily:"inherit",transition:"opacity 0.15s,transform 0.12s",...sz[size],...vr[variant],opacity:disabled?0.5:1,...style}}
+    onMouseEnter={!disabled?e=>{e.currentTarget.style.opacity="0.88";e.currentTarget.style.transform="translateY(-1px)";}:undefined}
+    onMouseLeave={!disabled?e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="";}:undefined}
+  >{children}</button>;
 };
 
 const FInput = ({label,value,onChange,type="text",placeholder="",icon,extra}) => (
@@ -161,9 +176,15 @@ const ConfirmModal = ({msg,onConfirm,onCancel}) => (
   </div>
 );
 
-const ST = ({children,action}) => (
-  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
-    <h2 style={{margin:0,fontSize:18,fontWeight:800,color:"#111827"}}>{children}</h2>
+const ST = ({children,action,sub}) => (
+  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+    <div style={{display:"flex",alignItems:"center",gap:12}}>
+      <div style={{width:4,height:24,background:"linear-gradient(180deg,#FF6200,#FF8C00)",borderRadius:2}}/>
+      <div>
+        <h2 style={{margin:0,fontSize:18,fontWeight:800,color:"#111827",lineHeight:1.2}}>{children}</h2>
+        {sub&&<div style={{fontSize:12,color:"#94A3B8",marginTop:1}}>{sub}</div>}
+      </div>
+    </div>
     {action}
   </div>
 );
@@ -177,7 +198,13 @@ const Tbl = ({cols,rows}) => (
   </div>
 );
 
-const Loading = () => <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:200,color:"#64748B",fontSize:14}}>Carregando...</div>;
+const Loading = () => (
+  <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:200,gap:14}}>
+    <div style={{width:36,height:36,border:"3px solid #EEF3F8",borderTop:"3px solid #FF6200",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>
+    <div style={{fontSize:13,color:"#94A3B8",fontWeight:500}}>Carregando...</div>
+    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+  </div>
+);
 
 // ── LOGO AVATAR ───────────────────────────────────────────────────────────────
 const ClientLogo = ({url,name,size=50}) => {
@@ -244,15 +271,32 @@ return (
         {isMobile&&<button onClick={()=>setOpen(false)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.5)",fontSize:22,cursor:"pointer"}}>×</button>}
       </div>
       <nav style={{flex:1,padding:"14px 10px",overflowY:"auto"}}>
-        {NAV.map(n=>(
-          <div key={n.id} onClick={()=>{setPage(n.id);setOpen(false);}} style={{display:"flex",alignItems:"center",gap:11,padding:"9px 12px",borderRadius:10,marginBottom:2,cursor:"pointer",background:page===n.id?"rgba(255,98,0,0.18)":"transparent",color:page===n.id?"#FF6200":"rgba(255,255,255,0.65)",fontWeight:page===n.id?700:500,fontSize:13}}>
-            <span style={{opacity:page===n.id?1:0.7}}>{n.icon}</span>{n.label}
-            {n.id==="cobr"&&cobrPend>0&&<span style={{marginLeft:"auto",background:"#EF4444",color:"#fff",fontSize:10,fontWeight:700,borderRadius:10,padding:"1px 7px"}}>{cobrPend}</span>}
-          </div>
-        ))}
+        {NAV.map(n=>{
+          const active=page===n.id;
+          return (
+            <div key={n.id} onClick={()=>{setPage(n.id);setOpen(false);}}
+              style={{display:"flex",alignItems:"center",gap:11,padding:"9px 12px",borderRadius:10,marginBottom:2,cursor:"pointer",
+                background:active?"rgba(255,98,0,0.15)":"transparent",
+                color:active?"#FF6200":"rgba(255,255,255,0.6)",
+                fontWeight:active?700:500,fontSize:13,
+                borderLeft:active?"3px solid #FF6200":"3px solid transparent",
+                transition:"background 0.15s,color 0.15s"}}
+              onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.06)";e.currentTarget.style.color="rgba(255,255,255,0.9)";}}}
+              onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.6)";}}}
+            >
+              <span style={{opacity:active?1:0.7,display:"flex"}}>{n.icon}</span>
+              <span style={{flex:1}}>{n.label}</span>
+              {n.id==="cobr"&&cobrPend>0&&<span style={{background:"#EF4444",color:"#fff",fontSize:10,fontWeight:700,borderRadius:10,padding:"1px 7px",minWidth:18,textAlign:"center"}}>{cobrPend}</span>}
+            </div>
+          );
+        })}
       </nav>
-      <div style={{padding:"14px 10px",borderTop:"1px solid rgba(255,255,255,0.08)"}}>
-        <div onClick={onLogout} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,cursor:"pointer",color:"rgba(255,255,255,0.5)",fontSize:13}}>
+      <div style={{padding:"14px 10px",borderTop:"1px solid rgba(255,255,255,0.07)"}}>
+        <div onClick={onLogout}
+          style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,cursor:"pointer",color:"rgba(255,255,255,0.4)",fontSize:13,transition:"color 0.15s,background 0.15s"}}
+          onMouseEnter={e=>{e.currentTarget.style.color="rgba(255,255,255,0.8)";e.currentTarget.style.background="rgba(255,255,255,0.06)";}}
+          onMouseLeave={e=>{e.currentTarget.style.color="rgba(255,255,255,0.4)";e.currentTarget.style.background="transparent";}}
+        >
           {IC.logout} Sair
         </div>
       </div>
@@ -262,102 +306,303 @@ return (
 
 const Topbar=({page,nomeUser,perfil,onMenuClick})=>{
 const isMobile = typeof window!=="undefined"&&window.innerWidth<768;
+const SUB_LABELS={hoje:"Visão geral do dia",dashboard:"KPIs e métricas",prospeccao:"CRM de leads",clientes:"Gestão de carteira",financeiro:"Receitas e despesas",cobr:"Cobranças mensais",despesas:"Custos operacionais",tarefas:"Produção da equipe",calendario:"Calendário estratégico",agenda:"Agendamentos recorrentes",equipe:"Time e desempenho",mensagens:"Templates de mensagem"};
 return (
-  <div style={{position:"fixed",top:0,left:isMobile?0:230,right:0,height:62,background:"#fff",borderBottom:"1px solid #DDE5EF",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",zIndex:99}}>
+  <div style={{position:"fixed",top:0,left:isMobile?0:230,right:0,height:62,background:"rgba(255,255,255,0.97)",backdropFilter:"blur(8px)",borderBottom:"1px solid #EEF3F8",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 24px",zIndex:99,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
     <div style={{display:"flex",alignItems:"center",gap:12}}>
-      {isMobile&&<button onClick={onMenuClick} style={{background:"none",border:"none",cursor:"pointer",color:"#64748B",fontSize:22,display:"flex",padding:0}}>☰</button>}
-      <div style={{fontSize:18,fontWeight:800,color:"#111827"}}>{LABELS[page]||page}</div>
+      {isMobile&&<button onClick={onMenuClick} style={{background:"none",border:"none",cursor:"pointer",color:"#64748B",fontSize:22,display:"flex",padding:4}}>☰</button>}
+      <div>
+        <div style={{fontSize:16,fontWeight:800,color:"#111827",lineHeight:1.2}}>{LABELS[page]||page}</div>
+        {SUB_LABELS[page]&&<div style={{fontSize:11,color:"#94A3B8",fontWeight:500}}>{SUB_LABELS[page]}</div>}
+      </div>
     </div>
-    <div style={{display:"flex",alignItems:"center",gap:16}}>
-      <div style={{position:"relative",cursor:"pointer",color:"#64748B"}}>{IC.bell}</div>
-      <div style={{display:"flex",alignItems:"center",gap:9}}>
-        <div style={{width:34,height:34,background:"linear-gradient(135deg,#FF6200,#FF8C00)",borderRadius:99,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:14,fontWeight:700}}>{nomeUser?.charAt(0).toUpperCase()||"E"}</div>
-        <div><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{nomeUser||"erikklinder"}</div><div style={{fontSize:11,color:"#64748B"}}>{perfil==="admin"?"Admin":"Operacional"}</div></div>
+    <div style={{display:"flex",alignItems:"center",gap:14}}>
+      <div style={{cursor:"pointer",color:"#94A3B8",display:"flex",padding:6,borderRadius:8,transition:"background 0.15s,color 0.15s"}}
+        onMouseEnter={e=>{e.currentTarget.style.background="#F1F5F9";e.currentTarget.style.color="#64748B";}}
+        onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color="#94A3B8";}}
+      >{IC.bell}</div>
+      <div style={{display:"flex",alignItems:"center",gap:9,cursor:"pointer",padding:"4px 8px",borderRadius:10,transition:"background 0.15s"}}
+        onMouseEnter={e=>e.currentTarget.style.background="#F8FAFC"}
+        onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+      >
+        <div style={{width:34,height:34,background:"linear-gradient(135deg,#FF6200,#FF8C00)",borderRadius:99,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:800,boxShadow:"0 2px 8px rgba(255,98,0,0.35)"}}>{nomeUser?.charAt(0).toUpperCase()||"E"}</div>
+        {!isMobile&&<div>
+          <div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{nomeUser||"erikklinder"}</div>
+          <div style={{fontSize:11,color:"#94A3B8"}}>{perfil==="admin"?"Admin":"Operacional"}</div>
+        </div>}
       </div>
     </div>
   </div>
 );};
 
 // ── HOJE ──────────────────────────────────────────────────────────────────────
+const getGreeting=()=>{const h=new Date().getHours();if(h<12)return"Bom dia";if(h<18)return"Boa tarde";return"Boa noite";};
+
 const HojePage=({setPage,clients,cobr,tasks,perfil,nomeUser})=>{
   const atrasadas=tasks.filter(t=>t.status==="atrasado");
-  const cobHoje=cobr.filter(c=>c.status==="pendente"||c.status==="atrasado").slice(0,4);
+  const cobPend=cobr.filter(c=>c.status==="pendente"||c.status==="atrasado");
+  const cobHoje=cobPend.slice(0,4);
+  const hoje=new Date();
+  const diasSemana=["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+  const meses=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+  const dataStr=`${diasSemana[hoje.getDay()]}, ${hoje.getDate()} de ${meses[hoje.getMonth()]}`;
+
+  const atalhos=[
+    {label:"Nova tarefa",icon:IC.check,page:"tarefas",color:"#FF6200",bg:"#FFF7F3"},
+    {label:"Ver cobranças",icon:IC.money,page:"cobr",color:"#10B981",bg:"#ECFDF5"},
+    {label:"Ver clientes",icon:IC.users,page:"clientes",color:"#3B82F6",bg:"#EFF6FF"},
+    {label:"Ver agenda",icon:IC.cal,page:"agenda",color:"#7C3AED",bg:"#F5F3FF"},
+  ];
+
   return (
     <div>
-      <div style={{marginBottom:22,display:"flex",alignItems:"center",gap:12}}>
-        <div style={{width:48,height:48,background:"linear-gradient(135deg,#FF6200,#FF8C00)",borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff"}}>{IC.sun}</div>
-        <div>
-          <div style={{fontSize:22,fontWeight:800,color:"#111827"}}>Bom dia, {nomeUser||"erikklinder"}!</div>
-          <div style={{fontSize:13,color:"#64748B"}}>Aqui está o que precisa de atenção hoje</div>
+      {/* Hero */}
+      <div style={{background:"linear-gradient(135deg,#1F2F46 0%,#2D4A6A 100%)",borderRadius:20,padding:"28px 32px",marginBottom:24,position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:-40,right:-40,width:200,height:200,background:"radial-gradient(circle,rgba(255,98,0,0.2) 0%,transparent 70%)",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",bottom:-60,left:100,width:160,height:160,background:"radial-gradient(circle,rgba(255,98,0,0.1) 0%,transparent 70%)",pointerEvents:"none"}}/>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:16,position:"relative",zIndex:1}}>
+          <div>
+            <div style={{fontSize:13,color:"rgba(255,255,255,0.5)",fontWeight:500,marginBottom:4}}>{dataStr}</div>
+            <div style={{fontSize:26,fontWeight:800,color:"#fff",marginBottom:4}}>{getGreeting()}, {(nomeUser||"erikklinder").split(" ")[0]}!</div>
+            <div style={{fontSize:14,color:"rgba(255,255,255,0.6)"}}>Aqui está o resumo do dia na MarketForge</div>
+          </div>
+          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+            {atalhos.map(a=>(
+              <button key={a.page} onClick={()=>setPage(a.page)}
+                style={{display:"flex",alignItems:"center",gap:8,padding:"9px 16px",borderRadius:10,border:"none",cursor:"pointer",background:"rgba(255,255,255,0.1)",color:"#fff",fontSize:12,fontWeight:600,fontFamily:"inherit",transition:"background 0.15s"}}
+                onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.18)"}
+                onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.1)"}
+              >
+                <span style={{color:a.color}}>{a.icon}</span>{a.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:14,marginBottom:28}}>
-        {perfil==="admin"&&<MC label="Cobranças pendentes" value={cobr.filter(c=>c.status==="pendente").length} icon={IC.money} bg="#FFF7F3"/>}
+
+      {/* KPIs */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:14,marginBottom:24}}>
+        {perfil==="admin"&&<MC label="Cobranças pendentes" value={cobPend.length} icon={IC.money} bg="#FFF7F3"/>}
         <MC label="Tarefas atrasadas" value={atrasadas.length} icon={IC.alert} bg="#FEF2F2"/>
         <MC label="Clientes ativos" value={clients.filter(c=>c.status==="ativo").length} icon={IC.users} bg="#ECFDF5"/>
         {perfil==="admin"&&<MC label="Inadimplentes" value={clients.filter(c=>c.status==="inadimplente").length} icon={IC.users} bg="#FEF2F2"/>}
+        <MC label="Em produção" value={tasks.filter(t=>t.status==="em_producao").length} icon={IC.check} bg="#F5F3FF"/>
       </div>
+
+      {/* Painéis */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:18}}>
         {perfil==="admin"&&<Card>
           <ST action={<Btn size="sm" variant="ghost" onClick={()=>setPage("cobr")}>Ver todas</Btn>}>Cobranças pendentes</ST>
-          {cobHoje.length===0?<div style={{color:"#10B981",textAlign:"center",padding:"20px 0",fontSize:13}}>Nenhuma pendência!</div>:cobHoje.map(c=>(
-            <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"#F8FAFC",borderRadius:10,marginBottom:8}}>
-              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{c.cliente}</div><div style={{fontSize:12,color:"#64748B",display:"flex",alignItems:"center",gap:4}}>{IC.clock} Venc: {fmtDate(c.vencimento)}</div></div>
-              <div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:800}}>R$ {c.valor?.toLocaleString()}</div><StatusBadge status={c.status}/></div>
-            </div>
-          ))}
+          {cobHoje.length===0
+            ?<div style={{color:"#10B981",textAlign:"center",padding:"20px 0",fontSize:13,fontWeight:600}}>✓ Tudo em dia!</div>
+            :cobHoje.map(c=>(
+              <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"#F8FAFC",borderRadius:10,marginBottom:8,border:"1px solid #EEF3F8"}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{c.cliente}</div>
+                  <div style={{fontSize:11,color:"#64748B",display:"flex",alignItems:"center",gap:4,marginTop:2}}>{IC.clock} {fmtDate(c.vencimento)}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:14,fontWeight:800,color:"#111827"}}>R$ {Number(c.valor).toLocaleString()}</div>
+                  <StatusBadge status={c.status}/>
+                </div>
+              </div>
+            ))
+          }
         </Card>}
         <Card>
           <ST action={<Btn size="sm" variant="ghost" onClick={()=>setPage("tarefas")}>Ver todas</Btn>}>Tarefas atrasadas</ST>
-          {atrasadas.length===0?<div style={{color:"#10B981",textAlign:"center",padding:"20px 0",fontSize:13}}>Nenhuma atrasada!</div>:atrasadas.map(t=>(
-            <div key={t.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"#FEF2F2",borderRadius:10,border:"1px solid #FECACA",marginBottom:8}}>
-              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{t.titulo}</div><div style={{fontSize:12,color:"#64748B"}}>{t.cliente} · {t.responsavel}</div></div>
-              <div style={{textAlign:"right"}}><div style={{fontSize:11,color:"#EF4444",fontWeight:700}}>Atrasada</div><div style={{fontSize:11,color:"#64748B"}}>{fmtDate(t.entrega)}</div></div>
-            </div>
-          ))}
+          {atrasadas.length===0
+            ?<div style={{color:"#10B981",textAlign:"center",padding:"20px 0",fontSize:13,fontWeight:600}}>✓ Nenhuma atrasada!</div>
+            :atrasadas.slice(0,4).map(t=>(
+              <div key={t.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"#FEF2F2",borderRadius:10,border:"1px solid #FECACA",marginBottom:8}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{t.titulo}</div>
+                  <div style={{fontSize:11,color:"#64748B",marginTop:2}}>{t.cliente} · {t.responsavel}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:11,color:"#EF4444",fontWeight:700,marginBottom:2}}>Atrasada</div>
+                  <div style={{fontSize:11,color:"#94A3B8"}}>{fmtDate(t.entrega)}</div>
+                </div>
+              </div>
+            ))
+          }
         </Card>
-        <Card>
-          <ST action={<Btn size="sm" variant="ghost" onClick={()=>setPage("agenda")}>Ver agenda</Btn>}>Agenda de hoje</ST>
-          <div style={{color:"#64748B",textAlign:"center",padding:"20px 0",fontSize:13}}>Acesse a Agenda para ver os compromissos do dia.</div>
-        </Card>
+        {perfil==="admin"&&<Card>
+          <ST action={<Btn size="sm" variant="ghost" onClick={()=>setPage("clientes")}>Ver todos</Btn>}>Clientes inadimplentes</ST>
+          {clients.filter(c=>c.status==="inadimplente").length===0
+            ?<div style={{color:"#10B981",textAlign:"center",padding:"20px 0",fontSize:13,fontWeight:600}}>✓ Carteira saudável!</div>
+            :clients.filter(c=>c.status==="inadimplente").slice(0,4).map(c=>(
+              <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"#FEF2F2",borderRadius:10,border:"1px solid #FECACA",marginBottom:8}}>
+                <ClientLogo url={c.logo_url} name={c.name} size={34}/>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{c.name}</div>
+                  <div style={{fontSize:11,color:"#64748B",marginTop:2}}>R$ {Number(c.valor).toLocaleString()} · Dia {c.vencimento}</div>
+                </div>
+              </div>
+            ))
+          }
+        </Card>}
       </div>
     </div>
   );
 };
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
-const DashboardPage=({clients,cobr,despesas})=>{
+const BarChart=({items,max})=>(
+  <div style={{display:"flex",alignItems:"flex-end",gap:6,height:64,paddingTop:8}}>
+    {items.map((it,i)=>(
+      <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+        <div style={{width:"100%",background:it.color,borderRadius:"4px 4px 0 0",height:`${max?Math.max(4,(it.value/max)*56):4}px`,transition:"height 0.4s ease"}}/>
+        <div style={{fontSize:9,color:"#94A3B8",textAlign:"center",lineHeight:1.2}}>{it.label}</div>
+      </div>
+    ))}
+  </div>
+);
+
+const DashboardPage=({clients,cobr,despesas,tasks})=>{
   const recR=cobr.filter(c=>c.status==="pago").reduce((a,c)=>a+Number(c.valor),0);
   const recP=cobr.filter(c=>c.status==="pendente").reduce((a,c)=>a+Number(c.valor),0);
   const recA=cobr.filter(c=>c.status==="atrasado").reduce((a,c)=>a+Number(c.valor),0);
-  const despT=despesas.reduce((a,d)=>a+Number(d.valor),0);
+  const despT=despesas.filter(d=>d.status!=="cancelado").reduce((a,d)=>a+Number(d.valor),0);
+  const despPagas=despesas.filter(d=>d.status==="pago").reduce((a,d)=>a+Number(d.valor),0);
+  const lucroEst=recR-despPagas;
   const atv=clients.filter(c=>c.status==="ativo").length;
+  const inadim=clients.filter(c=>c.status==="inadimplente").length;
+  const mrr=clients.filter(c=>c.status==="ativo").reduce((a,c)=>a+Number(c.valor),0);
+
+  // Mini bar data
+  const cobBarMax=Math.max(cobr.filter(c=>c.status==="pago").length,cobr.filter(c=>c.status==="pendente").length,cobr.filter(c=>c.status==="atrasado").length,1);
+  const cliBarMax=Math.max(atv,clients.filter(c=>c.status==="pausado").length,inadim,1);
+
+  // Top clientes por valor
+  const topClients=[...clients].filter(c=>c.status==="ativo").sort((a,b)=>Number(b.valor)-Number(a.valor)).slice(0,5);
+
   return (
     <div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:14,marginBottom:24}}>
-        <MC label="Receita recebida" value={`R$ ${recR.toLocaleString()}`} icon={IC.check} bg="#ECFDF5"/>
-        <MC label="Em aberto" value={`R$ ${recP.toLocaleString()}`} icon={IC.clock} bg="#FFFBEB"/>
-        <MC label="Atrasado" value={`R$ ${recA.toLocaleString()}`} icon={IC.alert} bg="#FEF2F2"/>
-        <MC label="Despesas" value={`R$ ${despT.toLocaleString()}`} icon={IC.money} bg="#F8FAFC"/>
-        <MC label="Lucro estimado" value={`R$ ${(recR-despT).toLocaleString()}`} icon={IC.trending} bg="#ECFDF5"/>
-        <MC label="Clientes ativos" value={atv} icon={IC.users} bg="#F5F3FF"/>
+      {/* Faixa de destaque MRR */}
+      <div style={{background:"linear-gradient(135deg,#1F2F46,#2D4A6A)",borderRadius:16,padding:"20px 28px",marginBottom:22,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14}}>
+        <div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.5)",fontWeight:500,marginBottom:2}}>MRR (Receita Recorrente Mensal)</div>
+          <div style={{fontSize:32,fontWeight:900,color:"#FF6200",letterSpacing:-1}}>R$ {mrr.toLocaleString()}</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.5)",marginTop:2}}>{atv} cliente{atv!==1?"s":""} ativo{atv!==1?"s":""}</div>
+        </div>
+        <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:22,fontWeight:800,color:lucroEst>=0?"#34D399":"#F87171"}}>{lucroEst>=0?"+":""}R$ {lucroEst.toLocaleString()}</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.45)"}}>Lucro estimado</div>
+          </div>
+          <div style={{width:1,background:"rgba(255,255,255,0.1)"}}/>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:22,fontWeight:800,color:"#FBBF24"}}>R$ {recP.toLocaleString()}</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.45)"}}>Em aberto</div>
+          </div>
+          <div style={{width:1,background:"rgba(255,255,255,0.1)"}}/>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:22,fontWeight:800,color:"#F87171"}}>R$ {recA.toLocaleString()}</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.45)"}}>Atrasado</div>
+          </div>
+        </div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:18}}>
+
+      {/* KPI grid */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(175px,1fr))",gap:14,marginBottom:22}}>
+        <MC label="Receita recebida" value={`R$ ${recR.toLocaleString()}`} icon={IC.check} bg="#ECFDF5"/>
+        <MC label="Despesas totais" value={`R$ ${despT.toLocaleString()}`} icon={IC.money} bg="#F8FAFC"/>
+        <MC label="Clientes ativos" value={atv} icon={IC.users} bg="#F5F3FF"/>
+        <MC label="Inadimplentes" value={inadim} icon={IC.alert} bg="#FEF2F2"/>
+        {tasks&&<MC label="Tarefas abertas" value={tasks.filter(t=>t.status!=="finalizado"&&t.status!=="cancelado").length} icon={IC.check} bg="#FFFBEB"/>}
+        <MC label="Despesas pagas" value={`R$ ${despPagas.toLocaleString()}`} icon={IC.trending} bg="#ECFDF5"/>
+      </div>
+
+      {/* Painéis */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:18}}>
+        {/* Cobranças - gráfico */}
         <Card>
-          <ST>Status de cobranças</ST>
-          {[{label:"Pagas",count:cobr.filter(c=>c.status==="pago").length,color:"#10B981"},{label:"Pendentes",count:cobr.filter(c=>c.status==="pendente").length,color:"#F59E0B"},{label:"Atrasadas",count:cobr.filter(c=>c.status==="atrasado").length,color:"#EF4444"}].map(s=>(
-            <div key={s.label} style={{marginBottom:14}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:13,color:"#374151",fontWeight:600}}>{s.label}</span><span style={{fontSize:13,fontWeight:800,color:s.color}}>{s.count}</span></div>
-              <div style={{background:"#EEF3F8",borderRadius:99,height:7,overflow:"hidden"}}><div style={{background:s.color,height:"100%",width:cobr.length?`${(s.count/cobr.length)*100}%`:"0%",borderRadius:99}}/></div>
+          <ST>Cobranças — visão geral</ST>
+          <BarChart
+            max={cobBarMax}
+            items={[
+              {label:"Pagas",value:cobr.filter(c=>c.status==="pago").length,color:"#10B981"},
+              {label:"Pendentes",value:cobr.filter(c=>c.status==="pendente").length,color:"#F59E0B"},
+              {label:"Atrasadas",value:cobr.filter(c=>c.status==="atrasado").length,color:"#EF4444"},
+            ]}
+          />
+          <div style={{height:1,background:"#EEF3F8",margin:"14px 0 12px"}}/>
+          {[{label:"Pagas",count:cobr.filter(c=>c.status==="pago").length,color:"#10B981",icon:"✓"},{label:"Pendentes",count:cobr.filter(c=>c.status==="pendente").length,color:"#F59E0B",icon:"·"},{label:"Atrasadas",count:cobr.filter(c=>c.status==="atrasado").length,color:"#EF4444",icon:"!"}].map(s=>(
+            <div key={s.label} style={{marginBottom:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                <span style={{fontSize:12,color:"#374151",fontWeight:600,display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{display:"inline-flex",width:18,height:18,background:s.color+"22",color:s.color,borderRadius:4,alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800}}>{s.icon}</span>
+                  {s.label}
+                </span>
+                <span style={{fontSize:13,fontWeight:800,color:s.color}}>{s.count}</span>
+              </div>
+              <div style={{background:"#EEF3F8",borderRadius:99,height:5,overflow:"hidden"}}>
+                <div style={{background:s.color,height:"100%",width:cobr.length?`${(s.count/cobr.length)*100}%`:"0%",borderRadius:99,transition:"width 0.5s ease"}}/>
+              </div>
             </div>
           ))}
         </Card>
+
+        {/* Clientes - gráfico */}
         <Card>
-          <ST>Clientes por status</ST>
+          <ST>Clientes — distribuição</ST>
+          <BarChart
+            max={cliBarMax}
+            items={[
+              {label:"Ativos",value:atv,color:"#10B981"},
+              {label:"Pausados",value:clients.filter(c=>c.status==="pausado").length,color:"#F59E0B"},
+              {label:"Inadim.",value:inadim,color:"#EF4444"},
+            ]}
+          />
+          <div style={{height:1,background:"#EEF3F8",margin:"14px 0 12px"}}/>
           {[{label:"Ativos",color:"#10B981",key:"ativo"},{label:"Pausados",color:"#F59E0B",key:"pausado"},{label:"Inadimplentes",color:"#EF4444",key:"inadimplente"}].map(s=>(
-            <div key={s.key} style={{marginBottom:14}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:13,color:"#374151",fontWeight:600}}>{s.label}</span><span style={{fontSize:13,fontWeight:800,color:s.color}}>{clients.filter(c=>c.status===s.key).length}</span></div>
-              <div style={{background:"#EEF3F8",borderRadius:99,height:7,overflow:"hidden"}}><div style={{background:s.color,height:"100%",width:clients.length?`${(clients.filter(c=>c.status===s.key).length/clients.length)*100}%`:"0%",borderRadius:99}}/></div>
+            <div key={s.key} style={{marginBottom:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                <span style={{fontSize:12,color:"#374151",fontWeight:600}}>
+                  <span style={{display:"inline-block",width:8,height:8,background:s.color,borderRadius:"50%",marginRight:6}}/>
+                  {s.label}
+                </span>
+                <span style={{fontSize:13,fontWeight:800,color:s.color}}>{clients.filter(c=>c.status===s.key).length}</span>
+              </div>
+              <div style={{background:"#EEF3F8",borderRadius:99,height:5,overflow:"hidden"}}>
+                <div style={{background:s.color,height:"100%",width:clients.length?`${(clients.filter(c=>c.status===s.key).length/clients.length)*100}%`:"0%",borderRadius:99,transition:"width 0.5s ease"}}/>
+              </div>
+            </div>
+          ))}
+        </Card>
+
+        {/* Top clientes */}
+        {topClients.length>0&&<Card>
+          <ST>Top clientes por mensalidade</ST>
+          {topClients.map((c,i)=>(
+            <div key={c.id||i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:i<topClients.length-1?"1px solid #EEF3F8":"none"}}>
+              <div style={{width:22,height:22,borderRadius:"50%",background:i===0?"linear-gradient(135deg,#FF6200,#FF8C00)":i===1?"linear-gradient(135deg,#94A3B8,#CBD5E1)":"linear-gradient(135deg,#D97706,#FCD34D)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:i<2?"#fff":"#1F2F46",flexShrink:0}}>
+                {i+1}
+              </div>
+              <ClientLogo url={c.logo_url} name={c.name} size={28}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12,fontWeight:700,color:"#111827",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
+                <div style={{fontSize:11,color:"#94A3B8"}}>{c.plano||"—"}</div>
+              </div>
+              <div style={{fontSize:13,fontWeight:800,color:"#1F2F46",whiteSpace:"nowrap"}}>R$ {Number(c.valor).toLocaleString()}</div>
+            </div>
+          ))}
+        </Card>}
+
+        {/* Despesas */}
+        <Card>
+          <ST>Despesas — status</ST>
+          {[{label:"Pagas",key:"pago",color:"#10B981"},{label:"Pendentes",key:"pendente",color:"#F59E0B"},{label:"Atrasadas",key:"atrasado",color:"#EF4444"}].map(s=>(
+            <div key={s.key} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 12px",background:"#F8FAFC",borderRadius:10,marginBottom:8,border:"1px solid #EEF3F8"}}>
+              <span style={{fontSize:13,fontWeight:600,color:"#374151",display:"flex",alignItems:"center",gap:8}}>
+                <span style={{width:8,height:8,borderRadius:"50%",background:s.color,display:"inline-block"}}/>
+                {s.label}
+              </span>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:13,fontWeight:800,color:s.color}}>R$ {despesas.filter(d=>d.status===s.key).reduce((a,d)=>a+Number(d.valor),0).toLocaleString()}</div>
+                <div style={{fontSize:11,color:"#94A3B8"}}>{despesas.filter(d=>d.status===s.key).length} item{despesas.filter(d=>d.status===s.key).length!==1?"s":""}</div>
+              </div>
             </div>
           ))}
         </Card>
@@ -1974,7 +2219,7 @@ load();
 
   const pages = {
     hoje:<HojePage setPage={setPage} clients={clients} cobr={cobr} tasks={tasks} perfil={perfil} nomeUser={nomeUser}/>,
-    dashboard:<DashboardPage clients={clients} cobr={cobr} despesas={despesas}/>,
+    dashboard:<DashboardPage clients={clients} cobr={cobr} despesas={despesas} tasks={tasks}/>,
     prospeccao:<ProspeccaoPage prospeccao={prospeccao} setProspeccao={setProspeccao} equipe={equipe} loading={loadingData}/>,
     clientes:<ClientesPage clients={clients} setClients={setClients} cobr={cobr} setCobr={setCobr} loading={loadingData}/>,
     financeiro:<FinanceiroPage clients={clients} cobr={cobr} despesas={despesas}/>,
