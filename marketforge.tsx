@@ -1595,7 +1595,6 @@ const AgendaPage=({clients,equipe})=>{
       await load();
     }catch(e){
       console.error("Erro ao salvar agenda",e);
-      alert("Erro ao salvar agenda. Tente novamente.");
     }
     setSaving(false);
   };
@@ -2134,8 +2133,7 @@ const CalendarioPage=()=>{
   const hoje=new Date();
   const doisMeses=new Date();
   doisMeses.setMonth(doisMeses.getMonth()+2);
-  const importante=d.nivel==="critico"||d.nivel==="alto";
-  return dataEvento>=hoje && dataEvento<=doisMeses;
+  return (d.nivel==="critico"||d.nivel==="alto") && dataEvento>=hoje && dataEvento<=doisMeses;
 }).map(d=>(
           <Card key={d.id} onClick={()=>setSel(d)} style={{cursor:"pointer",borderLeft:`4px solid ${nm[d.nivel]||"#64748B"}`}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
@@ -2193,10 +2191,7 @@ export default function App() {
   const [checandoSessao,setChecandoSessao]=useState(true);
 const [menuOpen,setMenuOpen]=useState(false);
   const [perfil,setPerfil]=useState("operacional");
-const [nomeUser,setNomeUser]=useState("erikklinder");(()=>{
-  if(typeof window !== "undefined") return localStorage.getItem("mf_logged") === "true";
-  return false;
-});
+const [nomeUser,setNomeUser]=useState("erikklinder");
   const [page,setPage]=useState("hoje");
 
   // Data state
@@ -2258,7 +2253,6 @@ const load = async () => {
     if(pr) setProspeccao(pr);
   } catch(err) {
     console.error("Erro ao carregar dados:", err);
-    alert("Erro: " + JSON.stringify(err));
   } finally {
     setLoadingData(false);
   }
