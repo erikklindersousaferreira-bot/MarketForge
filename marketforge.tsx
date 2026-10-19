@@ -1204,13 +1204,22 @@ const BLANK_COBR={cliente:"",valor:"",vencimento:"",status:"pendente",pagamento:
 
 const CobrancasPage=({cobr,setCobr,clients,loading})=>{
   const [filter,setFilter]=useState("todos");
+  const [search,setSearch]=useState("");
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState(BLANK_COBR);
   const [editing,setEditing]=useState(null);
   const [confirm,setConfirm]=useState(null);
   const [saving,setSaving]=useState(false);
 
-  const fl=cobr.filter(c=>filter==="todos"||c.status===filter);
+  const totalRecebido=cobr.filter(c=>c.status==="pago").reduce((a,c)=>a+Number(c.valor),0);
+  const totalPend=cobr.filter(c=>c.status==="pendente").reduce((a,c)=>a+Number(c.valor),0);
+  const totalAtras=cobr.filter(c=>c.status==="atrasado").reduce((a,c)=>a+Number(c.valor),0);
+
+  const fl=cobr.filter(c=>{
+    if(filter!=="todos"&&c.status!==filter) return false;
+    if(search&&!c.cliente?.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
 
   const openNew=()=>{setForm(BLANK_COBR);setEditing(null);setModal(true);};
@@ -1253,24 +1262,42 @@ const CobrancasPage=({cobr,setCobr,clients,loading})=>{
   if(loading) return <Loading/>;
   return (
     <div>
-      <div style={{display:"flex",gap:12,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
-        {["todos","pendente","pago","atrasado"].map(fi=><Btn key={fi} size="sm" variant={filter===fi?"secondary":"ghost"} onClick={()=>setFilter(fi)}>{fi.charAt(0).toUpperCase()+fi.slice(1)} <span style={{marginLeft:6,background:filter===fi?"rgba(255,255,255,0.25)":"#EEF3F8",borderRadius:99,padding:"0 6px",fontSize:11,fontWeight:800,color:filter===fi?"#fff":"#64748B"}}>{cobr.filter(c=>fi==="todos"||c.status===fi).length}</span></Btn>)}
-        <div style={{flex:1}}/><Btn onClick={openNew}>+ Nova Cobrança</Btn>
+      {/* KPIs */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:12,marginBottom:18}}>
+        <MC label="Total recebido" value={`R$ ${totalRecebido.toLocaleString()}`} icon={IC.check} bg="#ECFDF5"/>
+        <MC label="Pendente" value={`R$ ${totalPend.toLocaleString()}`} icon={IC.clock} bg="#FFFBEB"/>
+        <MC label="Atrasado" value={`R$ ${totalAtras.toLocaleString()}`} icon={IC.alert} bg="#FEF2F2"/>
+        <MC label="Total cobranças" value={cobr.length} icon={IC.money} bg="#F8FAFC"/>
+      </div>
+      {/* Filtros */}
+      <div style={{display:"flex",gap:10,marginBottom:18,alignItems:"center",flexWrap:"wrap"}}>
+        {["todos","pendente","pago","atrasado"].map(fi=><Btn key={fi} size="sm" variant={filter===fi?"secondary":"ghost"} onClick={()=>setFilter(fi)}>
+          {fi.charAt(0).toUpperCase()+fi.slice(1)}
+          <span style={{marginLeft:6,background:filter===fi?"rgba(255,255,255,0.25)":"#EEF3F8",borderRadius:99,padding:"0 6px",fontSize:11,fontWeight:800,color:filter===fi?"#fff":"#64748B"}}>{cobr.filter(c=>fi==="todos"||c.status===fi).length}</span>
+        </Btn>)}
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar cliente..." style={{flex:1,minWidth:160,padding:"8px 12px",borderRadius:9,border:"1.5px solid #DDE5EF",fontSize:13,fontFamily:"inherit",outline:"none"}}/>
+        <Btn onClick={openNew}>+ Nova Cobrança</Btn>
       </div>
       <Card style={{padding:0}}>
         <Tbl cols={["Cliente","Valor","Vencimento","Forma","Status","Ações"]}
-          rows={fl.map(c=>[
-            <span style={{fontWeight:700,color:"#111827"}}>{c.cliente}</span>,
-            <span style={{fontWeight:800}}>R$ {Number(c.valor).toLocaleString()}</span>,
-            fmtDate(c.vencimento),
-            c.pagamento||<span style={{color:"#94A3B8"}}>—</span>,
-            <StatusBadge status={c.status}/>,
-            <div style={{display:"flex",gap:6}}>
-              {c.status!=="pago"&&<Btn size="sm" variant="success" onClick={()=>marcarPago(c.id)}>Pago</Btn>}
-              <Btn size="sm" variant="ghost" onClick={()=>openEdit(c)}>{IC.edit}</Btn>
-              <Btn size="sm" variant="danger" onClick={()=>setConfirm(c)}>{IC.trash}</Btn>
-            </div>
-          ])}/>
+          rows={fl.map(c=>{
+            const hoje=new Date();hoje.setHours(0,0,0,0);
+            const venc=c.vencimento?new Date(String(c.vencimento).split("T")[0]+"T00:00:00"):null;
+            const diffDias=venc?Math.round((venc.getTime()-hoje.getTime())/86400000):null;
+            const badge=diffDias===0?<span style={{marginLeft:6,background:"#FEF9C3",color:"#854D0E",fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:99}}>hoje</span>:diffDias===1?<span style={{marginLeft:6,background:"#FFEDD5",color:"#C2410C",fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:99}}>amanhã</span>:null;
+            return [
+              <span style={{fontWeight:700,color:"#111827"}}>{c.cliente}</span>,
+              <span style={{fontWeight:800}}>R$ {Number(c.valor).toLocaleString()}</span>,
+              <span>{fmtDate(c.vencimento)}{c.status!=="pago"&&badge}</span>,
+              c.pagamento||<span style={{color:"#94A3B8"}}>—</span>,
+              <StatusBadge status={c.status}/>,
+              <div style={{display:"flex",gap:6}}>
+                {c.status!=="pago"&&<Btn size="sm" variant="success" onClick={()=>marcarPago(c.id)}>Pago</Btn>}
+                <Btn size="sm" variant="ghost" onClick={()=>openEdit(c)}>{IC.edit}</Btn>
+                <Btn size="sm" variant="danger" onClick={()=>setConfirm(c)}>{IC.trash}</Btn>
+              </div>
+            ];
+          })}/>
       </Card>
       {modal&&<Modal title={editing?"Editar Cobrança":"Nova Cobrança"} onClose={()=>setModal(false)}>
         <FSel label="Cliente" value={form.cliente} onChange={v=>f("cliente",v)} options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.name,label:c.name}))]}/>
@@ -1294,10 +1321,19 @@ const DespesasPage=({despesas,setDespesas,loading})=>{
   const [editing,setEditing]=useState(null);
   const [confirm,setConfirm]=useState(null);
   const [saving,setSaving]=useState(false);
+  const [filterCat,setFilterCat]=useState("");
+  const [filterStatus,setFilterStatus]=useState("todos");
 
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
   const total=despesas.reduce((a,d)=>a+Number(d.valor),0);
   const pagas=despesas.filter(d=>d.status==="pago").reduce((a,d)=>a+Number(d.valor),0);
+  const categorias=[...new Set(despesas.map(d=>d.categoria).filter(Boolean))];
+
+  const flDesp=despesas.filter(d=>{
+    if(filterCat&&d.categoria!==filterCat) return false;
+    if(filterStatus!=="todos"&&d.status!==filterStatus) return false;
+    return true;
+  });
 
   const openNew=()=>{setForm({...BLANK_DESP,vencimento:todayStr()});setEditing(null);setModal(true);};
   const openEdit=(d)=>{setForm({...d,tipo:d.tipo||"uma_vez",parcelado_em:String(d.parcelado_em||1),vencimento:d.vencimento?.split("T")[0]||d.vencimento});setEditing(d.id);setModal(true);};
@@ -1348,22 +1384,40 @@ const DespesasPage=({despesas,setDespesas,loading})=>{
   if(loading) return <Loading/>;
   return (
     <div>
-      <div style={{display:"flex",gap:14,marginBottom:20,flexWrap:"wrap",alignItems:"flex-start"}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:12,marginBottom:18}}>
         <MC label="Total despesas" value={`R$ ${total.toLocaleString()}`} icon={IC.money} bg="#F8FAFC"/>
         <MC label="Já pagas" value={`R$ ${pagas.toLocaleString()}`} icon={IC.check} bg="#ECFDF5"/>
         <MC label="A pagar" value={`R$ ${(total-pagas).toLocaleString()}`} icon={IC.clock} bg="#FFFBEB"/>
+        <MC label="Despesas fixas" value={despesas.filter(d=>d.tipo==="fixa"&&d.status!=="pago").length} icon={IC.repeat} bg="#F5F3FF"/>
+      </div>
+      {/* Filtros */}
+      <div style={{display:"flex",gap:10,marginBottom:16,alignItems:"center",flexWrap:"wrap"}}>
+        {["todos","pendente","pago","atrasado"].map(fi=><Btn key={fi} size="sm" variant={filterStatus===fi?"secondary":"ghost"} onClick={()=>setFilterStatus(fi)}>
+          {fi==="todos"?"Todos":fi.charAt(0).toUpperCase()+fi.slice(1)}
+          <span style={{marginLeft:5,background:filterStatus===fi?"rgba(255,255,255,0.25)":"#EEF3F8",borderRadius:99,padding:"0 5px",fontSize:11,fontWeight:800,color:filterStatus===fi?"#fff":"#64748B"}}>{despesas.filter(d=>fi==="todos"||d.status===fi).length}</span>
+        </Btn>)}
+        <select value={filterCat} onChange={e=>setFilterCat(e.target.value)} style={{padding:"8px 12px",borderRadius:9,border:"1.5px solid #DDE5EF",fontSize:12,fontFamily:"inherit",outline:"none",color:filterCat?"#111827":"#94A3B8",background:"#fff"}}>
+          <option value="">Todas categorias</option>
+          {categorias.map(c=><option key={c} value={c}>{c}</option>)}
+        </select>
+        {(filterCat||filterStatus!=="todos")&&<Btn size="sm" variant="ghost" onClick={()=>{setFilterCat("");setFilterStatus("todos");}}>✕ Limpar</Btn>}
         <div style={{marginLeft:"auto"}}><Btn onClick={openNew}>+ Adicionar Despesa</Btn></div>
       </div>
       <Card style={{padding:0}}>
         <Tbl cols={["Nome","Categoria","Tipo","Valor","Vencimento","Status","Ações"]}
-          rows={despesas.map(d=>[
+          rows={flDesp.map(d=>{
+            const hoje=new Date();hoje.setHours(0,0,0,0);
+            const venc=d.vencimento?new Date(String(d.vencimento).split("T")[0]+"T00:00:00"):null;
+            const diffDias=venc?Math.round((venc.getTime()-hoje.getTime())/86400000):null;
+            const vencBadge=d.status!=="pago"&&diffDias!==null&&diffDias<=3&&diffDias>=0?<span style={{marginLeft:5,background:diffDias===0?"#FEE2E2":diffDias===1?"#FFEDD5":"#FEF9C3",color:diffDias===0?"#991B1B":diffDias===1?"#C2410C":"#854D0E",fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:99}}>{diffDias===0?"hoje":diffDias===1?"amanhã":`${diffDias}d`}</span>:null;
+            return [
             <span style={{fontWeight:700,color:"#111827"}}>{d.nome}</span>,
             <span style={{background:"#EEF3F8",borderRadius:6,padding:"2px 8px",fontSize:12,fontWeight:600,color:"#64748B"}}>{d.categoria}</span>,
             d.tipo==="fixa"?<span style={{background:"#F5F3FF",color:"#7C3AED",borderRadius:6,padding:"2px 8px",fontSize:12,fontWeight:700}}>Fixa</span>
               :d.parcelado_em>1?<span style={{background:"#FFF7ED",color:"#C2410C",borderRadius:6,padding:"2px 8px",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>Parcela {d.parcela_numero}/{d.parcelado_em}</span>
               :<span style={{color:"#94A3B8",fontSize:12}}>Uma vez</span>,
             <span style={{fontWeight:800}}>R$ {Number(d.valor).toLocaleString()}</span>,
-            fmtDate(d.vencimento),
+            <span>{fmtDate(d.vencimento)}{vencBadge}</span>,
             <StatusBadge status={d.status}/>,
             <div style={{display:"flex",gap:6}}>
               {d.status!=="pago"&&<Btn size="sm" variant="success" onClick={()=>marcarPago(d.id)}>Pago</Btn>}
@@ -1371,7 +1425,7 @@ const DespesasPage=({despesas,setDespesas,loading})=>{
               <Btn size="sm" variant="ghost" onClick={()=>openEdit(d)}>{IC.edit}</Btn>
               <Btn size="sm" variant="danger" onClick={()=>setConfirm(d)}>{IC.trash}</Btn>
             </div>
-          ])}/>
+          ];})}/>
       </Card>
       {modal&&<Modal title={editing?"Editar Despesa":"Nova Despesa"} onClose={()=>setModal(false)}>
         <FInput label="Nome da despesa *" value={form.nome} onChange={v=>f("nome",v)} placeholder="Adobe Creative Cloud"/>
