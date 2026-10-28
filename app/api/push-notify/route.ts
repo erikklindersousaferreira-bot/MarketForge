@@ -11,18 +11,19 @@ export const dynamic = "force-dynamic";
 
 const SUPABASE_URL = "https://jadhnzbuxgnjibymtcmn.supabase.co";
 
-webpush.setVapidDetails(
-  "mailto:contato@marketforge.com.br",
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
-
 export async function POST(req: NextRequest) {
   // Autenticação simples por token secreto (chame do cron com Authorization: Bearer <CRON_SECRET>)
   const auth = req.headers.get("authorization") || "";
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return Response.json({ error: "Não autorizado" }, { status: 401 });
   }
+
+  // Configurar VAPID dentro do handler para evitar erro no build
+  webpush.setVapidDetails(
+    "mailto:contato@marketforge.com.br",
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  );
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   const admin = createClient(SUPABASE_URL, serviceKey);
