@@ -86,6 +86,37 @@ const addMonths = (dateStr, n) => {
   return ymd(new Date(a, m-1+n, Math.min(d, ultimoDia)));
 };
 
+// ── ALERTAS DE GRAVAÇÃO ───────────────────────────────────────────────────────
+const FREQ_GRAV = [{value:"1x/semana",label:"1x/semana",min:1},{value:"2x/semana",label:"2x/semana",min:2},{value:"Eventual",label:"Eventual",min:0}];
+const semanaAtual = () => {
+  const hoje = new Date(); const dow = (hoje.getDay()+6)%7; // segunda = 0
+  const ini = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()-dow);
+  const fim = new Date(ini.getFullYear(), ini.getMonth(), ini.getDate()+6);
+  return [ymd(ini), ymd(fim)];
+};
+// Frequência vigente = a da gravação mais recente do estabelecimento. Conta gravações agendadas/feitas na semana (seg–dom).
+const gravacaoAlertas = (gravacoes, clients) => {
+  const [ini,fim] = semanaAtual();
+  const porCliente = {};
+  gravacoes.forEach(g=>{ if(g.estabelecimento) (porCliente[g.estabelecimento] ||= []).push(g); });
+  return Object.entries(porCliente).flatMap(([cid,gs])=>{
+    const cli = clients.find(c=>String(c.id)===String(cid));
+    if(!cli || cli.status==="cancelado" || cli.status==="pausado") return [];
+    const ultima = [...gs].sort((a,b)=>String(b.data).localeCompare(String(a.data))||String(b.created_at).localeCompare(String(a.created_at)))[0];
+    const min = FREQ_GRAV.find(f=>f.value===ultima.frequencia_acordada)?.min||0;
+    const qtd = gs.filter(g=>(g.status==="agendada"||g.status==="feita")&&g.data>=ini&&g.data<=fim).length;
+    return qtd<min ? [{cliente:cli.name, frequencia:ultima.frequencia_acordada, qtd, min}] : [];
+  });
+};
+const AlertasGravacao = ({alertas}) => alertas.length===0 ? null : (
+  <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
+    {alertas.map(a=>(
+      <div key={a.cliente} style={{background:"#FFFBEB",border:"1px solid #FDE68A",color:"#92400E",borderRadius:10,padding:"10px 14px",fontSize:13,fontWeight:600}}>
+        ⚠️ Você precisa marcar gravação em {a.cliente} - Frequência acordada: {a.frequencia} <span style={{fontWeight:500,opacity:0.8}}>({a.qtd}/{a.min} nesta semana)</span>
+      </div>
+    ))}
+  </div>
+);
 
 const StatusBadge = ({status}) => {
   const m = {ativo:["#DCFCE7","#166534","Ativo"],pausado:["#FEF9C3","#854D0E","Pausado"],cancelado:["#FEE2E2","#991B1B","Cancelado"],inadimplente:["#FEE2E2","#991B1B","Inadimplente"],pago:["#DCFCE7","#166534","Pago"],pendente:["#FEF9C3","#92400E","Pendente"],atrasado:["#FEE2E2","#991B1B","Atrasado"],a_fazer:["#EFF6FF","#1D4ED8","A Fazer"],em_producao:["#FFF7ED","#C2410C","Em Produção"],aguardando:["#F5F3FF","#7C3AED","Aguardando"],finalizado:["#DCFCE7","#166534","Finalizado"],urgente:["#FEE2E2","#991B1B","Urgente"],ok:["#DCFCE7","#166534","OK"],baixo:["#FEF9C3","#92400E","Baixo"],zerado:["#FEE2E2","#991B1B","Zerado"],planejar:["#EFF6FF","#1D4ED8","Planejar"],futuro:["#F3F4F6","#6B7280","Futuro"],ajustes:["#FEF9C3","#92400E","Ajustes"],agendada:["#EFF6FF","#1D4ED8","Agendada"],feita:["#DCFCE7","#166534","Feita"],cancelada:["#F3F4F6","#6B7280","Cancelada"],nao_foi:["#FEE2E2","#991B1B","Não foi"]};
@@ -99,34 +130,19 @@ const PBadge = ({p}) => {
   return <span style={{background:bg,color:c,fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20}}>{p.charAt(0).toUpperCase()+p.slice(1)}</span>;
 };
 
-const Card = ({children,style={},onClick}) => <div onClick={onClick} style={{background:"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07),0 0 0 1px rgba(221,229,239,0.8)",padding:22,transition:"box-shadow 0.18s,transform 0.18s",...style,cursor:onClick?"pointer":undefined}} onMouseEnter={onClick?e=>{e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.1),0 0 0 1px rgba(221,229,239,0.8)";e.currentTarget.style.transform="translateY(-1px)";}:undefined} onMouseLeave={onClick?e=>{e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.07),0 0 0 1px rgba(221,229,239,0.8)";e.currentTarget.style.transform="";}:undefined}>{children}</div>;
+const Card = ({children,style={},onClick}) => <div onClick={onClick} style={{background:"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07),0 0 0 1px #DDE5EF",padding:22,...style,cursor:onClick?"pointer":undefined}}>{children}</div>;
 
-const MC = ({label,value,sub,icon,bg="#FFF7F3",compact,trend}) => (
+const MC = ({label,value,sub,icon,bg="#FFF7F3",compact}) => (
   <Card style={{display:"flex",alignItems:"flex-start",gap:compact?8:14,minWidth:compact?0:160,padding:compact?12:22}}>
-    <div style={{background:bg,borderRadius:compact?9:12,width:compact?34:46,height:compact?34:46,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#FF6200",boxShadow:`0 4px 12px ${bg}cc`}}>{icon}</div>
-    <div style={{flex:1}}>
-      <div style={{fontSize:compact?9.5:11,color:"#94A3B8",fontWeight:600,letterSpacing:0.5,textTransform:"uppercase",marginBottom:2}}>{label}</div>
-      <div style={{fontSize:compact?16:22,fontWeight:800,color:"#111827",lineHeight:1.2}}>{value}</div>
-      {sub&&<div style={{fontSize:12,color:"#64748B",marginTop:2}}>{sub}</div>}
-    </div>
-    {trend&&<div style={{fontSize:11,fontWeight:700,color:trend>0?"#10B981":"#EF4444",background:trend>0?"#ECFDF5":"#FEF2F2",borderRadius:6,padding:"2px 7px",alignSelf:"flex-start",marginTop:2}}>{trend>0?"+":""}{trend}%</div>}
+    <div style={{background:bg,borderRadius:compact?9:12,width:compact?34:46,height:compact?34:46,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#FF6200"}}>{icon}</div>
+    <div><div style={{fontSize:compact?9.5:11,color:"#64748B",fontWeight:600,letterSpacing:0.4,textTransform:"uppercase"}}>{label}</div><div style={{fontSize:compact?16:22,fontWeight:800,color:"#111827",lineHeight:1.2,marginTop:2}}>{value}</div>{sub&&<div style={{fontSize:12,color:"#64748B",marginTop:2}}>{sub}</div>}</div>
   </Card>
 );
 
 const Btn = ({children,onClick,variant="primary",size="md",style={},disabled}) => {
   const sz = {sm:{padding:"5px 12px",fontSize:12},md:{padding:"9px 18px",fontSize:13},lg:{padding:"12px 26px",fontSize:15}};
-  const vr = {
-    primary:{background:"linear-gradient(135deg,#FF6200,#FF7A20)",color:"#fff",boxShadow:"0 2px 8px rgba(255,98,0,0.3)"},
-    secondary:{background:"linear-gradient(135deg,#1F2F46,#2D4A6A)",color:"#fff",boxShadow:"0 2px 8px rgba(31,47,70,0.3)"},
-    ghost:{background:"transparent",color:"#64748B",boxShadow:"0 0 0 1.5px #DDE5EF"},
-    danger:{background:"linear-gradient(135deg,#EF4444,#DC2626)",color:"#fff",boxShadow:"0 2px 8px rgba(239,68,68,0.25)"},
-    success:{background:"linear-gradient(135deg,#10B981,#059669)",color:"#fff",boxShadow:"0 2px 8px rgba(16,185,129,0.25)"},
-    warn:{background:"linear-gradient(135deg,#F59E0B,#D97706)",color:"#fff",boxShadow:"0 2px 8px rgba(245,158,11,0.25)"}
-  };
-  return <button onClick={onClick} disabled={disabled} style={{borderRadius:8,fontWeight:700,cursor:disabled?"not-allowed":"pointer",border:"none",letterSpacing:0.2,fontFamily:"inherit",transition:"opacity 0.15s,transform 0.12s",...sz[size],...vr[variant],opacity:disabled?0.5:1,...style}}
-    onMouseEnter={!disabled?e=>{e.currentTarget.style.opacity="0.88";e.currentTarget.style.transform="translateY(-1px)";}:undefined}
-    onMouseLeave={!disabled?e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="";}:undefined}
-  >{children}</button>;
+  const vr = {primary:{background:"#FF6200",color:"#fff"},secondary:{background:"#1F2F46",color:"#fff"},ghost:{background:"transparent",color:"#64748B",boxShadow:"0 0 0 1px #DDE5EF"},danger:{background:"#EF4444",color:"#fff"},success:{background:"#10B981",color:"#fff"},warn:{background:"#F59E0B",color:"#fff"}};
+  return <button onClick={onClick} disabled={disabled} style={{borderRadius:8,fontWeight:700,cursor:disabled?"not-allowed":"pointer",border:"none",letterSpacing:0.2,fontFamily:"inherit",...sz[size],...vr[variant],opacity:disabled?0.5:1,...style}}>{children}</button>;
 };
 
 const FInput = ({label,value,onChange,type="text",placeholder="",icon,extra}) => (
@@ -176,15 +192,9 @@ const ConfirmModal = ({msg,onConfirm,onCancel}) => (
   </div>
 );
 
-const ST = ({children,action,sub}) => (
-  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
-    <div style={{display:"flex",alignItems:"center",gap:12}}>
-      <div style={{width:4,height:24,background:"linear-gradient(180deg,#FF6200,#FF8C00)",borderRadius:2}}/>
-      <div>
-        <h2 style={{margin:0,fontSize:18,fontWeight:800,color:"#111827",lineHeight:1.2}}>{children}</h2>
-        {sub&&<div style={{fontSize:12,color:"#94A3B8",marginTop:1}}>{sub}</div>}
-      </div>
-    </div>
+const ST = ({children,action}) => (
+  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
+    <h2 style={{margin:0,fontSize:18,fontWeight:800,color:"#111827"}}>{children}</h2>
     {action}
   </div>
 );
@@ -198,18 +208,154 @@ const Tbl = ({cols,rows}) => (
   </div>
 );
 
-const Loading = () => (
-  <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:200,gap:14}}>
-    <div style={{width:36,height:36,border:"3px solid #EEF3F8",borderTop:"3px solid #FF6200",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>
-    <div style={{fontSize:13,color:"#94A3B8",fontWeight:500}}>Carregando...</div>
-    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-  </div>
-);
+const Loading = () => <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:200,color:"#64748B",fontSize:14}}>Carregando...</div>;
 
 // ── LOGO AVATAR ───────────────────────────────────────────────────────────────
 const ClientLogo = ({url,name,size=50}) => {
   if(url) return <img src={url} alt={name} style={{width:size,height:size,borderRadius:12,objectFit:"cover",flexShrink:0}} onError={e=>{e.target.style.display="none"}}/>;
   return <div style={{width:size,height:size,background:"linear-gradient(135deg,#1F2F46,#2D4A6A)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:size*0.35,fontWeight:800,flexShrink:0}}>{name?.charAt(0)||"?"}</div>;
+};
+
+// ── PORTAL DO CLIENTE ─────────────────────────────────────────────────────────
+const PortalClientePage = ({nomeUser,clienteId,onLogout}) => {
+  const [planejamentos,setPlanejamentos]=useState([]);
+  const [entregas,setEntregas]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [semanaOffset,setSemanaOffset]=useState(0);
+
+  useEffect(()=>{
+    const load=async()=>{
+      setLoading(true);
+      const {data:pl}=await supabase.from("planejamentos").select("*").eq("cliente_id",clienteId).eq("status","publicado").order("created_at",{ascending:false});
+      if(pl) setPlanejamentos(pl);
+      const {data:en}=await supabase.from("entregas").select("*").eq("cliente_id",clienteId).eq("interno",false).order("data_prevista");
+      if(en) setEntregas(en);
+      setLoading(false);
+    };
+    load();
+  },[clienteId]);
+
+  const hoje=new Date();
+  const dow=(hoje.getDay()+6)%7;
+  const seg=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()-dow+semanaOffset*7);
+  const diasSemana=Array.from({length:7},(_,i)=>{const d=new Date(seg);d.setDate(seg.getDate()+i);return d;});
+  const DIAS_LABEL=["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+  const STATUS_CORES={planejado:["#EFF6FF","#1D4ED8","Planejado"],em_producao:["#FFF7ED","#C2410C","Em produção"],aguardando_cliente:["#F5F3FF","#7C3AED","Aguardando"],entregue:["#DCFCE7","#166534","Entregue"]};
+
+  const mesAtual=hoje.toLocaleString("pt-BR",{month:"long",year:"numeric"});
+  const ini=`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-01`;
+  const fim=`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-${new Date(hoje.getFullYear(),hoje.getMonth()+1,0).getDate()}`;
+  const entregasMes=entregas.filter(e=>e.data_prevista>=ini&&e.data_prevista<=fim);
+
+  if(loading) return <div style={{minHeight:"100vh",background:"#1F2F46",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontFamily:"'Sora','Segoe UI',sans-serif"}}>Carregando...</div>;
+
+  return (
+    <div style={{minHeight:"100vh",background:"#EEF3F8",fontFamily:"'Sora','Segoe UI',sans-serif"}}>
+      {/* Header */}
+      <div style={{background:"#1F2F46",padding:"0 24px",height:62,display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 2px 12px rgba(0,0,0,0.2)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <img src="https://i.postimg.cc/jdB530mK/mkt.png" alt="MarketForge" style={{height:32,objectFit:"contain"}} onError={e=>{e.target.style.display="none"}}/>
+          <div style={{color:"rgba(255,255,255,0.5)",fontSize:13}}>Portal do Cliente</div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:16}}>
+          <div style={{color:"rgba(255,255,255,0.8)",fontSize:13}}>Olá, <b style={{color:"#fff"}}>{nomeUser}</b></div>
+          <button onClick={onLogout} style={{background:"rgba(255,255,255,0.1)",border:"none",color:"#fff",borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>Sair</button>
+        </div>
+      </div>
+
+      <div style={{maxWidth:960,margin:"0 auto",padding:"28px 20px"}}>
+
+        {/* Planejamento publicado */}
+        {planejamentos.length>0&&(
+          <div style={{marginBottom:32}}>
+            <h2 style={{fontSize:16,fontWeight:800,color:"#1F2F46",marginBottom:14}}>📋 Planejamento de Marketing</h2>
+            {planejamentos.map(pl=>(
+              <div key={pl.id} style={{background:"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",padding:20,display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:12}}>
+                <div>
+                  <div style={{fontWeight:800,color:"#111827",fontSize:15}}>{pl.titulo}</div>
+                  <div style={{fontSize:12,color:"#64748B",marginTop:2}}>{pl.mes_ref}</div>
+                </div>
+                {pl.pdf_url&&(
+                  <div style={{display:"flex",gap:8}}>
+                    <Btn size="sm" onClick={()=>window.open(pl.pdf_url,"_blank")}>👁️ Ver PDF</Btn>
+                    <Btn size="sm" variant="ghost" onClick={()=>{const a=document.createElement("a");a.href=pl.pdf_url;a.download="planejamento.pdf";a.click();}}>⬇ Baixar</Btn>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Esta semana */}
+        <div style={{marginBottom:32}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:8}}>
+            <h2 style={{fontSize:16,fontWeight:800,color:"#1F2F46",margin:0}}>📅 Esta semana</h2>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <button onClick={()=>setSemanaOffset(p=>p-1)} style={{background:"#fff",border:"1px solid #DDE5EF",borderRadius:8,width:32,height:32,cursor:"pointer",fontSize:16}}>‹</button>
+              <span style={{fontSize:13,color:"#64748B",minWidth:120,textAlign:"center"}}>
+                {seg.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})} – {diasSemana[6].toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}
+              </span>
+              <button onClick={()=>setSemanaOffset(p=>p+1)} style={{background:"#fff",border:"1px solid #DDE5EF",borderRadius:8,width:32,height:32,cursor:"pointer",fontSize:16}}>›</button>
+              {semanaOffset!==0&&<button onClick={()=>setSemanaOffset(0)} style={{background:"#FF6200",border:"none",borderRadius:8,color:"#fff",padding:"0 10px",height:32,cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>Hoje</button>}
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:10}}>
+            {diasSemana.map((dia,i)=>{
+              const dStr=ymd(dia);
+              const itens=entregas.filter(e=>e.data_prevista===dStr);
+              const isHoje=dStr===ymd(new Date());
+              return (
+                <div key={i} style={{background:"#fff",borderRadius:12,padding:12,boxShadow:"0 1px 3px rgba(0,0,0,0.06)",border:isHoje?"2px solid #FF6200":"1px solid #EEF3F8",minHeight:80}}>
+                  <div style={{fontSize:11,fontWeight:700,color:isHoje?"#FF6200":"#64748B",marginBottom:8,textTransform:"uppercase"}}>{DIAS_LABEL[i]} {dia.getDate()}</div>
+                  {itens.length===0?<div style={{fontSize:11,color:"#C0CADE"}}>—</div>:itens.map(e=>{
+                    const [bg,cor,label]=STATUS_CORES[e.status]||["#F3F4F6","#6B7280",e.status];
+                    return (
+                      <div key={e.id} style={{marginBottom:6,background:bg,borderRadius:8,padding:"5px 8px"}}>
+                        <div style={{fontSize:11,fontWeight:700,color:cor}}>{label}</div>
+                        <div style={{fontSize:12,color:"#111827",fontWeight:600,marginTop:2}}>{e.titulo}</div>
+                        {e.tipo&&<div style={{fontSize:10,color:"#94A3B8",marginTop:1}}>{e.tipo}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Este mês */}
+        <div>
+          <h2 style={{fontSize:16,fontWeight:800,color:"#1F2F46",marginBottom:14}}>📆 {mesAtual.charAt(0).toUpperCase()+mesAtual.slice(1)}</h2>
+          {entregasMes.length===0?(
+            <div style={{background:"#fff",borderRadius:14,padding:32,textAlign:"center",color:"#94A3B8",fontSize:13}}>Nenhuma entrega registrada para este mês.</div>
+          ):(
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {entregasMes.map(e=>{
+                const [bg,cor,label]=STATUS_CORES[e.status]||["#F3F4F6","#6B7280",e.status];
+                return (
+                  <div key={e.id} style={{background:"#fff",borderRadius:12,padding:"14px 18px",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
+                    <div style={{background:"#1F2F46",borderRadius:10,minWidth:44,height:44,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:"#fff",flexShrink:0}}>
+                      <div style={{fontSize:16,fontWeight:800,lineHeight:1}}>{e.data_prevista?.slice(8,10)}</div>
+                      <div style={{fontSize:9,opacity:0.7,textTransform:"uppercase"}}>{new Date(e.data_prevista+"T12:00:00").toLocaleString("pt-BR",{month:"short"})}</div>
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:700,color:"#111827",fontSize:14}}>{e.titulo}</div>
+                      {e.descricao&&<div style={{fontSize:12,color:"#64748B",marginTop:2}}>{e.descricao}</div>}
+                    </div>
+                    <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                      {e.tipo&&<span style={{fontSize:11,background:"#F3F4F6",color:"#6B7280",padding:"2px 8px",borderRadius:12,fontWeight:600}}>{e.tipo}</span>}
+                      <span style={{background:bg,color:cor,fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:20}}>{label}</span>
+                      {e.link&&<a href={e.link} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#FF6200",fontWeight:700}}>Ver material ↗</a>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
@@ -225,8 +371,8 @@ const LoginPage = ({onLogin}) => {
     setLoading(true);setErr("");
     const {data,error} = await supabase.auth.signInWithPassword({email,password:senha});
     if(error){setErr("Email ou senha incorretos.");setLoading(false);return;}
-    const {data:u} = await supabase.from("usuarios").select("perfil,nome").eq("id",data.user.id).single();
-    onLogin(u?.perfil||"operacional", u?.nome||email);
+    const {data:u} = await supabase.from("usuarios").select("perfil,nome,cliente_id").eq("id",data.user.id).single();
+    onLogin(u?.perfil||"operacional", u?.nome||email, u?.cliente_id||null);
     setLoading(false);
   };
 
@@ -255,9 +401,9 @@ const LoginPage = ({onLogin}) => {
 };
 
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
-const NAV_ADMIN=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"agenda",label:"Agenda",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"mensagens",label:"Modelos",icon:IC.msg}];
-const NAV_OP=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"agenda",label:"Agenda",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"mensagens",label:"Modelos",icon:IC.msg}];
-const LABELS={hoje:"Hoje",dashboard:"Dashboard",prospeccao:"Prospecção CRM",clientes:"Clientes",financeiro:"Financeiro",cobr:"Cobranças",despesas:"Despesas",tarefas:"Tarefas",calendario:"Calendário Estratégico",agenda:"Agenda Recorrente",equipe:"Equipe",mensagens:"Modelos de Mensagem"};
+const NAV_ADMIN=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"gravacoes",label:"Gravações",icon:IC.video},{id:"agenda",label:"Agenda",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"relatorios",label:"Relatórios",icon:IC.report},{id:"mensagens",label:"Modelos",icon:IC.msg},{id:"usuarios",label:"Usuários",icon:IC.lock}];
+const NAV_OP=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"gravacoes",label:"Gravações",icon:IC.video},{id:"agenda",label:"Agenda",icon:IC.cal},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"mensagens",label:"Modelos",icon:IC.msg}];
+const LABELS={hoje:"Hoje",dashboard:"Dashboard",prospeccao:"Prospecção CRM",clientes:"Clientes",financeiro:"Financeiro",cobr:"Cobranças",despesas:"Despesas",tarefas:"Tarefas",calendario:"Calendário Estratégico",gravacoes:"Agenda de Gravações",agenda:"Agenda Recorrente",equipe:"Equipe",trafego:"Saldo de Tráfego",relatorios:"Relatórios de Tráfego Pago",mensagens:"Modelos de Mensagem",usuarios:"Usuários e Acessos"};
 
 const Sidebar=({page,setPage,onLogout,cobrPend,perfil,open,setOpen})=>{
 const NAV = perfil==="admin" ? NAV_ADMIN : NAV_OP;
@@ -271,32 +417,15 @@ return (
         {isMobile&&<button onClick={()=>setOpen(false)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.5)",fontSize:22,cursor:"pointer"}}>×</button>}
       </div>
       <nav style={{flex:1,padding:"14px 10px",overflowY:"auto"}}>
-        {NAV.map(n=>{
-          const active=page===n.id;
-          return (
-            <div key={n.id} onClick={()=>{setPage(n.id);setOpen(false);}}
-              style={{display:"flex",alignItems:"center",gap:11,padding:"9px 12px",borderRadius:10,marginBottom:2,cursor:"pointer",
-                background:active?"rgba(255,98,0,0.15)":"transparent",
-                color:active?"#FF6200":"rgba(255,255,255,0.6)",
-                fontWeight:active?700:500,fontSize:13,
-                borderLeft:active?"3px solid #FF6200":"3px solid transparent",
-                transition:"background 0.15s,color 0.15s"}}
-              onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.06)";e.currentTarget.style.color="rgba(255,255,255,0.9)";}}}
-              onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.6)";}}}
-            >
-              <span style={{opacity:active?1:0.7,display:"flex"}}>{n.icon}</span>
-              <span style={{flex:1}}>{n.label}</span>
-              {n.id==="cobr"&&cobrPend>0&&<span style={{background:"#EF4444",color:"#fff",fontSize:10,fontWeight:700,borderRadius:10,padding:"1px 7px",minWidth:18,textAlign:"center"}}>{cobrPend}</span>}
-            </div>
-          );
-        })}
+        {NAV.map(n=>(
+          <div key={n.id} onClick={()=>{setPage(n.id);setOpen(false);}} style={{display:"flex",alignItems:"center",gap:11,padding:"9px 12px",borderRadius:10,marginBottom:2,cursor:"pointer",background:page===n.id?"rgba(255,98,0,0.18)":"transparent",color:page===n.id?"#FF6200":"rgba(255,255,255,0.65)",fontWeight:page===n.id?700:500,fontSize:13}}>
+            <span style={{opacity:page===n.id?1:0.7}}>{n.icon}</span>{n.label}
+            {n.id==="cobr"&&cobrPend>0&&<span style={{marginLeft:"auto",background:"#EF4444",color:"#fff",fontSize:10,fontWeight:700,borderRadius:10,padding:"1px 7px"}}>{cobrPend}</span>}
+          </div>
+        ))}
       </nav>
-      <div style={{padding:"14px 10px",borderTop:"1px solid rgba(255,255,255,0.07)"}}>
-        <div onClick={onLogout}
-          style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,cursor:"pointer",color:"rgba(255,255,255,0.4)",fontSize:13,transition:"color 0.15s,background 0.15s"}}
-          onMouseEnter={e=>{e.currentTarget.style.color="rgba(255,255,255,0.8)";e.currentTarget.style.background="rgba(255,255,255,0.06)";}}
-          onMouseLeave={e=>{e.currentTarget.style.color="rgba(255,255,255,0.4)";e.currentTarget.style.background="transparent";}}
-        >
+      <div style={{padding:"14px 10px",borderTop:"1px solid rgba(255,255,255,0.08)"}}>
+        <div onClick={onLogout} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,cursor:"pointer",color:"rgba(255,255,255,0.5)",fontSize:13}}>
           {IC.logout} Sair
         </div>
       </div>
@@ -306,303 +435,109 @@ return (
 
 const Topbar=({page,nomeUser,perfil,onMenuClick})=>{
 const isMobile = typeof window!=="undefined"&&window.innerWidth<768;
-const SUB_LABELS={hoje:"Visão geral do dia",dashboard:"KPIs e métricas",prospeccao:"CRM de leads",clientes:"Gestão de carteira",financeiro:"Receitas e despesas",cobr:"Cobranças mensais",despesas:"Custos operacionais",tarefas:"Produção da equipe",calendario:"Calendário estratégico",agenda:"Agendamentos recorrentes",equipe:"Time e desempenho",mensagens:"Templates de mensagem"};
 return (
-  <div style={{position:"fixed",top:0,left:isMobile?0:230,right:0,height:62,background:"rgba(255,255,255,0.97)",backdropFilter:"blur(8px)",borderBottom:"1px solid #EEF3F8",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 24px",zIndex:99,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+  <div style={{position:"fixed",top:0,left:isMobile?0:230,right:0,height:62,background:"#fff",borderBottom:"1px solid #DDE5EF",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",zIndex:99}}>
     <div style={{display:"flex",alignItems:"center",gap:12}}>
-      {isMobile&&<button onClick={onMenuClick} style={{background:"none",border:"none",cursor:"pointer",color:"#64748B",fontSize:22,display:"flex",padding:4}}>☰</button>}
-      <div>
-        <div style={{fontSize:16,fontWeight:800,color:"#111827",lineHeight:1.2}}>{LABELS[page]||page}</div>
-        {SUB_LABELS[page]&&<div style={{fontSize:11,color:"#94A3B8",fontWeight:500}}>{SUB_LABELS[page]}</div>}
-      </div>
+      {isMobile&&<button onClick={onMenuClick} style={{background:"none",border:"none",cursor:"pointer",color:"#64748B",fontSize:22,display:"flex",padding:0}}>☰</button>}
+      <div style={{fontSize:18,fontWeight:800,color:"#111827"}}>{LABELS[page]||page}</div>
     </div>
-    <div style={{display:"flex",alignItems:"center",gap:14}}>
-      <div style={{cursor:"pointer",color:"#94A3B8",display:"flex",padding:6,borderRadius:8,transition:"background 0.15s,color 0.15s"}}
-        onMouseEnter={e=>{e.currentTarget.style.background="#F1F5F9";e.currentTarget.style.color="#64748B";}}
-        onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color="#94A3B8";}}
-      >{IC.bell}</div>
-      <div style={{display:"flex",alignItems:"center",gap:9,cursor:"pointer",padding:"4px 8px",borderRadius:10,transition:"background 0.15s"}}
-        onMouseEnter={e=>e.currentTarget.style.background="#F8FAFC"}
-        onMouseLeave={e=>e.currentTarget.style.background="transparent"}
-      >
-        <div style={{width:34,height:34,background:"linear-gradient(135deg,#FF6200,#FF8C00)",borderRadius:99,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:800,boxShadow:"0 2px 8px rgba(255,98,0,0.35)"}}>{nomeUser?.charAt(0).toUpperCase()||"E"}</div>
-        {!isMobile&&<div>
-          <div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{nomeUser||"erikklinder"}</div>
-          <div style={{fontSize:11,color:"#94A3B8"}}>{perfil==="admin"?"Admin":"Operacional"}</div>
-        </div>}
+    <div style={{display:"flex",alignItems:"center",gap:16}}>
+      <div style={{position:"relative",cursor:"pointer",color:"#64748B"}}>{IC.bell}</div>
+      <div style={{display:"flex",alignItems:"center",gap:9}}>
+        <div style={{width:34,height:34,background:"linear-gradient(135deg,#FF6200,#FF8C00)",borderRadius:99,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:14,fontWeight:700}}>{nomeUser?.charAt(0).toUpperCase()||"E"}</div>
+        <div><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{nomeUser||"erikklinder"}</div><div style={{fontSize:11,color:"#64748B"}}>{perfil==="admin"?"Admin":"Operacional"}</div></div>
       </div>
     </div>
   </div>
 );};
 
 // ── HOJE ──────────────────────────────────────────────────────────────────────
-const getGreeting=()=>{const h=new Date().getHours();if(h<12)return"Bom dia";if(h<18)return"Boa tarde";return"Boa noite";};
-
-const HojePage=({setPage,clients,cobr,tasks,perfil,nomeUser})=>{
+const HojePage=({setPage,clients,cobr,tasks,gravacoes,perfil,nomeUser})=>{
   const atrasadas=tasks.filter(t=>t.status==="atrasado");
-  const cobPend=cobr.filter(c=>c.status==="pendente"||c.status==="atrasado");
-  const cobHoje=cobPend.slice(0,4);
-  const hoje=new Date();
-  const diasSemana=["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
-  const meses=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
-  const dataStr=`${diasSemana[hoje.getDay()]}, ${hoje.getDate()} de ${meses[hoje.getMonth()]}`;
-
-  const atalhos=[
-    {label:"Nova tarefa",icon:IC.check,page:"tarefas",color:"#FF6200",bg:"#FFF7F3"},
-    {label:"Ver cobranças",icon:IC.money,page:"cobr",color:"#10B981",bg:"#ECFDF5"},
-    {label:"Ver clientes",icon:IC.users,page:"clientes",color:"#3B82F6",bg:"#EFF6FF"},
-    {label:"Ver agenda",icon:IC.cal,page:"agenda",color:"#7C3AED",bg:"#F5F3FF"},
-  ];
-
+  const gravHoje=gravacoes.filter(g=>String(g.data).split("T")[0]===todayStr());
+  const cobHoje=cobr.filter(c=>c.status==="pendente"||c.status==="atrasado").slice(0,4);
   return (
     <div>
-      {/* Hero */}
-      <div style={{background:"linear-gradient(135deg,#1F2F46 0%,#2D4A6A 100%)",borderRadius:20,padding:"28px 32px",marginBottom:24,position:"relative",overflow:"hidden"}}>
-        <div style={{position:"absolute",top:-40,right:-40,width:200,height:200,background:"radial-gradient(circle,rgba(255,98,0,0.2) 0%,transparent 70%)",pointerEvents:"none"}}/>
-        <div style={{position:"absolute",bottom:-60,left:100,width:160,height:160,background:"radial-gradient(circle,rgba(255,98,0,0.1) 0%,transparent 70%)",pointerEvents:"none"}}/>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:16,position:"relative",zIndex:1}}>
-          <div>
-            <div style={{fontSize:13,color:"rgba(255,255,255,0.5)",fontWeight:500,marginBottom:4}}>{dataStr}</div>
-            <div style={{fontSize:26,fontWeight:800,color:"#fff",marginBottom:4}}>{getGreeting()}, {(nomeUser||"erikklinder").split(" ")[0]}!</div>
-            <div style={{fontSize:14,color:"rgba(255,255,255,0.6)"}}>Aqui está o resumo do dia na MarketForge</div>
-          </div>
-          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-            {atalhos.map(a=>(
-              <button key={a.page} onClick={()=>setPage(a.page)}
-                style={{display:"flex",alignItems:"center",gap:8,padding:"9px 16px",borderRadius:10,border:"none",cursor:"pointer",background:"rgba(255,255,255,0.1)",color:"#fff",fontSize:12,fontWeight:600,fontFamily:"inherit",transition:"background 0.15s"}}
-                onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.18)"}
-                onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.1)"}
-              >
-                <span style={{color:a.color}}>{a.icon}</span>{a.label}
-              </button>
-            ))}
-          </div>
+      <div style={{marginBottom:22,display:"flex",alignItems:"center",gap:12}}>
+        <div style={{width:48,height:48,background:"linear-gradient(135deg,#FF6200,#FF8C00)",borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff"}}>{IC.sun}</div>
+        <div>
+          <div style={{fontSize:22,fontWeight:800,color:"#111827"}}>Bom dia, {nomeUser||"erikklinder"}!</div>
+          <div style={{fontSize:13,color:"#64748B"}}>Aqui está o que precisa de atenção hoje</div>
         </div>
       </div>
-
-      {/* KPIs */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:14,marginBottom:24}}>
-        {perfil==="admin"&&<MC label="Cobranças pendentes" value={cobPend.length} icon={IC.money} bg="#FFF7F3"/>}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:14,marginBottom:28}}>
+        {perfil==="admin"&&<MC label="Cobranças pendentes" value={cobr.filter(c=>c.status==="pendente").length} icon={IC.money} bg="#FFF7F3"/>}
         <MC label="Tarefas atrasadas" value={atrasadas.length} icon={IC.alert} bg="#FEF2F2"/>
         <MC label="Clientes ativos" value={clients.filter(c=>c.status==="ativo").length} icon={IC.users} bg="#ECFDF5"/>
         {perfil==="admin"&&<MC label="Inadimplentes" value={clients.filter(c=>c.status==="inadimplente").length} icon={IC.users} bg="#FEF2F2"/>}
-        <MC label="Em produção" value={tasks.filter(t=>t.status==="em_producao").length} icon={IC.check} bg="#F5F3FF"/>
       </div>
-
-      {/* Painéis */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:18}}>
         {perfil==="admin"&&<Card>
           <ST action={<Btn size="sm" variant="ghost" onClick={()=>setPage("cobr")}>Ver todas</Btn>}>Cobranças pendentes</ST>
-          {cobHoje.length===0
-            ?<div style={{color:"#10B981",textAlign:"center",padding:"20px 0",fontSize:13,fontWeight:600}}>✓ Tudo em dia!</div>
-            :cobHoje.map(c=>(
-              <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"#F8FAFC",borderRadius:10,marginBottom:8,border:"1px solid #EEF3F8"}}>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{c.cliente}</div>
-                  <div style={{fontSize:11,color:"#64748B",display:"flex",alignItems:"center",gap:4,marginTop:2}}>{IC.clock} {fmtDate(c.vencimento)}</div>
-                </div>
-                <div style={{textAlign:"right"}}>
-                  <div style={{fontSize:14,fontWeight:800,color:"#111827"}}>R$ {Number(c.valor).toLocaleString()}</div>
-                  <StatusBadge status={c.status}/>
-                </div>
-              </div>
-            ))
-          }
+          {cobHoje.length===0?<div style={{color:"#10B981",textAlign:"center",padding:"20px 0",fontSize:13}}>Nenhuma pendência!</div>:cobHoje.map(c=>(
+            <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"#F8FAFC",borderRadius:10,marginBottom:8}}>
+              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{c.cliente}</div><div style={{fontSize:12,color:"#64748B",display:"flex",alignItems:"center",gap:4}}>{IC.clock} Venc: {fmtDate(c.vencimento)}</div></div>
+              <div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:800}}>R$ {c.valor?.toLocaleString()}</div><StatusBadge status={c.status}/></div>
+            </div>
+          ))}
         </Card>}
         <Card>
           <ST action={<Btn size="sm" variant="ghost" onClick={()=>setPage("tarefas")}>Ver todas</Btn>}>Tarefas atrasadas</ST>
-          {atrasadas.length===0
-            ?<div style={{color:"#10B981",textAlign:"center",padding:"20px 0",fontSize:13,fontWeight:600}}>✓ Nenhuma atrasada!</div>
-            :atrasadas.slice(0,4).map(t=>(
-              <div key={t.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"#FEF2F2",borderRadius:10,border:"1px solid #FECACA",marginBottom:8}}>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{t.titulo}</div>
-                  <div style={{fontSize:11,color:"#64748B",marginTop:2}}>{t.cliente} · {t.responsavel}</div>
-                </div>
-                <div style={{textAlign:"right"}}>
-                  <div style={{fontSize:11,color:"#EF4444",fontWeight:700,marginBottom:2}}>Atrasada</div>
-                  <div style={{fontSize:11,color:"#94A3B8"}}>{fmtDate(t.entrega)}</div>
-                </div>
-              </div>
-            ))
-          }
+          {atrasadas.length===0?<div style={{color:"#10B981",textAlign:"center",padding:"20px 0",fontSize:13}}>Nenhuma atrasada!</div>:atrasadas.map(t=>(
+            <div key={t.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"#FEF2F2",borderRadius:10,border:"1px solid #FECACA",marginBottom:8}}>
+              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{t.titulo}</div><div style={{fontSize:12,color:"#64748B"}}>{t.cliente} · {t.responsavel}</div></div>
+              <div style={{textAlign:"right"}}><div style={{fontSize:11,color:"#EF4444",fontWeight:700}}>Atrasada</div><div style={{fontSize:11,color:"#64748B"}}>{fmtDate(t.entrega)}</div></div>
+            </div>
+          ))}
         </Card>
-        {perfil==="admin"&&<Card>
-          <ST action={<Btn size="sm" variant="ghost" onClick={()=>setPage("clientes")}>Ver todos</Btn>}>Clientes inadimplentes</ST>
-          {clients.filter(c=>c.status==="inadimplente").length===0
-            ?<div style={{color:"#10B981",textAlign:"center",padding:"20px 0",fontSize:13,fontWeight:600}}>✓ Carteira saudável!</div>
-            :clients.filter(c=>c.status==="inadimplente").slice(0,4).map(c=>(
-              <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"#FEF2F2",borderRadius:10,border:"1px solid #FECACA",marginBottom:8}}>
-                <ClientLogo url={c.logo_url} name={c.name} size={34}/>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{c.name}</div>
-                  <div style={{fontSize:11,color:"#64748B",marginTop:2}}>R$ {Number(c.valor).toLocaleString()} · Dia {c.vencimento}</div>
-                </div>
-              </div>
-            ))
-          }
-        </Card>}
+        <Card>
+          <ST action={<Btn size="sm" variant="ghost" onClick={()=>setPage("gravacoes")}>Ver agenda</Btn>}>Gravações de hoje</ST>
+          {gravHoje.length===0?<div style={{color:"#64748B",textAlign:"center",padding:"20px 0",fontSize:13}}>Nenhuma gravação hoje.</div>:gravHoje.map(g=>(
+            <div key={g.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"#F8FAFC",borderRadius:10,marginBottom:8}}>
+              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{clients.find(c=>String(c.id)===String(g.estabelecimento))?.name||"—"}</div><div style={{fontSize:12,color:"#64748B"}}>{g.responsavel||"Sem responsável"}{g.notas?` · ${g.notas}`:""}</div></div>
+              <StatusBadge status={g.status}/>
+            </div>
+          ))}
+        </Card>
       </div>
     </div>
   );
 };
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
-const BarChart=({items,max})=>(
-  <div style={{display:"flex",alignItems:"flex-end",gap:6,height:64,paddingTop:8}}>
-    {items.map((it,i)=>(
-      <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-        <div style={{width:"100%",background:it.color,borderRadius:"4px 4px 0 0",height:`${max?Math.max(4,(it.value/max)*56):4}px`,transition:"height 0.4s ease"}}/>
-        <div style={{fontSize:9,color:"#94A3B8",textAlign:"center",lineHeight:1.2}}>{it.label}</div>
-      </div>
-    ))}
-  </div>
-);
-
-const DashboardPage=({clients,cobr,despesas,tasks})=>{
+const DashboardPage=({clients,cobr,despesas,gravacoes})=>{
   const recR=cobr.filter(c=>c.status==="pago").reduce((a,c)=>a+Number(c.valor),0);
   const recP=cobr.filter(c=>c.status==="pendente").reduce((a,c)=>a+Number(c.valor),0);
   const recA=cobr.filter(c=>c.status==="atrasado").reduce((a,c)=>a+Number(c.valor),0);
-  const despT=despesas.filter(d=>d.status!=="cancelado").reduce((a,d)=>a+Number(d.valor),0);
-  const despPagas=despesas.filter(d=>d.status==="pago").reduce((a,d)=>a+Number(d.valor),0);
-  const lucroEst=recR-despPagas;
+  const despT=despesas.reduce((a,d)=>a+Number(d.valor),0);
   const atv=clients.filter(c=>c.status==="ativo").length;
-  const inadim=clients.filter(c=>c.status==="inadimplente").length;
-  const mrr=clients.filter(c=>c.status==="ativo").reduce((a,c)=>a+Number(c.valor),0);
-
-  // Mini bar data
-  const cobBarMax=Math.max(cobr.filter(c=>c.status==="pago").length,cobr.filter(c=>c.status==="pendente").length,cobr.filter(c=>c.status==="atrasado").length,1);
-  const cliBarMax=Math.max(atv,clients.filter(c=>c.status==="pausado").length,inadim,1);
-
-  // Top clientes por valor
-  const topClients=[...clients].filter(c=>c.status==="ativo").sort((a,b)=>Number(b.valor)-Number(a.valor)).slice(0,5);
-
   return (
     <div>
-      {/* Faixa de destaque MRR */}
-      <div style={{background:"linear-gradient(135deg,#1F2F46,#2D4A6A)",borderRadius:16,padding:"20px 28px",marginBottom:22,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14}}>
-        <div>
-          <div style={{fontSize:12,color:"rgba(255,255,255,0.5)",fontWeight:500,marginBottom:2}}>MRR (Receita Recorrente Mensal)</div>
-          <div style={{fontSize:32,fontWeight:900,color:"#FF6200",letterSpacing:-1}}>R$ {mrr.toLocaleString()}</div>
-          <div style={{fontSize:12,color:"rgba(255,255,255,0.5)",marginTop:2}}>{atv} cliente{atv!==1?"s":""} ativo{atv!==1?"s":""}</div>
-        </div>
-        <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
-          <div style={{textAlign:"center"}}>
-            <div style={{fontSize:22,fontWeight:800,color:lucroEst>=0?"#34D399":"#F87171"}}>{lucroEst>=0?"+":""}R$ {lucroEst.toLocaleString()}</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.45)"}}>Lucro estimado</div>
-          </div>
-          <div style={{width:1,background:"rgba(255,255,255,0.1)"}}/>
-          <div style={{textAlign:"center"}}>
-            <div style={{fontSize:22,fontWeight:800,color:"#FBBF24"}}>R$ {recP.toLocaleString()}</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.45)"}}>Em aberto</div>
-          </div>
-          <div style={{width:1,background:"rgba(255,255,255,0.1)"}}/>
-          <div style={{textAlign:"center"}}>
-            <div style={{fontSize:22,fontWeight:800,color:"#F87171"}}>R$ {recA.toLocaleString()}</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.45)"}}>Atrasado</div>
-          </div>
-        </div>
-      </div>
-
-      {/* KPI grid */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(175px,1fr))",gap:14,marginBottom:22}}>
+      <AlertasGravacao alertas={gravacaoAlertas(gravacoes,clients)}/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:14,marginBottom:24}}>
         <MC label="Receita recebida" value={`R$ ${recR.toLocaleString()}`} icon={IC.check} bg="#ECFDF5"/>
-        <MC label="Despesas totais" value={`R$ ${despT.toLocaleString()}`} icon={IC.money} bg="#F8FAFC"/>
+        <MC label="Em aberto" value={`R$ ${recP.toLocaleString()}`} icon={IC.clock} bg="#FFFBEB"/>
+        <MC label="Atrasado" value={`R$ ${recA.toLocaleString()}`} icon={IC.alert} bg="#FEF2F2"/>
+        <MC label="Despesas" value={`R$ ${despT.toLocaleString()}`} icon={IC.money} bg="#F8FAFC"/>
+        <MC label="Lucro estimado" value={`R$ ${(recR-despT).toLocaleString()}`} icon={IC.trending} bg="#ECFDF5"/>
         <MC label="Clientes ativos" value={atv} icon={IC.users} bg="#F5F3FF"/>
-        <MC label="Inadimplentes" value={inadim} icon={IC.alert} bg="#FEF2F2"/>
-        {tasks&&<MC label="Tarefas abertas" value={tasks.filter(t=>t.status!=="finalizado"&&t.status!=="cancelado").length} icon={IC.check} bg="#FFFBEB"/>}
-        <MC label="Despesas pagas" value={`R$ ${despPagas.toLocaleString()}`} icon={IC.trending} bg="#ECFDF5"/>
       </div>
-
-      {/* Painéis */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:18}}>
-        {/* Cobranças - gráfico */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:18}}>
         <Card>
-          <ST>Cobranças — visão geral</ST>
-          <BarChart
-            max={cobBarMax}
-            items={[
-              {label:"Pagas",value:cobr.filter(c=>c.status==="pago").length,color:"#10B981"},
-              {label:"Pendentes",value:cobr.filter(c=>c.status==="pendente").length,color:"#F59E0B"},
-              {label:"Atrasadas",value:cobr.filter(c=>c.status==="atrasado").length,color:"#EF4444"},
-            ]}
-          />
-          <div style={{height:1,background:"#EEF3F8",margin:"14px 0 12px"}}/>
-          {[{label:"Pagas",count:cobr.filter(c=>c.status==="pago").length,color:"#10B981",icon:"✓"},{label:"Pendentes",count:cobr.filter(c=>c.status==="pendente").length,color:"#F59E0B",icon:"·"},{label:"Atrasadas",count:cobr.filter(c=>c.status==="atrasado").length,color:"#EF4444",icon:"!"}].map(s=>(
-            <div key={s.label} style={{marginBottom:10}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                <span style={{fontSize:12,color:"#374151",fontWeight:600,display:"flex",alignItems:"center",gap:6}}>
-                  <span style={{display:"inline-flex",width:18,height:18,background:s.color+"22",color:s.color,borderRadius:4,alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800}}>{s.icon}</span>
-                  {s.label}
-                </span>
-                <span style={{fontSize:13,fontWeight:800,color:s.color}}>{s.count}</span>
-              </div>
-              <div style={{background:"#EEF3F8",borderRadius:99,height:5,overflow:"hidden"}}>
-                <div style={{background:s.color,height:"100%",width:cobr.length?`${(s.count/cobr.length)*100}%`:"0%",borderRadius:99,transition:"width 0.5s ease"}}/>
-              </div>
+          <ST>Status de cobranças</ST>
+          {[{label:"Pagas",count:cobr.filter(c=>c.status==="pago").length,color:"#10B981"},{label:"Pendentes",count:cobr.filter(c=>c.status==="pendente").length,color:"#F59E0B"},{label:"Atrasadas",count:cobr.filter(c=>c.status==="atrasado").length,color:"#EF4444"}].map(s=>(
+            <div key={s.label} style={{marginBottom:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:13,color:"#374151",fontWeight:600}}>{s.label}</span><span style={{fontSize:13,fontWeight:800,color:s.color}}>{s.count}</span></div>
+              <div style={{background:"#EEF3F8",borderRadius:99,height:7,overflow:"hidden"}}><div style={{background:s.color,height:"100%",width:cobr.length?`${(s.count/cobr.length)*100}%`:"0%",borderRadius:99}}/></div>
             </div>
           ))}
         </Card>
-
-        {/* Clientes - gráfico */}
         <Card>
-          <ST>Clientes — distribuição</ST>
-          <BarChart
-            max={cliBarMax}
-            items={[
-              {label:"Ativos",value:atv,color:"#10B981"},
-              {label:"Pausados",value:clients.filter(c=>c.status==="pausado").length,color:"#F59E0B"},
-              {label:"Inadim.",value:inadim,color:"#EF4444"},
-            ]}
-          />
-          <div style={{height:1,background:"#EEF3F8",margin:"14px 0 12px"}}/>
+          <ST>Clientes por status</ST>
           {[{label:"Ativos",color:"#10B981",key:"ativo"},{label:"Pausados",color:"#F59E0B",key:"pausado"},{label:"Inadimplentes",color:"#EF4444",key:"inadimplente"}].map(s=>(
-            <div key={s.key} style={{marginBottom:10}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                <span style={{fontSize:12,color:"#374151",fontWeight:600}}>
-                  <span style={{display:"inline-block",width:8,height:8,background:s.color,borderRadius:"50%",marginRight:6}}/>
-                  {s.label}
-                </span>
-                <span style={{fontSize:13,fontWeight:800,color:s.color}}>{clients.filter(c=>c.status===s.key).length}</span>
-              </div>
-              <div style={{background:"#EEF3F8",borderRadius:99,height:5,overflow:"hidden"}}>
-                <div style={{background:s.color,height:"100%",width:clients.length?`${(clients.filter(c=>c.status===s.key).length/clients.length)*100}%`:"0%",borderRadius:99,transition:"width 0.5s ease"}}/>
-              </div>
-            </div>
-          ))}
-        </Card>
-
-        {/* Top clientes */}
-        {topClients.length>0&&<Card>
-          <ST>Top clientes por mensalidade</ST>
-          {topClients.map((c,i)=>(
-            <div key={c.id||i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:i<topClients.length-1?"1px solid #EEF3F8":"none"}}>
-              <div style={{width:22,height:22,borderRadius:"50%",background:i===0?"linear-gradient(135deg,#FF6200,#FF8C00)":i===1?"linear-gradient(135deg,#94A3B8,#CBD5E1)":"linear-gradient(135deg,#D97706,#FCD34D)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:i<2?"#fff":"#1F2F46",flexShrink:0}}>
-                {i+1}
-              </div>
-              <ClientLogo url={c.logo_url} name={c.name} size={28}/>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:12,fontWeight:700,color:"#111827",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
-                <div style={{fontSize:11,color:"#94A3B8"}}>{c.plano||"—"}</div>
-              </div>
-              <div style={{fontSize:13,fontWeight:800,color:"#1F2F46",whiteSpace:"nowrap"}}>R$ {Number(c.valor).toLocaleString()}</div>
-            </div>
-          ))}
-        </Card>}
-
-        {/* Despesas */}
-        <Card>
-          <ST>Despesas — status</ST>
-          {[{label:"Pagas",key:"pago",color:"#10B981"},{label:"Pendentes",key:"pendente",color:"#F59E0B"},{label:"Atrasadas",key:"atrasado",color:"#EF4444"}].map(s=>(
-            <div key={s.key} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 12px",background:"#F8FAFC",borderRadius:10,marginBottom:8,border:"1px solid #EEF3F8"}}>
-              <span style={{fontSize:13,fontWeight:600,color:"#374151",display:"flex",alignItems:"center",gap:8}}>
-                <span style={{width:8,height:8,borderRadius:"50%",background:s.color,display:"inline-block"}}/>
-                {s.label}
-              </span>
-              <div style={{textAlign:"right"}}>
-                <div style={{fontSize:13,fontWeight:800,color:s.color}}>R$ {despesas.filter(d=>d.status===s.key).reduce((a,d)=>a+Number(d.valor),0).toLocaleString()}</div>
-                <div style={{fontSize:11,color:"#94A3B8"}}>{despesas.filter(d=>d.status===s.key).length} item{despesas.filter(d=>d.status===s.key).length!==1?"s":""}</div>
-              </div>
+            <div key={s.key} style={{marginBottom:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:13,color:"#374151",fontWeight:600}}>{s.label}</span><span style={{fontSize:13,fontWeight:800,color:s.color}}>{clients.filter(c=>c.status===s.key).length}</span></div>
+              <div style={{background:"#EEF3F8",borderRadius:99,height:7,overflow:"hidden"}}><div style={{background:s.color,height:"100%",width:clients.length?`${(clients.filter(c=>c.status===s.key).length/clients.length)*100}%`:"0%",borderRadius:99}}/></div>
             </div>
           ))}
         </Card>
@@ -614,7 +549,7 @@ const DashboardPage=({clients,cobr,despesas,tasks})=>{
 // ── CLIENTES ──────────────────────────────────────────────────────────────────
 const BLANK_CLIENT = {name:"",nicho:"",valor:"",vencimento:"",status:"ativo",responsavel:"",whatsapp:"",logo_url:"",cidade:"Marabá",plano:"Básico"};
 
-const ClientesPage=({clients,setClients,cobr,setCobr,loading})=>{
+const ClientesPage=({clients,setClients,loading})=>{
   const [search,setSearch]=useState("");
   const [filter,setFilter]=useState("todos");
   const [modal,setModal]=useState(false);
@@ -622,20 +557,6 @@ const ClientesPage=({clients,setClients,cobr,setCobr,loading})=>{
   const [editing,setEditing]=useState(null);
   const [confirm,setConfirm]=useState(null);
   const [saving,setSaving]=useState(false);
-  const [uploadingLogo,setUploadingLogo]=useState(false);
-
-  const uploadLogo=async(file)=>{
-    if(!file) return;
-    setUploadingLogo(true);
-    const ext=file.name.split(".").pop();
-    const path=`logos/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-    const {error}=await supabase.storage.from("clientes-logos").upload(path,file,{upsert:true,contentType:file.type});
-    if(!error){
-      const {data:{publicUrl}}=supabase.storage.from("clientes-logos").getPublicUrl(path);
-      setForm(p=>({...p,logo_url:publicUrl}));
-    }
-    setUploadingLogo(false);
-  };
 
   const fl=clients.filter(c=>(c.name?.toLowerCase().includes(search.toLowerCase())||c.nicho?.toLowerCase().includes(search.toLowerCase()))&&(filter==="todos"||c.status===filter));
 
@@ -711,17 +632,10 @@ const ClientesPage=({clients,setClients,cobr,setCobr,loading})=>{
       </div>
 
       {modal&&<Modal title={editing?"Editar Cliente":"Novo Cliente"} onClose={()=>setModal(false)}>
-        <div style={{marginBottom:16,display:"flex",alignItems:"center",gap:16}}>
+        <div style={{marginBottom:14,textAlign:"center"}}>
           <ClientLogo url={form.logo_url} name={form.name} size={64}/>
-          <div style={{flex:1}}>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:6}}>Logo do cliente</label>
-            <label style={{display:"inline-flex",alignItems:"center",gap:8,padding:"8px 16px",background:"#F1F5F9",borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:600,color:"#374151",border:"1.5px dashed #CBD5E1",transition:"background 0.15s"}}>
-              <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>uploadLogo(e.target.files?.[0])}/>
-              {uploadingLogo?<span>Enviando...</span>:<><span style={{fontSize:16}}>{IC.image}</span><span>Enviar imagem</span></>}
-            </label>
-            {form.logo_url&&<div style={{fontSize:10,color:"#10B981",marginTop:4,fontWeight:600}}>✓ Logo carregada</div>}
-          </div>
         </div>
+        <FInput label="URL da Logo (opcional)" value={form.logo_url} onChange={v=>f("logo_url",v)} placeholder="https://exemplo.com/logo.png" icon={IC.image}/>
         <FInput label="Nome da empresa *" value={form.name} onChange={v=>f("name",v)} placeholder="Churrascaria Pantanal"/>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
           <FInput label="Nicho" value={form.nicho} onChange={v=>f("nicho",v)} placeholder="Alimentação"/>
@@ -1204,22 +1118,13 @@ const BLANK_COBR={cliente:"",valor:"",vencimento:"",status:"pendente",pagamento:
 
 const CobrancasPage=({cobr,setCobr,clients,loading})=>{
   const [filter,setFilter]=useState("todos");
-  const [search,setSearch]=useState("");
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState(BLANK_COBR);
   const [editing,setEditing]=useState(null);
   const [confirm,setConfirm]=useState(null);
   const [saving,setSaving]=useState(false);
 
-  const totalRecebido=cobr.filter(c=>c.status==="pago").reduce((a,c)=>a+Number(c.valor),0);
-  const totalPend=cobr.filter(c=>c.status==="pendente").reduce((a,c)=>a+Number(c.valor),0);
-  const totalAtras=cobr.filter(c=>c.status==="atrasado").reduce((a,c)=>a+Number(c.valor),0);
-
-  const fl=cobr.filter(c=>{
-    if(filter!=="todos"&&c.status!==filter) return false;
-    if(search&&!c.cliente?.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  const fl=cobr.filter(c=>filter==="todos"||c.status===filter);
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
 
   const openNew=()=>{setForm(BLANK_COBR);setEditing(null);setModal(true);};
@@ -1262,42 +1167,24 @@ const CobrancasPage=({cobr,setCobr,clients,loading})=>{
   if(loading) return <Loading/>;
   return (
     <div>
-      {/* KPIs */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:12,marginBottom:18}}>
-        <MC label="Total recebido" value={`R$ ${totalRecebido.toLocaleString()}`} icon={IC.check} bg="#ECFDF5"/>
-        <MC label="Pendente" value={`R$ ${totalPend.toLocaleString()}`} icon={IC.clock} bg="#FFFBEB"/>
-        <MC label="Atrasado" value={`R$ ${totalAtras.toLocaleString()}`} icon={IC.alert} bg="#FEF2F2"/>
-        <MC label="Total cobranças" value={cobr.length} icon={IC.money} bg="#F8FAFC"/>
-      </div>
-      {/* Filtros */}
-      <div style={{display:"flex",gap:10,marginBottom:18,alignItems:"center",flexWrap:"wrap"}}>
-        {["todos","pendente","pago","atrasado"].map(fi=><Btn key={fi} size="sm" variant={filter===fi?"secondary":"ghost"} onClick={()=>setFilter(fi)}>
-          {fi.charAt(0).toUpperCase()+fi.slice(1)}
-          <span style={{marginLeft:6,background:filter===fi?"rgba(255,255,255,0.25)":"#EEF3F8",borderRadius:99,padding:"0 6px",fontSize:11,fontWeight:800,color:filter===fi?"#fff":"#64748B"}}>{cobr.filter(c=>fi==="todos"||c.status===fi).length}</span>
-        </Btn>)}
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar cliente..." style={{flex:1,minWidth:160,padding:"8px 12px",borderRadius:9,border:"1.5px solid #DDE5EF",fontSize:13,fontFamily:"inherit",outline:"none"}}/>
-        <Btn onClick={openNew}>+ Nova Cobrança</Btn>
+      <div style={{display:"flex",gap:12,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
+        {["todos","pendente","pago","atrasado"].map(fi=><Btn key={fi} size="sm" variant={filter===fi?"secondary":"ghost"} onClick={()=>setFilter(fi)}>{fi.charAt(0).toUpperCase()+fi.slice(1)} <span style={{marginLeft:6,background:filter===fi?"rgba(255,255,255,0.25)":"#EEF3F8",borderRadius:99,padding:"0 6px",fontSize:11,fontWeight:800,color:filter===fi?"#fff":"#64748B"}}>{cobr.filter(c=>fi==="todos"||c.status===fi).length}</span></Btn>)}
+        <div style={{flex:1}}/><Btn onClick={openNew}>+ Nova Cobrança</Btn>
       </div>
       <Card style={{padding:0}}>
         <Tbl cols={["Cliente","Valor","Vencimento","Forma","Status","Ações"]}
-          rows={fl.map(c=>{
-            const hoje=new Date();hoje.setHours(0,0,0,0);
-            const venc=c.vencimento?new Date(String(c.vencimento).split("T")[0]+"T00:00:00"):null;
-            const diffDias=venc?Math.round((venc.getTime()-hoje.getTime())/86400000):null;
-            const badge=diffDias===0?<span style={{marginLeft:6,background:"#FEF9C3",color:"#854D0E",fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:99}}>hoje</span>:diffDias===1?<span style={{marginLeft:6,background:"#FFEDD5",color:"#C2410C",fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:99}}>amanhã</span>:null;
-            return [
-              <span style={{fontWeight:700,color:"#111827"}}>{c.cliente}</span>,
-              <span style={{fontWeight:800}}>R$ {Number(c.valor).toLocaleString()}</span>,
-              <span>{fmtDate(c.vencimento)}{c.status!=="pago"&&badge}</span>,
-              c.pagamento||<span style={{color:"#94A3B8"}}>—</span>,
-              <StatusBadge status={c.status}/>,
-              <div style={{display:"flex",gap:6}}>
-                {c.status!=="pago"&&<Btn size="sm" variant="success" onClick={()=>marcarPago(c.id)}>Pago</Btn>}
-                <Btn size="sm" variant="ghost" onClick={()=>openEdit(c)}>{IC.edit}</Btn>
-                <Btn size="sm" variant="danger" onClick={()=>setConfirm(c)}>{IC.trash}</Btn>
-              </div>
-            ];
-          })}/>
+          rows={fl.map(c=>[
+            <span style={{fontWeight:700,color:"#111827"}}>{c.cliente}</span>,
+            <span style={{fontWeight:800}}>R$ {Number(c.valor).toLocaleString()}</span>,
+            fmtDate(c.vencimento),
+            c.pagamento||<span style={{color:"#94A3B8"}}>—</span>,
+            <StatusBadge status={c.status}/>,
+            <div style={{display:"flex",gap:6}}>
+              {c.status!=="pago"&&<Btn size="sm" variant="success" onClick={()=>marcarPago(c.id)}>Pago</Btn>}
+              <Btn size="sm" variant="ghost" onClick={()=>openEdit(c)}>{IC.edit}</Btn>
+              <Btn size="sm" variant="danger" onClick={()=>setConfirm(c)}>{IC.trash}</Btn>
+            </div>
+          ])}/>
       </Card>
       {modal&&<Modal title={editing?"Editar Cobrança":"Nova Cobrança"} onClose={()=>setModal(false)}>
         <FSel label="Cliente" value={form.cliente} onChange={v=>f("cliente",v)} options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.name,label:c.name}))]}/>
@@ -1321,19 +1208,10 @@ const DespesasPage=({despesas,setDespesas,loading})=>{
   const [editing,setEditing]=useState(null);
   const [confirm,setConfirm]=useState(null);
   const [saving,setSaving]=useState(false);
-  const [filterCat,setFilterCat]=useState("");
-  const [filterStatus,setFilterStatus]=useState("todos");
 
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
   const total=despesas.reduce((a,d)=>a+Number(d.valor),0);
   const pagas=despesas.filter(d=>d.status==="pago").reduce((a,d)=>a+Number(d.valor),0);
-  const categorias=[...new Set(despesas.map(d=>d.categoria).filter(Boolean))];
-
-  const flDesp=despesas.filter(d=>{
-    if(filterCat&&d.categoria!==filterCat) return false;
-    if(filterStatus!=="todos"&&d.status!==filterStatus) return false;
-    return true;
-  });
 
   const openNew=()=>{setForm({...BLANK_DESP,vencimento:todayStr()});setEditing(null);setModal(true);};
   const openEdit=(d)=>{setForm({...d,tipo:d.tipo||"uma_vez",parcelado_em:String(d.parcelado_em||1),vencimento:d.vencimento?.split("T")[0]||d.vencimento});setEditing(d.id);setModal(true);};
@@ -1384,40 +1262,22 @@ const DespesasPage=({despesas,setDespesas,loading})=>{
   if(loading) return <Loading/>;
   return (
     <div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:12,marginBottom:18}}>
+      <div style={{display:"flex",gap:14,marginBottom:20,flexWrap:"wrap",alignItems:"flex-start"}}>
         <MC label="Total despesas" value={`R$ ${total.toLocaleString()}`} icon={IC.money} bg="#F8FAFC"/>
         <MC label="Já pagas" value={`R$ ${pagas.toLocaleString()}`} icon={IC.check} bg="#ECFDF5"/>
         <MC label="A pagar" value={`R$ ${(total-pagas).toLocaleString()}`} icon={IC.clock} bg="#FFFBEB"/>
-        <MC label="Despesas fixas" value={despesas.filter(d=>d.tipo==="fixa"&&d.status!=="pago").length} icon={IC.repeat} bg="#F5F3FF"/>
-      </div>
-      {/* Filtros */}
-      <div style={{display:"flex",gap:10,marginBottom:16,alignItems:"center",flexWrap:"wrap"}}>
-        {["todos","pendente","pago","atrasado"].map(fi=><Btn key={fi} size="sm" variant={filterStatus===fi?"secondary":"ghost"} onClick={()=>setFilterStatus(fi)}>
-          {fi==="todos"?"Todos":fi.charAt(0).toUpperCase()+fi.slice(1)}
-          <span style={{marginLeft:5,background:filterStatus===fi?"rgba(255,255,255,0.25)":"#EEF3F8",borderRadius:99,padding:"0 5px",fontSize:11,fontWeight:800,color:filterStatus===fi?"#fff":"#64748B"}}>{despesas.filter(d=>fi==="todos"||d.status===fi).length}</span>
-        </Btn>)}
-        <select value={filterCat} onChange={e=>setFilterCat(e.target.value)} style={{padding:"8px 12px",borderRadius:9,border:"1.5px solid #DDE5EF",fontSize:12,fontFamily:"inherit",outline:"none",color:filterCat?"#111827":"#94A3B8",background:"#fff"}}>
-          <option value="">Todas categorias</option>
-          {categorias.map(c=><option key={c} value={c}>{c}</option>)}
-        </select>
-        {(filterCat||filterStatus!=="todos")&&<Btn size="sm" variant="ghost" onClick={()=>{setFilterCat("");setFilterStatus("todos");}}>✕ Limpar</Btn>}
         <div style={{marginLeft:"auto"}}><Btn onClick={openNew}>+ Adicionar Despesa</Btn></div>
       </div>
       <Card style={{padding:0}}>
         <Tbl cols={["Nome","Categoria","Tipo","Valor","Vencimento","Status","Ações"]}
-          rows={flDesp.map(d=>{
-            const hoje=new Date();hoje.setHours(0,0,0,0);
-            const venc=d.vencimento?new Date(String(d.vencimento).split("T")[0]+"T00:00:00"):null;
-            const diffDias=venc?Math.round((venc.getTime()-hoje.getTime())/86400000):null;
-            const vencBadge=d.status!=="pago"&&diffDias!==null&&diffDias<=3&&diffDias>=0?<span style={{marginLeft:5,background:diffDias===0?"#FEE2E2":diffDias===1?"#FFEDD5":"#FEF9C3",color:diffDias===0?"#991B1B":diffDias===1?"#C2410C":"#854D0E",fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:99}}>{diffDias===0?"hoje":diffDias===1?"amanhã":`${diffDias}d`}</span>:null;
-            return [
+          rows={despesas.map(d=>[
             <span style={{fontWeight:700,color:"#111827"}}>{d.nome}</span>,
             <span style={{background:"#EEF3F8",borderRadius:6,padding:"2px 8px",fontSize:12,fontWeight:600,color:"#64748B"}}>{d.categoria}</span>,
             d.tipo==="fixa"?<span style={{background:"#F5F3FF",color:"#7C3AED",borderRadius:6,padding:"2px 8px",fontSize:12,fontWeight:700}}>Fixa</span>
               :d.parcelado_em>1?<span style={{background:"#FFF7ED",color:"#C2410C",borderRadius:6,padding:"2px 8px",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>Parcela {d.parcela_numero}/{d.parcelado_em}</span>
               :<span style={{color:"#94A3B8",fontSize:12}}>Uma vez</span>,
             <span style={{fontWeight:800}}>R$ {Number(d.valor).toLocaleString()}</span>,
-            <span>{fmtDate(d.vencimento)}{vencBadge}</span>,
+            fmtDate(d.vencimento),
             <StatusBadge status={d.status}/>,
             <div style={{display:"flex",gap:6}}>
               {d.status!=="pago"&&<Btn size="sm" variant="success" onClick={()=>marcarPago(d.id)}>Pago</Btn>}
@@ -1425,7 +1285,7 @@ const DespesasPage=({despesas,setDespesas,loading})=>{
               <Btn size="sm" variant="ghost" onClick={()=>openEdit(d)}>{IC.edit}</Btn>
               <Btn size="sm" variant="danger" onClick={()=>setConfirm(d)}>{IC.trash}</Btn>
             </div>
-          ];})}/>
+          ])}/>
       </Card>
       {modal&&<Modal title={editing?"Editar Despesa":"Nova Despesa"} onClose={()=>setModal(false)}>
         <FInput label="Nome da despesa *" value={form.nome} onChange={v=>f("nome",v)} placeholder="Adobe Creative Cloud"/>
@@ -1439,6 +1299,92 @@ const DespesasPage=({despesas,setDespesas,loading})=>{
         <div style={{display:"flex",gap:10}}><Btn style={{flex:1}} onClick={save} disabled={saving}>{saving?"Salvando...":"Salvar"}</Btn><Btn variant="ghost" onClick={()=>setModal(false)} style={{flex:1}}>Cancelar</Btn></div>
       </Modal>}
       {confirm&&<ConfirmModal msg={`Remover "${confirm.nome}"?`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
+// ── GRAVAÇÕES ─────────────────────────────────────────────────────────────────
+const BLANK_GRAV={estabelecimento:"",data:"",frequencia_acordada:"1x/semana",status:"agendada",responsavel:"",notas:""};
+const STATUS_GRAV=[{value:"agendada",label:"Agendada"},{value:"feita",label:"Feita"},{value:"cancelada",label:"Cancelada"},{value:"nao_foi",label:"Não foi"}];
+
+const GravacoesPage=({gravacoes,setGravacoes,clients,equipe,loading})=>{
+  const [filter,setFilter]=useState("todos");
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState(BLANK_GRAV);
+  const [editing,setEditing]=useState(null);
+  const [confirm,setConfirm]=useState(null);
+  const [saving,setSaving]=useState(false);
+
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const nomeCli=(id)=>clients.find(c=>String(c.id)===String(id))?.name||"—";
+  const fl=gravacoes.filter(g=>filter==="todos"||g.status===filter).sort((a,b)=>String(b.data).localeCompare(String(a.data)));
+
+  // Ao escolher o estabelecimento, sugere a última frequência acordada com ele
+  const escolherCliente=(id)=>{
+    const ultima=gravacoes.filter(g=>String(g.estabelecimento)===String(id)).sort((a,b)=>String(b.data).localeCompare(String(a.data)))[0];
+    setForm(p=>({...p,estabelecimento:id,frequencia_acordada:ultima?.frequencia_acordada||p.frequencia_acordada}));
+  };
+
+  const openNew=()=>{setForm({...BLANK_GRAV,data:todayStr()});setEditing(null);setModal(true);};
+  const openEdit=(g)=>{setForm({...BLANK_GRAV,...g,notas:g.notas||"",responsavel:g.responsavel||"",data:String(g.data).split("T")[0]});setEditing(g.id);setModal(true);};
+
+  const marcarFeita=async(id)=>{
+    await supabase.from("gravacoes").update({status:"feita"}).eq("id",id);
+    setGravacoes(prev=>prev.map(g=>g.id===id?{...g,status:"feita"}:g));
+  };
+
+  const save=async()=>{
+    if(!form.estabelecimento||!form.data){return;}
+    setSaving(true);
+    const data={estabelecimento:form.estabelecimento,data:form.data,frequencia_acordada:form.frequencia_acordada,status:form.status,responsavel:form.responsavel||null,notas:form.notas||null};
+    if(editing){
+      await supabase.from("gravacoes").update(data).eq("id",editing);
+      setGravacoes(prev=>prev.map(g=>g.id===editing?{...g,...data}:g));
+    } else {
+      const {data:ins}=await supabase.from("gravacoes").insert([data]).select();
+      if(ins) setGravacoes(prev=>[...prev,...ins]);
+    }
+    setSaving(false);setModal(false);
+  };
+
+  const remove=async(id)=>{
+    await supabase.from("gravacoes").delete().eq("id",id);
+    setGravacoes(prev=>prev.filter(g=>g.id!==id));
+    setConfirm(null);
+  };
+
+  if(loading) return <Loading/>;
+  return (
+    <div>
+      <AlertasGravacao alertas={gravacaoAlertas(gravacoes,clients)}/>
+      <div style={{display:"flex",gap:12,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
+        {[{value:"todos",label:"Todas"},...STATUS_GRAV].map(fi=><Btn key={fi.value} size="sm" variant={filter===fi.value?"secondary":"ghost"} onClick={()=>setFilter(fi.value)}>{fi.label} <span style={{marginLeft:6,background:filter===fi.value?"rgba(255,255,255,0.25)":"#EEF3F8",borderRadius:99,padding:"0 6px",fontSize:11,fontWeight:800,color:filter===fi.value?"#fff":"#64748B"}}>{gravacoes.filter(g=>fi.value==="todos"||g.status===fi.value).length}</span></Btn>)}
+        <div style={{flex:1}}/><Btn onClick={openNew}>+ Nova Gravação</Btn>
+      </div>
+      <Card style={{padding:0}}>
+        <Tbl cols={["Estabelecimento","Data","Status","Responsável","Ações"]}
+          rows={fl.map(g=>[
+            <div><div style={{fontWeight:700,color:"#111827"}}>{nomeCli(g.estabelecimento)}</div><div style={{fontSize:11,color:"#64748B"}}>{g.frequencia_acordada}{g.notas?` · ${g.notas}`:""}</div></div>,
+            <span style={{whiteSpace:"nowrap"}}>{fmtDate(g.data)}</span>,
+            <StatusBadge status={g.status}/>,
+            g.responsavel||<span style={{color:"#94A3B8"}}>—</span>,
+            <div style={{display:"flex",gap:6}}>
+              {g.status!=="feita"&&<Btn size="sm" variant="success" onClick={()=>marcarFeita(g.id)}>Feita</Btn>}
+              <Btn size="sm" variant="ghost" onClick={()=>openEdit(g)}>{IC.edit}</Btn>
+              <Btn size="sm" variant="danger" onClick={()=>setConfirm(g)}>{IC.trash}</Btn>
+            </div>
+          ])}/>
+      </Card>
+      {modal&&<Modal title={editing?"Editar Gravação":"Nova Gravação"} onClose={()=>setModal(false)}>
+        <FSel label="Estabelecimento *" value={form.estabelecimento} onChange={escolherCliente} options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.id,label:c.name}))]}/>
+        <FInput label="Data *" value={form.data} onChange={v=>f("data",v)} type="date"/>
+        <FSel label="Frequência acordada" value={form.frequencia_acordada} onChange={v=>f("frequencia_acordada",v)} options={FREQ_GRAV}/>
+        <FSel label="Status" value={form.status} onChange={v=>f("status",v)} options={STATUS_GRAV}/>
+        <FSel label="Responsável" value={form.responsavel} onChange={v=>f("responsavel",v)} options={[{value:"",label:"Selecione..."},...equipe.map(e=>({value:e.nome,label:e.nome}))]}/>
+        <FInput label="Notas" value={form.notas} onChange={v=>f("notas",v)} placeholder="Ex.: gravar cardápio novo"/>
+        <div style={{display:"flex",gap:10}}><Btn style={{flex:1}} onClick={save} disabled={saving||!form.estabelecimento||!form.data}>{saving?"Salvando...":"Salvar"}</Btn><Btn variant="ghost" onClick={()=>setModal(false)} style={{flex:1}}>Cancelar</Btn></div>
+      </Modal>}
+      {confirm&&<ConfirmModal msg={`Remover gravação de "${nomeCli(confirm.estabelecimento)}" em ${fmtDate(confirm.data)}?`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
     </div>
   );
 };
@@ -1735,63 +1681,29 @@ const AgendaPage=({clients,equipe})=>{
 // ── TAREFAS KANBAN ────────────────────────────────────────────────────────────
 const BLANK_TASK={titulo:"",cliente:"",responsavel:"",prioridade:"media",status:"a_fazer",tipo:"Design",entrega:""};
 
-const isAtrasada=(t:any)=>{
-  if(!t.entrega||t.status==="finalizado"||t.status==="cancelado") return false;
-  const hoje=new Date(); hoje.setHours(0,0,0,0);
-  const dt=new Date(t.entrega+"T00:00:00");
-  return dt<hoje;
-};
-const diasAtraso=(t:any)=>{
-  if(!isAtrasada(t)) return 0;
-  const hoje=new Date(); hoje.setHours(0,0,0,0);
-  const dt=new Date(t.entrega+"T00:00:00");
-  return Math.floor((hoje.getTime()-dt.getTime())/(86400000));
-};
-
 const TarefasPage=({tasks,setTasks,clients,equipe,loading})=>{
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState(BLANK_TASK);
   const [editing,setEditing]=useState(null);
   const [confirm,setConfirm]=useState(null);
   const [dragId,setDragId]=useState(null);
-  const [dragOver,setDragOver]=useState<string|null>(null);
-  const [search,setSearch]=useState("");
-  const [filterResp,setFilterResp]=useState("");
-  const [filterPrio,setFilterPrio]=useState("");
+  const [filter,setFilter]=useState("");
   const [saving,setSaving]=useState(false);
 
-  const cols=[
-    {id:"a_fazer",label:"A Fazer",color:"#1D4ED8",bg:"#EFF6FF"},
-    {id:"em_producao",label:"Em Produção",color:"#FF6200",bg:"#FFF7ED"},
-    {id:"aguardando",label:"Aguardando",color:"#7C3AED",bg:"#F5F3FF"},
-    {id:"ajustes",label:"Ajustes",color:"#F59E0B",bg:"#FFFBEB"},
-    {id:"finalizado",label:"Finalizado",color:"#10B981",bg:"#ECFDF5"},
-    {id:"atrasado",label:"Atrasado",color:"#EF4444",bg:"#FEF2F2"},
-  ];
-
-  const responsaveis=[...new Set(tasks.map(t=>t.responsavel).filter(Boolean))];
-
-  const fl=tasks.filter(t=>{
-    if(search&&!t.titulo?.toLowerCase().includes(search.toLowerCase())&&!t.cliente?.toLowerCase().includes(search.toLowerCase())) return false;
-    if(filterResp&&t.responsavel!==filterResp) return false;
-    if(filterPrio&&t.prioridade!==filterPrio) return false;
-    return true;
-  });
-
-  const atrasadasCount=tasks.filter(t=>isAtrasada(t)&&t.status!=="atrasado").length;
-
+  const cols=[{id:"a_fazer",label:"A Fazer",color:"#1D4ED8"},{id:"em_producao",label:"Em Produção",color:"#FF6200"},{id:"aguardando",label:"Aguardando",color:"#7C3AED"},{id:"ajustes",label:"Ajustes",color:"#F59E0B"},{id:"finalizado",label:"Finalizado",color:"#10B981"},{id:"atrasado",label:"Atrasado",color:"#EF4444"}];
+  const fl=tasks.filter(t=>filter===""||t.cliente?.toLowerCase().includes(filter.toLowerCase())||t.responsavel?.toLowerCase().includes(filter.toLowerCase()));
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+
   const openNew=()=>{setForm(BLANK_TASK);setEditing(null);setModal(true);};
   const openEdit=(t)=>{setForm({...t,entrega:t.entrega?.split("T")[0]||t.entrega});setEditing(t.id);setModal(true);};
 
-  const drop=async(newStatus,taskId?)=>{
-    const id=taskId||dragId;
-    if(!id) return;
-    await supabase.from("tarefas").update({status:newStatus}).eq("id",id);
-    setTasks(prev=>prev.map(t=>t.id===id?{...t,status:newStatus}:t));
-    setDragId(null);setDragOver(null);
-  };
-
+const drop=async(newStatus,taskId?)=>{
+  const id=taskId||dragId;
+  if(!id) return;
+  await supabase.from("tarefas").update({status:newStatus}).eq("id",id);
+  setTasks(prev=>prev.map(t=>t.id===id?{...t,status:newStatus}:t));
+  setDragId(null);
+};
   const save=async()=>{
     if(!form.titulo){return;}
     setSaving(true);
@@ -1815,76 +1727,43 @@ const TarefasPage=({tasks,setTasks,clients,equipe,loading})=>{
   if(loading) return <Loading/>;
   return (
     <div>
-      {/* Aviso de tarefas não marcadas como atrasadas */}
-      {atrasadasCount>0&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,padding:"10px 16px",marginBottom:16,display:"flex",alignItems:"center",gap:10}}>
-        <span style={{color:"#EF4444",fontSize:16}}>{IC.alert}</span>
-        <span style={{fontSize:13,color:"#7F1D1D",fontWeight:600}}>{atrasadasCount} tarefa{atrasadasCount>1?"s":""} com prazo vencido — considere mover para "Atrasado".</span>
-      </div>}
-
-      {/* Filtros */}
-      <div style={{display:"flex",gap:10,marginBottom:18,alignItems:"center",flexWrap:"wrap"}}>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar tarefa ou cliente..." style={{flex:1,minWidth:200,padding:"9px 14px",borderRadius:9,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit"}}/>
-        <select value={filterResp} onChange={e=>setFilterResp(e.target.value)} style={{padding:"9px 12px",borderRadius:9,border:"1.5px solid #DDE5EF",fontSize:12,color:filterResp?"#111827":"#94A3B8",background:"#fff",fontFamily:"inherit",outline:"none"}}>
-          <option value="">Todos responsáveis</option>
-          {responsaveis.map(r=><option key={r} value={r}>{r}</option>)}
-        </select>
-        <select value={filterPrio} onChange={e=>setFilterPrio(e.target.value)} style={{padding:"9px 12px",borderRadius:9,border:"1.5px solid #DDE5EF",fontSize:12,color:filterPrio?"#111827":"#94A3B8",background:"#fff",fontFamily:"inherit",outline:"none"}}>
-          <option value="">Todas prioridades</option>
-          {["baixa","media","alta","urgente"].map(p=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
-        </select>
-        {(search||filterResp||filterPrio)&&<Btn size="sm" variant="ghost" onClick={()=>{setSearch("");setFilterResp("");setFilterPrio("");}}>✕ Limpar</Btn>}
+      <div style={{display:"flex",gap:12,marginBottom:18,alignItems:"center"}}>
+        <input value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Filtrar por cliente ou responsável..." style={{flex:1,padding:"9px 14px",borderRadius:9,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit"}}/>
         <Btn onClick={openNew}>+ Nova Tarefa</Btn>
       </div>
-
-      {/* Kanban board */}
       <div style={{display:"flex",gap:14,overflowX:"auto",paddingBottom:16}}>
         {cols.map(col=>{
           const ct=fl.filter(t=>t.status===col.id);
-          const isOver=dragOver===col.id;
           return (
-            <div key={col.id} style={{minWidth:240,flex:"0 0 240px"}}
-              onDragOver={e=>{e.preventDefault();setDragOver(col.id);}}
-              onDragLeave={()=>setDragOver(null)}
-              onDrop={()=>drop(col.id)}>
+            <div key={col.id} style={{minWidth:240,flex:"0 0 240px"}} onDragOver={e=>e.preventDefault()} onDrop={()=>drop(col.id)}>
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
                 <div style={{width:10,height:10,borderRadius:99,background:col.color}}/>
                 <span style={{fontSize:13,fontWeight:800,color:"#1F2F46"}}>{col.label}</span>
-                <span style={{marginLeft:"auto",background:col.bg,borderRadius:99,padding:"1px 9px",fontSize:11,fontWeight:700,color:col.color}}>{ct.length}</span>
+                <span style={{marginLeft:"auto",background:"#EEF3F8",borderRadius:99,padding:"1px 9px",fontSize:11,fontWeight:700,color:"#64748B"}}>{ct.length}</span>
               </div>
-              <div style={{display:"flex",flexDirection:"column",gap:10,minHeight:120,background:isOver?"#E0F2FE":"#F0F4F9",borderRadius:12,padding:10,transition:"background 0.15s",border:isOver?`2px dashed ${col.color}`:"2px solid transparent"}}>
-                {ct.map(t=>{
-                  const atrasado=isAtrasada(t);
-                  const dias=diasAtraso(t);
-                  return (
-                    <div key={t.id} draggable onDragStart={()=>setDragId(t.id)} onDragEnd={()=>{setDragId(null);setDragOver(null);}}
-                      style={{background:"#fff",borderRadius:10,padding:"12px 14px",boxShadow:atrasado?"0 0 0 2px #EF4444,0 2px 8px rgba(239,68,68,0.12)":"0 1px 3px rgba(0,0,0,0.06)",cursor:"grab",borderLeft:`3px solid ${atrasado?"#EF4444":col.color}`,userSelect:"none",opacity:dragId===t.id?0.5:1}}>
-                      {/* Indicador de atraso */}
-                      {atrasado&&<div style={{background:"#FEF2F2",borderRadius:6,padding:"3px 8px",fontSize:10,fontWeight:700,color:"#EF4444",marginBottom:8,display:"flex",alignItems:"center",gap:4}}>{IC.alert} {dias}d atrasada</div>}
-                      <div style={{fontSize:13,fontWeight:700,color:"#111827",marginBottom:4,lineHeight:1.3}}>{t.titulo}</div>
-                      <div style={{fontSize:11,color:"#64748B",marginBottom:8,fontWeight:500}}>{t.cliente}</div>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                        <PBadge p={t.prioridade}/>
-                        <div style={{fontSize:11,color:"#64748B",fontWeight:600}}>{t.responsavel}</div>
-                      </div>
-                      {t.entrega&&<div style={{fontSize:11,color:atrasado?"#EF4444":"#94A3B8",display:"flex",alignItems:"center",gap:4,marginBottom:8,fontWeight:atrasado?700:400}}>{IC.clock} {fmtDate(t.entrega)}</div>}
-                      <div style={{display:"flex",gap:6,marginBottom:6}}>
-                        <Btn size="sm" variant="ghost" style={{flex:1,padding:"4px 8px"}} onClick={()=>openEdit(t)}>{IC.edit}</Btn>
-                        <Btn size="sm" variant="danger" style={{flex:1,padding:"4px 8px"}} onClick={()=>setConfirm(t)}>{IC.trash}</Btn>
-                      </div>
-                      <select onChange={e=>{if(e.target.value)drop(e.target.value,t.id);e.target.value="";}} style={{width:"100%",padding:"6px 10px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,color:"#64748B",background:"#F8FAFC",fontFamily:"inherit",cursor:"pointer"}}>
-                        <option value="">Mover para...</option>
-                        {cols.filter(c=>c.id!==col.id).map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
-                      </select>
-                    </div>
-                  );
-                })}
-                {ct.length===0&&<div style={{color:isOver?col.color:"#94A3B8",fontSize:12,textAlign:"center",padding:"20px 0",fontWeight:isOver?700:400}}>{isOver?"Soltar aqui":"Vazio"}</div>}
+              <div style={{display:"flex",flexDirection:"column",gap:10,minHeight:120,background:"#F0F4F9",borderRadius:12,padding:10}}>
+                {ct.map(t=>(
+                  <div key={t.id} draggable onDragStart={()=>setDragId(t.id)} style={{background:"#fff",borderRadius:10,padding:"12px 14px",boxShadow:"0 1px 3px rgba(0,0,0,0.06)",cursor:"grab",borderLeft:`3px solid ${col.color}`,userSelect:"none"}}>
+  <div style={{fontSize:13,fontWeight:700,color:"#111827",marginBottom:4}}>{t.titulo}</div>
+  <div style={{fontSize:11,color:"#64748B",marginBottom:8}}>{t.cliente}</div>
+  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><PBadge p={t.prioridade}/><div style={{fontSize:11,color:"#64748B"}}>{t.responsavel}</div></div>
+  <div style={{fontSize:11,color:"#94A3B8",display:"flex",alignItems:"center",gap:4,marginBottom:8}}>{IC.clock} {fmtDate(t.entrega)}</div>
+  <div style={{display:"flex",gap:6,marginBottom:6}}>
+    <Btn size="sm" variant="ghost" style={{flex:1,padding:"4px 8px"}} onClick={()=>openEdit(t)}>{IC.edit}</Btn>
+    <Btn size="sm" variant="danger" style={{flex:1,padding:"4px 8px"}} onClick={()=>setConfirm(t)}>{IC.trash}</Btn>
+  </div>
+  <select onChange={e=>{if(e.target.value)drop(e.target.value,t.id);e.target.value="";}} style={{width:"100%",padding:"6px 10px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,color:"#64748B",background:"#F8FAFC",fontFamily:"inherit"}}>
+    <option value="">Mover para...</option>
+    {cols.filter(c=>c.id!==col.id).map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+  </select>
+</div>
+                ))}
+                {ct.length===0&&<div style={{color:"#94A3B8",fontSize:12,textAlign:"center",padding:"20px 0"}}>Solte aqui</div>}
               </div>
             </div>
           );
         })}
       </div>
-
       {modal&&<Modal title={editing?"Editar Tarefa":"Nova Tarefa"} onClose={()=>setModal(false)}>
         <FInput label="Título *" value={form.titulo} onChange={v=>f("titulo",v)} placeholder="Arte Dia dos Namorados"/>
         <FSel label="Cliente" value={form.cliente} onChange={v=>f("cliente",v)} options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.name,label:c.name}))]}/>
@@ -1902,70 +1781,20 @@ const TarefasPage=({tasks,setTasks,clients,equipe,loading})=>{
   );
 };
 
-// ── EQUIPE + SISTEMA DE PENALIDADES ──────────────────────────────────────────
+// ── EQUIPE ────────────────────────────────────────────────────────────────────
 const BLANK_EQ={nome:"",funcao:"",tipo:"fixo",status:"ativo",whatsapp:""};
-const PENALIDADE_VALOR=50; // R$ de referência por ponto
 
-const EquipePage=({equipe,setEquipe,tasks,loading,perfil})=>{
+const EquipePage=({equipe,setEquipe,tasks,loading})=>{
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState(BLANK_EQ);
   const [editing,setEditing]=useState(null);
   const [confirm,setConfirm]=useState(null);
   const [verTarefas,setVerTarefas]=useState(null);
   const [saving,setSaving]=useState(false);
-  const [penalidades,setPenalidades]=useState([]);
-  const [loadingPen,setLoadingPen]=useState(true);
-  const [verPenalidades,setVerPenalidades]=useState(null);
-  const [cancelando,setCancelando]=useState(null);
-  const [justificativa,setJustificativa]=useState("");
 
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
   const openNew=()=>{setForm(BLANK_EQ);setEditing(null);setModal(true);};
   const openEdit=(e)=>{setForm({...e});setEditing(e.id);setModal(true);};
-
-  // ── Carrega penalidades e detecta tarefas vencidas sem penalidade ──
-  const loadPenalidades=async()=>{
-    setLoadingPen(true);
-    const {data:pens}=await supabase.from("penalidades").select("*").order("created_at",{ascending:false});
-    const penAtivas=pens||[];
-    setPenalidades(penAtivas);
-
-    // Detecta tarefas vencidas sem penalidade registrada
-    const hoje=new Date();hoje.setHours(0,0,0,0);
-    const vencidas=tasks.filter(t=>{
-      if(!t.entrega||t.status==="finalizado"||t.status==="cancelado") return false;
-      const dt=new Date(t.entrega+"T00:00:00");
-      return dt<hoje;
-    });
-    const idsComPenalidade=new Set(penAtivas.filter(p=>p.status!=="cancelada").map(p=>p.tarefa_id));
-    const semPenalidade=vencidas.filter(t=>!idsComPenalidade.has(t.id));
-    if(semPenalidade.length===0){setLoadingPen(false);return;}
-
-    // Aplica penalidade automática a cada uma (uma só vez por tarefa)
-    const novas=semPenalidade.map(t=>({
-      colaborador_nome:t.responsavel||"Sem responsável",
-      tarefa_id:t.id,
-      tarefa_titulo:t.titulo,
-      tarefa_cliente:t.cliente||"",
-      tarefa_entrega:t.entrega,
-      pontos:-1,
-      status:"ativa",
-    }));
-    if(novas.length){
-      const {data:ins}=await supabase.from("penalidades").insert(novas).select();
-      if(ins) setPenalidades(prev=>[...ins,...prev]);
-    }
-    setLoadingPen(false);
-  };
-
-  useEffect(()=>{if(!loading) loadPenalidades();},[loading,tasks]);
-
-  const cancelarPenalidade=async(pen)=>{
-    if(!justificativa.trim()){return;}
-    await supabase.from("penalidades").update({status:"cancelada",justificativa_cancelamento:justificativa,cancelado_em:new Date().toISOString()}).eq("id",pen.id);
-    setPenalidades(prev=>prev.map(p=>p.id===pen.id?{...p,status:"cancelada",justificativa_cancelamento:justificativa}:p));
-    setCancelando(null);setJustificativa("");
-  };
 
   const save=async()=>{
     if(!form.nome){return;}
@@ -1987,44 +1816,25 @@ const EquipePage=({equipe,setEquipe,tasks,loading,perfil})=>{
     setConfirm(null);
   };
 
-  const getPontos=(nome)=>penalidades.filter(p=>p.colaborador_nome===nome.split(" ")[0]&&p.status==="ativa").reduce((a,p)=>a+p.pontos,0);
-  const getPenaidadesAtivas=(nome)=>penalidades.filter(p=>p.colaborador_nome===nome.split(" ")[0]&&p.status==="ativa");
-
   if(loading) return <Loading/>;
   return (
     <div>
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:18}}><Btn onClick={openNew}>+ Adicionar Colaborador</Btn></div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:16}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
         {equipe.map(e=>{
           const primeiroNome=e.nome.split(" ")[0];
           const tf=tasks.filter(t=>t.responsavel===primeiroNome);
           const at=tf.filter(t=>t.status==="atrasado");
-          const pontos=getPontos(e.nome);
-          const penAtivas=getPenaidadesAtivas(e.nome);
           return (
             <Card key={e.id}>
               <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:14}}>
-                <div style={{position:"relative"}}>
-                  <div style={{width:50,height:50,background:"linear-gradient(135deg,#1F2F46,#2D4A6A)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:20,fontWeight:800}}>{e.nome.charAt(0)}</div>
-                  {pontos<0&&<div style={{position:"absolute",top:-6,right:-6,background:"#EF4444",color:"#fff",borderRadius:99,width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800}}>{pontos}</div>}
-                </div>
+                <div style={{width:50,height:50,background:"linear-gradient(135deg,#1F2F46,#2D4A6A)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:20,fontWeight:800}}>{e.nome.charAt(0)}</div>
                 <div>
                   <div style={{fontSize:15,fontWeight:800,color:"#111827"}}>{e.nome}</div>
                   <div style={{fontSize:12,color:"#64748B"}}>{e.funcao}</div>
                   <span style={{background:e.tipo==="fixo"?"#EFF6FF":"#F5F3FF",color:e.tipo==="fixo"?"#1D4ED8":"#7C3AED",fontSize:11,fontWeight:700,borderRadius:6,padding:"2px 8px"}}>{e.tipo?.charAt(0).toUpperCase()+e.tipo?.slice(1)}</span>
                 </div>
               </div>
-
-              {/* Score de pontuação */}
-              <div style={{background:pontos<0?"#FEF2F2":pontos===0?"#F8FAFC":"#ECFDF5",borderRadius:10,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
-                <div style={{fontSize:22,fontWeight:900,color:pontos<0?"#EF4444":pontos===0?"#94A3B8":"#10B981"}}>{pontos}</div>
-                <div>
-                  <div style={{fontSize:12,fontWeight:700,color:"#374151"}}>Pontuação</div>
-                  <div style={{fontSize:11,color:"#64748B"}}>Ref: R$ {Math.abs(pontos)*PENALIDADE_VALOR} {pontos<0?"dedução":pontos===0?"sem pendências":"bônus"}</div>
-                </div>
-                {penAtivas.length>0&&<div style={{marginLeft:"auto"}}><Btn size="sm" variant="danger" onClick={()=>setVerPenalidades({nome:e.nome,pens:penalidades.filter(p=>p.colaborador_nome===primeiroNome)})}>{IC.alert} {penAtivas.length}</Btn></div>}
-              </div>
-
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
                 <div style={{background:"#F8FAFC",borderRadius:8,padding:"8px 10px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:"#111827"}}>{tf.length}</div><div style={{fontSize:10,color:"#64748B",fontWeight:600}}>Total</div></div>
                 <div style={{background:"#ECFDF5",borderRadius:8,padding:"8px 10px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:"#10B981"}}>{tf.filter(t=>t.status==="finalizado").length}</div><div style={{fontSize:10,color:"#10B981",fontWeight:600}}>Feitas</div></div>
@@ -2041,7 +1851,6 @@ const EquipePage=({equipe,setEquipe,tasks,loading,perfil})=>{
         })}
       </div>
 
-      {/* Modal: tarefas do colaborador */}
       {verTarefas&&<Modal title={`Tarefas — ${verTarefas.nome}`} onClose={()=>setVerTarefas(null)}>
         {verTarefas.tasks.length===0?<div style={{textAlign:"center",color:"#64748B",padding:"20px 0"}}>Nenhuma tarefa atribuída.</div>:verTarefas.tasks.map(t=>(
           <div key={t.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:"#F8FAFC",borderRadius:10,marginBottom:8}}>
@@ -2049,42 +1858,6 @@ const EquipePage=({equipe,setEquipe,tasks,loading,perfil})=>{
             <div style={{display:"flex",gap:8,alignItems:"center"}}><PBadge p={t.prioridade}/><StatusBadge status={t.status}/></div>
           </div>
         ))}
-      </Modal>}
-
-      {/* Modal: histórico de penalidades */}
-      {verPenalidades&&<Modal title={`Penalidades — ${verPenalidades.nome}`} onClose={()=>setVerPenalidades(null)} width={560}>
-        <div style={{marginBottom:12,fontSize:12,color:"#64748B"}}>Cada tarefa vencida sem entrega gera -1 ponto (referência: R$ {PENALIDADE_VALOR}).</div>
-        {verPenalidades.pens.length===0?<div style={{textAlign:"center",color:"#64748B",padding:"20px 0"}}>Nenhuma penalidade registrada.</div>:verPenalidades.pens.map(p=>(
-          <div key={p.id} style={{padding:"12px 14px",background:p.status==="cancelada"?"#F8FAFC":"#FEF2F2",borderRadius:10,marginBottom:8,border:`1px solid ${p.status==="cancelada"?"#E2E8F0":"#FECACA"}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
-              <div>
-                <div style={{fontSize:13,fontWeight:700,color:"#111827",textDecoration:p.status==="cancelada"?"line-through":"none"}}>{p.tarefa_titulo}</div>
-                <div style={{fontSize:11,color:"#64748B"}}>{p.tarefa_cliente} · Venceu: {fmtDate(p.tarefa_entrega)}</div>
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <span style={{fontSize:13,fontWeight:900,color:p.status==="cancelada"?"#94A3B8":"#EF4444"}}>{p.pontos} ponto</span>
-                {p.status==="cancelada"?<span style={{background:"#F3F4F6",color:"#6B7280",fontSize:10,fontWeight:700,borderRadius:6,padding:"2px 8px"}}>Cancelada</span>:
-                perfil==="admin"&&<Btn size="sm" variant="ghost" onClick={()=>{setCancelando(p);setVerPenalidades(null);}}>Cancelar</Btn>}
-              </div>
-            </div>
-            {p.status==="cancelada"&&p.justificativa_cancelamento&&<div style={{fontSize:11,color:"#64748B",marginTop:4,fontStyle:"italic"}}>Motivo: {p.justificativa_cancelamento}</div>}
-          </div>
-        ))}
-      </Modal>}
-
-      {/* Modal: cancelar penalidade (só admin) */}
-      {cancelando&&<Modal title="Cancelar Penalidade" onClose={()=>{setCancelando(null);setJustificativa("");}}>
-        <div style={{background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10,padding:"12px 14px",fontSize:13,color:"#92400E",marginBottom:16}}>
-          Você está cancelando a penalidade de <strong>{cancelando.colaborador_nome}</strong> pela tarefa "<strong>{cancelando.tarefa_titulo}</strong>".
-        </div>
-        <div style={{marginBottom:14}}>
-          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>Justificativa *</label>
-          <textarea value={justificativa} onChange={e=>setJustificativa(e.target.value)} rows={3} placeholder="Ex.: Prazo foi estendido pelo cliente, entrega ocorreu sem registro..." style={{width:"100%",padding:"9px 13px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit",boxSizing:"border-box",background:"#FAFBFD",resize:"vertical"}}/>
-        </div>
-        <div style={{display:"flex",gap:10}}>
-          <Btn style={{flex:1}} onClick={()=>cancelarPenalidade(cancelando)} disabled={!justificativa.trim()}>Confirmar cancelamento</Btn>
-          <Btn variant="ghost" style={{flex:1}} onClick={()=>{setCancelando(null);setJustificativa("");}}>Voltar</Btn>
-        </div>
       </Modal>}
 
       {modal&&<Modal title={editing?"Editar Colaborador":"Novo Colaborador"} onClose={()=>setModal(false)}>
@@ -2133,7 +1906,8 @@ const CalendarioPage=()=>{
   const hoje=new Date();
   const doisMeses=new Date();
   doisMeses.setMonth(doisMeses.getMonth()+2);
-  return (d.nivel==="critico"||d.nivel==="alto") && dataEvento>=hoje && dataEvento<=doisMeses;
+  const importante=d.nivel==="critico"||d.nivel==="alto";
+  return dataEvento>=hoje && dataEvento<=doisMeses;
 }).map(d=>(
           <Card key={d.id} onClick={()=>setSel(d)} style={{cursor:"pointer",borderLeft:`4px solid ${nm[d.nivel]||"#64748B"}`}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
@@ -2153,6 +1927,126 @@ const CalendarioPage=()=>{
   );
 };
 
+// ── TRÁFEGO ───────────────────────────────────────────────────────────────────
+const META_TOKEN = "EAANu31tVGzQBRj3NDQ4dzbRJB8OqmKypfUtmZCOdhgdsCU3yeyn4IEWIAP4qAR3yQ8F6YZCUsQKLAoijwM9dHMrkZAW62jk8LwvC95zuwYRYACEIOoNZC4kmJQ7bTywjGLW0bJCI54ZAFuov9Fs83AK1kNZBZAm2vDw0o5kPczdS2klWnFdJEstet5rCgU1lt30PAZDZD";
+
+const META_CONTAS = [
+  { id: "65170252229843",    cliente: "Medellin",     plataforma: "Meta Ads" },
+  { id: "750043358048860",   cliente: "Lá em Casa",   plataforma: "Meta Ads" },
+  { id: "141116179588051",   cliente: "Ki-Burg",      plataforma: "Meta Ads" },
+  { id: "1104013311850054",  cliente: "Di Chinello",  plataforma: "Meta Ads" },
+  { id: "861354603644905",   cliente: "L&A Pneus",    plataforma: "Meta Ads" },
+  { id: "1383953866799392",  cliente: "MarketForge",  plataforma: "Meta Ads" },
+  { id: "286396705545158",  cliente: "Dolce Morena",  plataforma: "Meta Ads" },
+];
+
+const TráfegoPage = () => {
+  const [contas, setContas] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [ultimaAtualizacao, setUltimaAtualizacao] = useState(null);
+  const [erro, setErro] = useState("");
+
+  const getStatus = (saldo) => {
+    if (saldo <= 0) return "zerado";
+    if (saldo < 100) return "baixo";
+    return "ok";
+  };
+
+  const buscarSaldos = async () => {
+    setLoading(true);
+    setErro("");
+    const resultados = [];
+    for (const conta of META_CONTAS) {
+      try {
+        const res = await fetch(
+  `https://graph.facebook.com/v25.0/act_${conta.id}?fields=name,balance,currency,amount_spent,spend_cap&access_token=${META_TOKEN}`
+);
+        const json = await res.json();
+        if (json.error) {
+          resultados.push({ ...conta, saldo: null, gasto: null, moeda: "BRL", erro: json.error.message, status: "zerado" });
+        } else {
+          const balance = Number(json.balance);
+const spendCap = Number(json.spend_cap);
+const amountSpent = Number(json.amount_spent);
+
+// Se tem spend_cap, calcula saldo como cap - gasto
+const saldo = spendCap > 0
+  ? (spendCap - amountSpent) / 100
+  : balance / 100;
+const gasto = amountSpent / 100;
+          resultados.push({ ...conta, nomeReal: json.name, saldo, gasto, moeda: json.currency || "BRL", status: getStatus(saldo), erro: null });
+        }
+      } catch (e) {
+        resultados.push({ ...conta, saldo: null, gasto: null, erro: "Erro de rede", status: "zerado" });
+      }
+    }
+    setContas(resultados);
+    setUltimaAtualizacao(new Date().toLocaleTimeString("pt-BR"));
+    setLoading(false);
+  };
+
+  useEffect(() => { buscarSaldos(); }, []);
+
+  const totalSaldo = contas.filter(c => c.saldo !== null).reduce((a, c) => a + c.saldo, 0);
+  const totalGasto = contas.filter(c => c.gasto !== null).reduce((a, c) => a + c.gasto, 0);
+  const semSaldo = contas.filter(c => c.status !== "ok").length;
+
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:12}}>
+        <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
+          <MC label="Saldo total" value={`R$ ${totalSaldo.toLocaleString("pt-BR",{minimumFractionDigits:2})}`} icon={IC.money} bg="#ECFDF5"/>
+          <MC label="Total gasto" value={`R$ ${totalGasto.toLocaleString("pt-BR",{minimumFractionDigits:2})}`} icon={IC.chart} bg="#FEF2F2"/>
+          <MC label="Atenção" value={semSaldo} icon={IC.alert} bg="#FFFBEB"/>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
+          <Btn onClick={buscarSaldos} disabled={loading} variant="secondary">{loading?"Atualizando...":"⟳ Atualizar Saldos"}</Btn>
+          {ultimaAtualizacao&&<span style={{fontSize:11,color:"#94A3B8"}}>Última atualização: {ultimaAtualizacao}</span>}
+        </div>
+      </div>
+      {erro&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,padding:"12px 16px",marginBottom:16,fontSize:13,color:"#991B1B"}}>{erro}</div>}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:16}}>
+        {contas.length===0&&loading&&[1,2,3,4,5,6].map(i=>(
+          <Card key={i} style={{borderLeft:"4px solid #EEF3F8",opacity:0.5}}>
+            <div style={{height:80,background:"#F8FAFC",borderRadius:8}}/>
+          </Card>
+        ))}
+        {contas.map((t,i)=>{
+          const cor=t.status==="ok"?"#10B981":t.status==="baixo"?"#F59E0B":"#EF4444";
+          return (
+            <Card key={i} style={{borderLeft:`4px solid ${cor}`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+                <div>
+                  <div style={{fontSize:15,fontWeight:800,color:"#111827"}}>{t.cliente}</div>
+                  <div style={{fontSize:12,color:"#64748B"}}>{t.plataforma}</div>
+                  {t.nomeReal&&t.nomeReal!==t.cliente&&<div style={{fontSize:11,color:"#94A3B8",marginTop:2}}>{t.nomeReal}</div>}
+                </div>
+                <StatusBadge status={t.status}/>
+              </div>
+              {t.erro?(
+                <div style={{background:"#FEF2F2",borderRadius:8,padding:"10px 12px",fontSize:12,color:"#991B1B"}}>⚠️ {t.erro}</div>
+              ):(
+                <>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+                    <div style={{background:"#F8FAFC",borderRadius:8,padding:"10px 12px"}}>
+                      <div style={{fontSize:10,color:"#64748B",fontWeight:700,textTransform:"uppercase",marginBottom:4}}>Saldo Disponível</div>
+                      <div style={{fontSize:18,fontWeight:800,color:t.saldo<100?"#EF4444":"#10B981"}}>R$ {t.saldo?.toLocaleString("pt-BR",{minimumFractionDigits:2})??"—"}</div>
+                    </div>
+                    <div style={{background:"#F8FAFC",borderRadius:8,padding:"10px 12px"}}>
+                      <div style={{fontSize:10,color:"#64748B",fontWeight:700,textTransform:"uppercase",marginBottom:4}}>Total Gasto</div>
+                      <div style={{fontSize:18,fontWeight:800,color:"#EF4444"}}>R$ {t.gasto?.toLocaleString("pt-BR",{minimumFractionDigits:2})??"—"}</div>
+                    </div>
+                  </div>
+                  {t.status!=="ok"&&<div style={{marginTop:4}}><Btn size="sm" style={{width:"100%"}}>{t.status==="zerado"?"🚨 Campanha pausada — Solicitar recarga":"⚠️ Saldo baixo — Solicitar recarga"}</Btn></div>}
+                </>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 // ── MODELOS ───────────────────────────────────────────────────────────────────
 const MODELOS=[
   {cat:"Cobrança",nome:"Lembrete 3 dias antes",msg:"Olá, {{nome}}! Passando para lembrar que a mensalidade referente aos serviços da MarketForge vence no dia {{data}}. Valor: R$ {{valor}}. Qualquer dúvida, estou à disposição."},
@@ -2185,13 +2079,355 @@ const MensagensPage=()=>{
   );
 };
 
+// ── RELATÓRIOS DE TRÁFEGO PAGO ─────────────────────────────────────────────────
+const BLANK_RELATORIO_FORM={clienteId:"",campanhaNome:"",objetivo:"",dataInicial:"",dataFinal:"",valorInvestido:"",valorGasto:"",valorProduto:"",qtdVendas:""};
+
+const calcDiasCampanha=(ini,fim)=>{
+  if(!ini||!fim) return 0;
+  const d1=new Date(ini+"T00:00:00"),d2=new Date(fim+"T00:00:00");
+  const diff=Math.round((d2-d1)/86400000)+1;
+  return diff>0?diff:0;
+};
+
+const RelatoriosTrafegoPage=({clients})=>{
+  const [relatorios,setRelatorios]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState(BLANK_RELATORIO_FORM);
+  const [desempenho,setDesempenho]=useState([{dia:"",mensagens:""}]);
+  const [confirm,setConfirm]=useState(null);
+  const [gerando,setGerando]=useState(false);
+  const [etapa,setEtapa]=useState("");
+  const [erro,setErro]=useState("");
+  const [pronto,setPronto]=useState(null);
+
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  const carregar=async()=>{
+    setLoading(true);
+    const {data,error}=await supabase.from("relatorios_trafego").select("*").order("created_at",{ascending:false});
+    if(!error&&data) setRelatorios(data);
+    setLoading(false);
+  };
+  useEffect(()=>{carregar();},[]);
+
+  const openNew=()=>{setForm(BLANK_RELATORIO_FORM);setDesempenho([{dia:"",mensagens:""}]);setErro("");setModal(true);};
+
+  const addLinha=()=>setDesempenho(p=>[...p,{dia:"",mensagens:""}]);
+  const removeLinha=(i)=>setDesempenho(p=>p.filter((_,idx)=>idx!==i));
+  const setLinha=(i,k,v)=>setDesempenho(p=>p.map((row,idx)=>idx===i?{...row,[k]:v}:row));
+
+  const dias=calcDiasCampanha(form.dataInicial,form.dataFinal);
+
+  const remove=async(id)=>{
+    await supabase.from("relatorios_trafego").delete().eq("id",id);
+    setRelatorios(prev=>prev.filter(r=>r.id!==id));
+    setConfirm(null);
+  };
+
+  const gerar=async()=>{
+    if(!form.clienteId||!form.campanhaNome||!form.dataInicial||!form.dataFinal||!form.valorInvestido){
+      setErro("Preencha cliente, campanha, período e valor investido.");
+      return;
+    }
+    const cliente=clients.find(c=>c.id===form.clienteId);
+    setErro("");setGerando(true);
+
+    const linhasValidas=desempenho.filter(d=>d.dia&&d.mensagens!=="").map(d=>({dia:d.dia,mensagens:Number(d.mensagens)}));
+    const totalMensagens=linhasValidas.reduce((a,d)=>a+d.mensagens,0);
+    const mediaDiaria=linhasValidas.length?Math.round((totalMensagens/linhasValidas.length)*10)/10:0;
+    const melhorDia=linhasValidas.length?linhasValidas.reduce((a,d)=>d.mensagens>a.mensagens?d:a):null;
+    const piorDia=linhasValidas.length?linhasValidas.reduce((a,d)=>d.mensagens<a.mensagens?d:a):null;
+    const valorInvestido=Number(form.valorInvestido);
+    const valorGasto=form.valorGasto?Number(form.valorGasto):null;
+    const valorProduto=form.valorProduto?Number(form.valorProduto):null;
+    const qtdVendas=form.qtdVendas?Number(form.qtdVendas):null;
+    const baseCusto=valorGasto!=null?valorGasto:valorInvestido;
+    const custoPorMensagem=totalMensagens>0?Math.round((baseCusto/totalMensagens)*100)/100:null;
+    const faturamentoEstimado=(qtdVendas&&valorProduto)?qtdVendas*valorProduto:null;
+    const roi=(faturamentoEstimado!=null&&valorInvestido>0)?Math.round(((faturamentoEstimado-valorInvestido)/valorInvestido)*1000)/10:null;
+
+    const metricas={clienteNome:cliente?.name,campanhaNome:form.campanhaNome,objetivo:form.objetivo,dias,valorInvestido,valorGasto,totalMensagens,mediaDiaria,melhorDia,piorDia,custoPorMensagem,qtdVendas,valorProduto,faturamentoEstimado,roi};
+
+    try{
+      setEtapa("Gerando análise com IA...");
+      const resIA=await fetch("/api/gerar-relatorio-trafego",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(metricas)});
+      const jsonIA=await resIA.json();
+      if(!resIA.ok||jsonIA.error) throw new Error(jsonIA.error||"Erro ao gerar textos com IA");
+
+      setEtapa("Salvando relatório...");
+      const registro={
+        cliente_id:form.clienteId,cliente_nome:cliente?.name||"",campanha_nome:form.campanhaNome,objetivo:form.objetivo,
+        data_inicial:form.dataInicial,data_final:form.dataFinal,valor_investido:valorInvestido,valor_gasto:valorGasto,
+        valor_produto:valorProduto,qtd_vendas:qtdVendas,desempenho_diario:linhasValidas,
+        analise_ia:jsonIA.analise_resultados,resumo_executivo_ia:jsonIA.resumo_executivo,
+        recomendacoes_ia:(jsonIA.recomendacoes||[]).map(r=>`- ${r}`).join("\n"),
+      };
+      const {data:ins,error:insErr}=await supabase.from("relatorios_trafego").insert([registro]).select();
+      if(insErr||!ins) throw new Error(insErr?.message||"Erro ao salvar relatório");
+      const novo=ins[0];
+      setRelatorios(prev=>[novo,...prev]);
+
+      setEtapa("Gerando PDF...");
+      const resPDF=await fetch("/api/gerar-pdf-trafego",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        relatorioId:novo.id,clienteNome:cliente?.name,clienteLogoUrl:cliente?.logo_url,campanhaNome:form.campanhaNome,objetivo:form.objetivo,
+        dataInicial:form.dataInicial,dataFinal:form.dataFinal,dias,valorInvestido,valorGasto,valorProduto,qtdVendas,
+        desempenhoDiario:linhasValidas,totalMensagens,mediaDiaria,melhorDia,piorDia,custoPorMensagem,faturamentoEstimado,roi,
+        resumoExecutivo:jsonIA.resumo_executivo,analiseResultados:jsonIA.analise_resultados,recomendacoes:jsonIA.recomendacoes,
+      })});
+      const jsonPDF=await resPDF.json();
+      if(!resPDF.ok||jsonPDF.error) throw new Error(jsonPDF.error||"Erro ao gerar PDF");
+
+      await supabase.from("relatorios_trafego").update({pdf_url:jsonPDF.pdfUrl}).eq("id",novo.id);
+      setRelatorios(prev=>prev.map(r=>r.id===novo.id?{...r,pdf_url:jsonPDF.pdfUrl}:r));
+
+      setPronto({pdfUrl:jsonPDF.pdfUrl,campanhaNome:form.campanhaNome});
+      setModal(false);
+    }catch(e){
+      setErro(e.message||"Erro ao gerar relatório");
+    }
+    setGerando(false);setEtapa("");
+  };
+
+  if(loading) return <Loading/>;
+
+  return (
+    <div>
+      <ST action={<Btn onClick={openNew} size="lg">+ Novo Relatório</Btn>}>Relatórios de Tráfego Pago</ST>
+
+      {relatorios.length===0?(
+        <Card style={{textAlign:"center",padding:48,color:"#64748B"}}>Nenhum relatório gerado ainda.</Card>
+      ):(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:16}}>
+          {relatorios.map(r=>{
+            const clienteRef=clients.find(c=>c.id===r.cliente_id);
+            return (
+              <Card key={r.id}>
+                <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:14}}>
+                  <ClientLogo url={clienteRef?.logo_url} name={r.cliente_nome} size={40}/>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:14,fontWeight:800,color:"#111827"}}>{r.cliente_nome}</div>
+                    <div style={{fontSize:12,color:"#64748B"}}>{r.campanha_nome}</div>
+                  </div>
+                  <Btn size="sm" variant="danger" onClick={()=>setConfirm(r)}>{IC.trash}</Btn>
+                </div>
+                <div style={{fontSize:12,color:"#64748B",marginBottom:14}}>{fmtDate(r.data_inicial)} — {fmtDate(r.data_final)}</div>
+                <div style={{display:"flex",gap:8}}>
+                  {r.pdf_url?(
+                    <>
+                      <Btn size="sm" style={{flex:1}} onClick={()=>window.open(r.pdf_url,"_blank")}>👁️ Ver PDF</Btn>
+                      <Btn size="sm" variant="ghost" style={{flex:1}} onClick={()=>{const a=document.createElement("a");a.href=r.pdf_url;a.download="";a.click();}}>⬇ Baixar</Btn>
+                    </>
+                  ):<span style={{fontSize:12,color:"#94A3B8"}}>PDF indisponível</span>}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {modal&&(
+        <Modal title="Novo Relatório de Tráfego Pago" onClose={()=>!gerando&&setModal(false)} width={640}>
+          <FSel label="Cliente" value={form.clienteId} onChange={v=>f("clienteId",v)} options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.id,label:c.name}))]}/>
+          <FInput label="Nome da campanha" value={form.campanhaNome} onChange={v=>f("campanhaNome",v)} placeholder="Ex: Campanha Dia das Mães"/>
+          <div style={{marginBottom:14}}>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>Objetivo da campanha</label>
+            <textarea value={form.objetivo} onChange={e=>f("objetivo",e.target.value)} rows={2} placeholder="Ex: Gerar mensagens no WhatsApp para agendamento de consultas"
+              style={{width:"100%",padding:"9px 13px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit",boxSizing:"border-box",background:"#FAFBFD",resize:"vertical"}}/>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <FInput label="Data inicial" value={form.dataInicial} onChange={v=>f("dataInicial",v)} type="date"/>
+            <FInput label="Data final" value={form.dataFinal} onChange={v=>f("dataFinal",v)} type="date"/>
+          </div>
+          {form.dataInicial&&form.dataFinal&&<div style={{fontSize:12,color:"#64748B",marginTop:-8,marginBottom:14}}>{dias>0?`${dias} dias de campanha`:"Data final deve ser depois da inicial"}</div>}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+            <FInput label="Valor investido (R$)" value={form.valorInvestido} onChange={v=>f("valorInvestido",v)} type="number" placeholder="1000"/>
+            <FInput label="Valor gasto (opcional)" value={form.valorGasto} onChange={v=>f("valorGasto",v)} type="number" placeholder="980"/>
+            <FInput label="Qtd. vendas (opcional)" value={form.qtdVendas} onChange={v=>f("qtdVendas",v)} type="number" placeholder="12"/>
+          </div>
+          <FInput label="Valor do produto/serviço (opcional)" value={form.valorProduto} onChange={v=>f("valorProduto",v)} type="number" placeholder="150"/>
+
+          <div style={{marginTop:18,marginBottom:10,fontSize:13,fontWeight:800,color:"#111827"}}>Desempenho diário</div>
+          {desempenho.map((row,i)=>(
+            <div key={i} style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
+              <input type="date" value={row.dia} onChange={e=>setLinha(i,"dia",e.target.value)} style={{flex:2,padding:"8px 10px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,fontFamily:"inherit",background:"#FAFBFD"}}/>
+              <input type="number" value={row.mensagens} onChange={e=>setLinha(i,"mensagens",e.target.value)} placeholder="Mensagens" style={{flex:1,padding:"8px 10px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,fontFamily:"inherit",background:"#FAFBFD"}}/>
+              <button onClick={()=>removeLinha(i)} disabled={desempenho.length===1} style={{background:"none",border:"none",cursor:desempenho.length===1?"not-allowed":"pointer",color:"#EF4444",opacity:desempenho.length===1?0.4:1}}>{IC.trash}</button>
+            </div>
+          ))}
+          <Btn variant="ghost" size="sm" onClick={addLinha} style={{marginBottom:20}}>+ Adicionar dia</Btn>
+
+          {erro&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",color:"#991B1B",borderRadius:8,padding:"10px 14px",fontSize:13,marginBottom:16}}>{erro}</div>}
+
+          <Btn onClick={gerar} disabled={gerando} size="lg" style={{width:"100%",background:"linear-gradient(135deg,#FF6200,#FF8C00)"}}>
+            {gerando?(etapa||"Gerando..."):"📄 Gerar Relatório"}
+          </Btn>
+        </Modal>
+      )}
+
+      {pronto&&(
+        <Modal title="Relatório pronto!" onClose={()=>setPronto(null)} width={420}>
+          <div style={{textAlign:"center",padding:"10px 0"}}>
+            <div style={{fontSize:40,marginBottom:14}}>✅</div>
+            <div style={{fontSize:14,color:"#374151",marginBottom:24}}>O relatório da campanha "{pronto.campanhaNome}" foi gerado com sucesso.</div>
+            <div style={{display:"flex",gap:10}}>
+              <Btn style={{flex:1}} onClick={()=>window.open(pronto.pdfUrl,"_blank")}>Ver PDF</Btn>
+              <Btn variant="ghost" style={{flex:1}} onClick={()=>setPronto(null)}>Fechar</Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {confirm&&<ConfirmModal msg={`Remover relatório de "${confirm.cliente_nome}" (${confirm.campanha_nome})?`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
+// ── GESTÃO DE USUÁRIOS ────────────────────────────────────────────────────────
+const BLANK_USER={nome:"",email:"",papel:"colaborador",cliente_id:"",senha_temp:""};
+const UsuariosPage=({clients,perfil:perfilAtual})=>{
+  const [usuarios,setUsuarios]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState(BLANK_USER);
+  const [editing,setEditing]=useState(null);
+  const [confirm,setConfirm]=useState(null);
+  const [err,setErr]=useState("");
+  const [saving,setSaving]=useState(false);
+  const [showSenha,setShowSenha]=useState(false);
+
+  const carregar=async()=>{
+    setLoading(true);
+    const {data}=await supabase.from("usuarios").select("*").order("created_at",{ascending:false});
+    if(data) setUsuarios(data);
+    setLoading(false);
+  };
+  useEffect(()=>{carregar();},[]);
+
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  const openNew=()=>{setForm(BLANK_USER);setEditing(null);setErr("");setSaving(false);setShowSenha(false);setModal(true);};
+  const openEdit=(u)=>{setForm({nome:u.nome||"",email:u.email||"",papel:u.papel||"colaborador",cliente_id:u.cliente_id||"",senha_temp:""});setEditing(u.id);setErr("");setSaving(false);setShowSenha(false);setModal(true);};
+
+  const salvar=async()=>{
+    if(!form.nome.trim()||!form.email.trim()){setErr("Nome e e-mail são obrigatórios.");return;}
+    if(form.papel==="cliente"&&!form.cliente_id){setErr("Selecione o cliente vinculado.");return;}
+    if(!editing&&!form.senha_temp.trim()){setErr("Informe uma senha temporária para o novo usuário.");return;}
+    setSaving(true);setErr("");
+    try{
+      if(editing){
+        // Apenas atualiza metadados — não toca na senha auth (use "Redefinir senha")
+        const {error}=await supabase.from("usuarios").update({
+          nome:form.nome.trim(),
+          papel:form.papel,
+          cliente_id:form.papel==="cliente"?form.cliente_id:null,
+        }).eq("id",editing);
+        if(error) throw new Error(error.message);
+        setUsuarios(p=>p.map(u=>u.id===editing?{...u,nome:form.nome,papel:form.papel,cliente_id:form.papel==="cliente"?form.cliente_id:null}:u));
+      } else {
+        // Criação via rota server-side (service role)
+        const res=await fetch("/api/criar-usuario",{method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({nome:form.nome.trim(),email:form.email.trim(),senha:form.senha_temp,papel:form.papel,cliente_id:form.papel==="cliente"?form.cliente_id:null})});
+        const json=await res.json();
+        if(!res.ok||json.error) throw new Error(json.error||"Erro ao criar usuário");
+        if(json.usuario) setUsuarios(p=>[json.usuario,...p]);
+      }
+      setModal(false);
+    }catch(e){
+      setErr(e.message||"Erro ao salvar");
+    }
+    setSaving(false);
+  };
+
+  const toggleAtivo=async(u)=>{
+    const novoAtivo=!u.ativo;
+    await supabase.from("usuarios").update({ativo:novoAtivo}).eq("id",u.id);
+    setUsuarios(p=>p.map(x=>x.id===u.id?{...x,ativo:novoAtivo}:x));
+  };
+
+  const redefinirSenha=async(u)=>{
+    const nova=window.prompt(`Nova senha para ${u.nome||u.email} (mín. 6 caracteres):`);
+    if(!nova||nova.length<6){return;}
+    const res=await fetch("/api/criar-usuario",{method:"PATCH",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({userId:u.id,novaSenha:nova})});
+    const json=await res.json();
+    if(!res.ok||json.error){window.alert("Erro: "+json.error);return;}
+    window.alert("Senha redefinida com sucesso!");
+  };
+
+  const PAPEL_LABEL={admin:"Admin",colaborador:"Colaborador",cliente:"Cliente"};
+  const PAPEL_CORES={admin:["#FFF7F3","#FF6200"],colaborador:["#EFF6FF","#1D4ED8"],cliente:["#F0FDF4","#166534"]};
+
+  if(loading) return <Loading/>;
+
+  return (
+    <div>
+      <ST action={<Btn onClick={openNew}>+ Novo Usuário</Btn>}>Usuários e Acessos</ST>
+
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {usuarios.length===0&&<Card style={{textAlign:"center",color:"#64748B",padding:40}}>Nenhum usuário cadastrado.</Card>}
+        {usuarios.map(u=>{
+          const [bg,cor]=PAPEL_CORES[u.papel]||["#F3F4F6","#6B7280"];
+          const cli=clients.find(c=>c.id===u.cliente_id);
+          return (
+            <Card key={u.id} style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap",padding:"16px 20px"}}>
+              <div style={{width:42,height:42,borderRadius:12,background:"linear-gradient(135deg,#1F2F46,#2D4A6A)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:16,flexShrink:0}}>
+                {(u.nome||u.email||"?").charAt(0).toUpperCase()}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:700,color:"#111827",fontSize:14}}>{u.nome||"—"}</div>
+                <div style={{fontSize:12,color:"#64748B"}}>{u.email}</div>
+                {u.papel==="cliente"&&cli&&<div style={{fontSize:11,color:"#94A3B8",marginTop:2}}>↳ {cli.name}</div>}
+              </div>
+              <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                <span style={{background:bg,color:cor,fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:20}}>{PAPEL_LABEL[u.papel]||u.papel}</span>
+                <span style={{background:u.ativo!==false?"#DCFCE7":"#FEE2E2",color:u.ativo!==false?"#166534":"#991B1B",fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:20}}>{u.ativo!==false?"Ativo":"Inativo"}</span>
+              </div>
+              <div style={{display:"flex",gap:6,flexShrink:0}}>
+                <Btn size="sm" variant="ghost" onClick={()=>openEdit(u)}>{IC.edit}</Btn>
+                <Btn size="sm" variant="ghost" onClick={()=>toggleAtivo(u)} title={u.ativo!==false?"Desativar":"Reativar"}>
+                  {u.ativo!==false?"⏸":"▶"}
+                </Btn>
+                <Btn size="sm" variant="ghost" onClick={()=>redefinirSenha(u)} title="Redefinir senha">{IC.lock}</Btn>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {modal&&(
+        <Modal title={editing?"Editar Usuário":"Novo Usuário"} onClose={()=>setModal(false)}>
+          <FInput label="Nome" value={form.nome} onChange={v=>f("nome",v)} placeholder="Nome completo"/>
+          {!editing&&<FInput label="E-mail" value={form.email} onChange={v=>f("email",v)} placeholder="email@exemplo.com"/>}
+          <FSel label="Papel" value={form.papel} onChange={v=>f("papel",v)} options={[{value:"colaborador",label:"Colaborador"},{value:"admin",label:"Admin"},{value:"cliente",label:"Cliente"}]}/>
+          {form.papel==="cliente"&&(
+            <FSel label="Cliente vinculado" value={form.cliente_id} onChange={v=>f("cliente_id",v)}
+              options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.id,label:c.name}))]}/>
+          )}
+          {!editing&&(
+            <FInput label="Senha temporária" value={form.senha_temp} onChange={v=>f("senha_temp",v)}
+              type={showSenha?"text":"password"} placeholder="Mínimo 6 caracteres"
+              extra={<button onClick={()=>setShowSenha(s=>!s)} style={{background:"none",border:"none",cursor:"pointer",color:"#94A3B8",display:"flex"}}>{showSenha?IC.eyeOff:IC.eye}</button>}/>
+          )}
+          {err&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",color:"#991B1B",borderRadius:8,padding:"10px 14px",fontSize:13,marginBottom:14}}>{err}</div>}
+          <div style={{display:"flex",gap:10,marginTop:4}}>
+            <Btn style={{flex:1}} onClick={salvar} disabled={saving}>{saving?"Salvando...":editing?"Salvar alterações":"Criar usuário"}</Btn>
+            <Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+};
+
 // ── APP ROOT ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [loggedIn,setLoggedIn]=useState(false);
   const [checandoSessao,setChecandoSessao]=useState(true);
-const [menuOpen,setMenuOpen]=useState(false);
+  const [menuOpen,setMenuOpen]=useState(false);
   const [perfil,setPerfil]=useState("operacional");
-const [nomeUser,setNomeUser]=useState("erikklinder");
+  const [nomeUser,setNomeUser]=useState("");
+  const [clienteId,setClienteId]=useState(null);
   const [page,setPage]=useState("hoje");
 
   // Data state
@@ -2201,6 +2437,7 @@ const [nomeUser,setNomeUser]=useState("erikklinder");
   const [despesas,setDespesas]=useState([]);
   const [equipe,setEquipe]=useState([]);
   const [prospeccao,setProspeccao]=useState([]);
+  const [gravacoes,setGravacoes]=useState([]);
   const [loadingData,setLoadingData]=useState(true);
 
   // Seed se tabela vazia
@@ -2223,9 +2460,10 @@ const seedIfEmpty = async (table, seed, setter) => {
 useEffect(()=>{
   supabase.auth.getSession().then(({data:{session}})=>{
     if(session){
-      supabase.from("usuarios").select("perfil,nome").eq("id",session.user.id).single().then(({data:u})=>{
+      supabase.from("usuarios").select("perfil,nome,cliente_id").eq("id",session.user.id).single().then(({data:u})=>{
         setPerfil(u?.perfil||"operacional");
         setNomeUser(u?.nome||session.user.email||"");
+        setClienteId(u?.cliente_id||null);
         setLoggedIn(true);
         setChecandoSessao(false);
       });
@@ -2251,6 +2489,8 @@ const load = async () => {
     if(e) setEquipe(e);
     const {data:pr} = await supabase.from("prospeccao").select("*");
     if(pr) setProspeccao(pr);
+    const {data:gr} = await supabase.from("gravacoes").select("*");
+    if(gr) setGravacoes(gr);
   } catch(err) {
     console.error("Erro ao carregar dados:", err);
   } finally {
@@ -2261,28 +2501,35 @@ load();
   },[loggedIn]);
 
   if(checandoSessao) return <div style={{minHeight:"100vh",background:"#1F2F46",display:"flex",alignItems:"center",justifyContent:"center"}}><img src="https://i.postimg.cc/jdB530mK/mkt.png" alt="MarketForge" style={{height:60,objectFit:"contain",animation:"pulse 1.5s ease-in-out infinite"}} onError={e=>{e.target.style.display="none"}}/></div>;
-  if(!loggedIn) return <LoginPage onLogin={(p,n)=>{setLoggedIn(true);setPerfil(p);setNomeUser(n);}}/>;
+  if(!loggedIn) return <LoginPage onLogin={(p,n,cid)=>{setLoggedIn(true);setPerfil(p);setNomeUser(n);setClienteId(cid||null);}}/>;
+
+  // Portal do cliente — layout completamente separado
+  if(perfil==="cliente") return <PortalClientePage nomeUser={nomeUser} clienteId={clienteId} onLogout={()=>{supabase.auth.signOut();setLoggedIn(false);setPerfil("operacional");setNomeUser("");setClienteId(null);}}/>;
 
   const cobrPend = cobr.filter(c=>c.status==="pendente"||c.status==="atrasado").length;
 
   const pages = {
-    hoje:<HojePage setPage={setPage} clients={clients} cobr={cobr} tasks={tasks} perfil={perfil} nomeUser={nomeUser}/>,
-    dashboard:<DashboardPage clients={clients} cobr={cobr} despesas={despesas} tasks={tasks}/>,
+    hoje:<HojePage setPage={setPage} clients={clients} cobr={cobr} tasks={tasks} gravacoes={gravacoes} perfil={perfil} nomeUser={nomeUser}/>,
+    dashboard:<DashboardPage clients={clients} cobr={cobr} despesas={despesas} gravacoes={gravacoes}/>,
     prospeccao:<ProspeccaoPage prospeccao={prospeccao} setProspeccao={setProspeccao} equipe={equipe} loading={loadingData}/>,
-    clientes:<ClientesPage clients={clients} setClients={setClients} cobr={cobr} setCobr={setCobr} loading={loadingData}/>,
+    clientes:<ClientesPage clients={clients} setClients={setClients} loading={loadingData}/>,
     financeiro:<FinanceiroPage clients={clients} cobr={cobr} despesas={despesas}/>,
     cobr:<CobrancasPage cobr={cobr} setCobr={setCobr} clients={clients} loading={loadingData}/>,
     despesas:<DespesasPage despesas={despesas} setDespesas={setDespesas} loading={loadingData}/>,
     tarefas:<TarefasPage tasks={tasks} setTasks={setTasks} clients={clients} equipe={equipe} loading={loadingData}/>,
     calendario:<CalendarioPage/>,
+    gravacoes:<GravacoesPage gravacoes={gravacoes} setGravacoes={setGravacoes} clients={clients} equipe={equipe} loading={loadingData}/>,
     agenda:<AgendaPage clients={clients} equipe={equipe}/>,
-    equipe:<EquipePage equipe={equipe} setEquipe={setEquipe} tasks={tasks} loading={loadingData} perfil={perfil}/>,
+    equipe:<EquipePage equipe={equipe} setEquipe={setEquipe} tasks={tasks} loading={loadingData}/>,
+    trafego:<TráfegoPage/>,
+    relatorios:<RelatoriosTrafegoPage clients={clients}/>,
     mensagens:<MensagensPage/>,
+    usuarios:<UsuariosPage clients={clients} perfil={perfil}/>,
   };
 
   return (
     <div style={{fontFamily:"'Sora','Segoe UI',sans-serif",background:"#EEF3F8",minHeight:"100vh"}}>
-      <Sidebar page={page} setPage={setPage} perfil={perfil} open={menuOpen} setOpen={setMenuOpen} onLogout={()=>{supabase.auth.signOut();setLoggedIn(false);setPerfil("operacional");setClients([]);setCobr([]);setTasks([]);setDespesas([]);setEquipe([]);setProspeccao([]);}} cobrPend={cobrPend}/>
+      <Sidebar page={page} setPage={setPage} perfil={perfil} open={menuOpen} setOpen={setMenuOpen} onLogout={()=>{supabase.auth.signOut();setLoggedIn(false);setPerfil("operacional");setClients([]);setCobr([]);setTasks([]);setDespesas([]);setEquipe([]);setProspeccao([]);setGravacoes([]);}} cobrPend={cobrPend}/>
       <Topbar page={page} nomeUser={nomeUser} perfil={perfil} onMenuClick={()=>setMenuOpen(true)}/>
       <main style={{marginLeft:typeof window!=="undefined"&&window.innerWidth<768?0:230,paddingTop:62}}>
         <div style={{padding:"28px 30px",minHeight:"calc(100vh - 62px)"}}>
