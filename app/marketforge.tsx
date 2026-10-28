@@ -1,0 +1,3105 @@
+'use client'
+import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const SUPABASE_URL = "https://jadhnzbuxgnjibymtcmn.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphZGhuemJ1eGduamlieW10Y21uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MDYwNjUsImV4cCI6MjA5NDM4MjA2NX0.OQSiDO3OiPcGDt28I12D8dbJz4a4tp5DVHZw0bGgFMQ";
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── SEED DATA (usado quando Supabase está vazio) ──────────────────────────────
+const SEED_CLIENTS = [
+  { name:"Churrascaria Pantanal", nicho:"Alimentação", valor:1800, vencimento:10, status:"ativo", responsavel:"João Silva", whatsapp:"94991234567", logo_url:"", cidade:"Marabá", plano:"Premium" },
+  { name:"Clínica Beleza & Saúde", nicho:"Saúde/Estética", valor:2200, vencimento:5, status:"ativo", responsavel:"Ana Costa", whatsapp:"94992345678", logo_url:"", cidade:"Marabá", plano:"Full" },
+  { name:"Auto Peças Motorista", nicho:"Automotivo", valor:1200, vencimento:15, status:"inadimplente", responsavel:"Pedro Lima", whatsapp:"94993456789", logo_url:"", cidade:"Marabá", plano:"Básico" },
+  { name:"Moda Feminina Estilo", nicho:"Moda", valor:1600, vencimento:20, status:"ativo", responsavel:"Carla Souza", whatsapp:"94994567890", logo_url:"", cidade:"Marabá", plano:"Essencial" },
+  { name:"Academia FitBody", nicho:"Fitness", valor:2800, vencimento:1, status:"ativo", responsavel:"Marcos Ferro", whatsapp:"94995678901", logo_url:"", cidade:"Marabá", plano:"Full" },
+  { name:"Farmácia BemViver", nicho:"Farmácia", valor:1400, vencimento:25, status:"pausado", responsavel:"Sandra Reis", whatsapp:"94996789012", logo_url:"", cidade:"Marabá", plano:"Básico" },
+];
+const SEED_COBR = [
+  { cliente:"Churrascaria Pantanal", valor:1800, vencimento:"2025-05-10", status:"pago", pagamento:"Pix" },
+  { cliente:"Clínica Beleza & Saúde", valor:2200, vencimento:"2025-05-05", status:"pago", pagamento:"Transferência" },
+  { cliente:"Auto Peças Motorista", valor:1200, vencimento:"2025-04-15", status:"atrasado", pagamento:"" },
+  { cliente:"Moda Feminina Estilo", valor:1600, vencimento:"2025-05-20", status:"pendente", pagamento:"" },
+  { cliente:"Academia FitBody", valor:2800, vencimento:"2025-05-01", status:"pago", pagamento:"Pix" },
+  { cliente:"Farmácia BemViver", valor:1400, vencimento:"2025-05-25", status:"pendente", pagamento:"" },
+];
+const SEED_TASKS = [
+  { titulo:"Arte Dia dos Namorados", cliente:"Moda Feminina Estilo", responsavel:"Juliana", prioridade:"alta", status:"em_producao", tipo:"Design", entrega:"2025-06-08" },
+  { titulo:"Vídeo institucional", cliente:"Clínica Beleza & Saúde", responsavel:"Carlos", prioridade:"media", status:"aguardando", tipo:"Vídeo", entrega:"2025-06-12" },
+  { titulo:"Subir campanha Meta Ads", cliente:"Academia FitBody", responsavel:"Rafael", prioridade:"urgente", status:"a_fazer", tipo:"Tráfego pago", entrega:"2025-06-05" },
+  { titulo:"Relatório mensal maio", cliente:"Churrascaria Pantanal", responsavel:"Juliana", prioridade:"media", status:"finalizado", tipo:"Relatório", entrega:"2025-06-01" },
+  { titulo:"Posts semana 2", cliente:"Farmácia BemViver", responsavel:"Carlos", prioridade:"baixa", status:"a_fazer", tipo:"Design", entrega:"2025-06-10" },
+  { titulo:"Aprovação do feed", cliente:"Churrascaria Pantanal", responsavel:"Juliana", prioridade:"alta", status:"atrasado", tipo:"Aprovação", entrega:"2025-05-01" },
+];
+const SEED_DESPESAS = [
+  { nome:"Adobe Creative Cloud", categoria:"Ferramentas", valor:349, vencimento:"2025-05-15", status:"pago" },
+  { nome:"Meta Business Suite", categoria:"Assinaturas", valor:99, vencimento:"2025-05-20", status:"pendente" },
+  { nome:"Salário - Juliana (Design)", categoria:"Colaboradores", valor:2800, vencimento:"2025-06-05", status:"pendente" },
+  { nome:"Salário - Carlos (Vídeo)", categoria:"Colaboradores", valor:2400, vencimento:"2025-06-05", status:"pendente" },
+  { nome:"Internet fibra", categoria:"Internet", valor:199, vencimento:"2025-05-10", status:"pago" },
+  { nome:"Conta de Luz escritório", categoria:"Outros", valor:320, vencimento:"2025-05-12", status:"pago" },
+];
+const SEED_EQUIPE = [
+  { nome:"Juliana Ferreira", funcao:"Designer", tipo:"fixo", status:"ativo", whatsapp:"94997001122" },
+  { nome:"Carlos Mendes", funcao:"Editor de Vídeo", tipo:"fixo", status:"ativo", whatsapp:"94997002233" },
+  { nome:"Felipe Costa", funcao:"Gestor de Tráfego", tipo:"freelancer", status:"ativo", whatsapp:"94997003344" },
+];
+
+// ── SVG ICONS ─────────────────────────────────────────────────────────────────
+const IC = {
+  sun:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
+  chart:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>,
+  users:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  money:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+  list:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>,
+  check:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>,
+  cal:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+  user:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+  signal:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>,
+  msg:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+  logout:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+  bell:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
+  alert:<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
+  eye:<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+  eyeOff:<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
+  lock:<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+  clock:<svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+  trending:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>,
+  edit:<svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+  trash:<svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>,
+  image:<svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>,
+  target:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
+  video:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>,
+  report:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="9" y2="17"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="15" y1="10" x2="15" y2="17"/></svg>,
+  repeat:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>,
+};
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+const fmtDate = (d) => { if(!d) return "—"; try { const s=String(d).split("T")[0]; const [a,m,dia]=s.split("-"); if(a&&m&&dia) return `${dia}/${m}/${a}`; return new Date(d).toLocaleDateString("pt-BR"); } catch { return d; } };
+const genId = () => Date.now();
+const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const todayStr = () => ymd(new Date());
+// Soma meses numa data "AAAA-MM-DD" mantendo o dia (limitado ao último dia do mês: 31/01 + 1 → 28/02)
+const addMonths = (dateStr, n) => {
+  const [a,m,d] = String(dateStr||todayStr()).split("T")[0].split("-").map(Number);
+  const ultimoDia = new Date(a, m-1+n+1, 0).getDate();
+  return ymd(new Date(a, m-1+n, Math.min(d, ultimoDia)));
+};
+
+// ── ALERTAS DE GRAVAÇÃO ───────────────────────────────────────────────────────
+const FREQ_GRAV = [{value:"1x/semana",label:"1x/semana",min:1},{value:"2x/semana",label:"2x/semana",min:2},{value:"Eventual",label:"Eventual",min:0}];
+const semanaAtual = () => {
+  const hoje = new Date(); const dow = (hoje.getDay()+6)%7; // segunda = 0
+  const ini = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()-dow);
+  const fim = new Date(ini.getFullYear(), ini.getMonth(), ini.getDate()+6);
+  return [ymd(ini), ymd(fim)];
+};
+// Frequência vigente = a da gravação mais recente do estabelecimento. Conta gravações agendadas/feitas na semana (seg–dom).
+const gravacaoAlertas = (gravacoes, clients) => {
+  const [ini,fim] = semanaAtual();
+  const porCliente = {};
+  gravacoes.forEach(g=>{ if(g.estabelecimento) (porCliente[g.estabelecimento] ||= []).push(g); });
+  return Object.entries(porCliente).flatMap(([cid,gs])=>{
+    const cli = clients.find(c=>String(c.id)===String(cid));
+    if(!cli || cli.status==="cancelado" || cli.status==="pausado") return [];
+    const ultima = [...gs].sort((a,b)=>String(b.data).localeCompare(String(a.data))||String(b.created_at).localeCompare(String(a.created_at)))[0];
+    const min = FREQ_GRAV.find(f=>f.value===ultima.frequencia_acordada)?.min||0;
+    const qtd = gs.filter(g=>(g.status==="agendada"||g.status==="feita")&&g.data>=ini&&g.data<=fim).length;
+    return qtd<min ? [{cliente:cli.name, frequencia:ultima.frequencia_acordada, qtd, min}] : [];
+  });
+};
+const AlertasGravacao = ({alertas}) => alertas.length===0 ? null : (
+  <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
+    {alertas.map(a=>(
+      <div key={a.cliente} style={{background:"#FFFBEB",border:"1px solid #FDE68A",color:"#92400E",borderRadius:10,padding:"10px 14px",fontSize:13,fontWeight:600}}>
+        ⚠️ Você precisa marcar gravação em {a.cliente} - Frequência acordada: {a.frequencia} <span style={{fontWeight:500,opacity:0.8}}>({a.qtd}/{a.min} nesta semana)</span>
+      </div>
+    ))}
+  </div>
+);
+
+const StatusBadge = ({status}) => {
+  const m = {ativo:["#DCFCE7","#166534","Ativo"],pausado:["#FEF9C3","#854D0E","Pausado"],cancelado:["#FEE2E2","#991B1B","Cancelado"],inadimplente:["#FEE2E2","#991B1B","Inadimplente"],pago:["#DCFCE7","#166534","Pago"],pendente:["#FEF9C3","#92400E","Pendente"],atrasado:["#FEE2E2","#991B1B","Atrasado"],a_fazer:["#EFF6FF","#1D4ED8","A Fazer"],em_producao:["#FFF7ED","#C2410C","Em Produção"],aguardando:["#F5F3FF","#7C3AED","Aguardando"],finalizado:["#DCFCE7","#166534","Finalizado"],urgente:["#FEE2E2","#991B1B","Urgente"],ok:["#DCFCE7","#166534","OK"],baixo:["#FEF9C3","#92400E","Baixo"],zerado:["#FEE2E2","#991B1B","Zerado"],planejar:["#EFF6FF","#1D4ED8","Planejar"],futuro:["#F3F4F6","#6B7280","Futuro"],ajustes:["#FEF9C3","#92400E","Ajustes"],agendada:["#EFF6FF","#1D4ED8","Agendada"],feita:["#DCFCE7","#166534","Feita"],cancelada:["#F3F4F6","#6B7280","Cancelada"],nao_foi:["#FEE2E2","#991B1B","Não foi"]};
+  const [bg,color,label] = m[status]||["#F3F4F6","#6B7280",status];
+  return <span style={{background:bg,color,fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:20}}>{label}</span>;
+};
+
+const PBadge = ({p}) => {
+  const m = {baixa:["#EFF6FF","#1D4ED8"],media:["#F5F3FF","#7C3AED"],alta:["#FFF7ED","#C2410C"],urgente:["#FEE2E2","#991B1B"]};
+  const [bg,c] = m[p]||["#F3F4F6","#6B7280"];
+  return <span style={{background:bg,color:c,fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20}}>{p.charAt(0).toUpperCase()+p.slice(1)}</span>;
+};
+
+const Card = ({children,style={},onClick}) => <div onClick={onClick} style={{background:"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07),0 0 0 1px #DDE5EF",padding:22,...style,cursor:onClick?"pointer":undefined}}>{children}</div>;
+
+const MC = ({label,value,sub,icon,bg="#FFF7F3",compact}) => (
+  <Card style={{display:"flex",alignItems:"flex-start",gap:compact?8:14,minWidth:compact?0:160,padding:compact?12:22}}>
+    <div style={{background:bg,borderRadius:compact?9:12,width:compact?34:46,height:compact?34:46,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#FF6200"}}>{icon}</div>
+    <div><div style={{fontSize:compact?9.5:11,color:"#64748B",fontWeight:600,letterSpacing:0.4,textTransform:"uppercase"}}>{label}</div><div style={{fontSize:compact?16:22,fontWeight:800,color:"#111827",lineHeight:1.2,marginTop:2}}>{value}</div>{sub&&<div style={{fontSize:12,color:"#64748B",marginTop:2}}>{sub}</div>}</div>
+  </Card>
+);
+
+const Btn = ({children,onClick,variant="primary",size="md",style={},disabled}) => {
+  const sz = {sm:{padding:"5px 12px",fontSize:12},md:{padding:"9px 18px",fontSize:13},lg:{padding:"12px 26px",fontSize:15}};
+  const vr = {primary:{background:"#FF6200",color:"#fff"},secondary:{background:"#1F2F46",color:"#fff"},ghost:{background:"transparent",color:"#64748B",boxShadow:"0 0 0 1px #DDE5EF"},danger:{background:"#EF4444",color:"#fff"},success:{background:"#10B981",color:"#fff"},warn:{background:"#F59E0B",color:"#fff"}};
+  return <button onClick={onClick} disabled={disabled} style={{borderRadius:8,fontWeight:700,cursor:disabled?"not-allowed":"pointer",border:"none",letterSpacing:0.2,fontFamily:"inherit",...sz[size],...vr[variant],opacity:disabled?0.5:1,...style}}>{children}</button>;
+};
+
+const FInput = ({label,value,onChange,type="text",placeholder="",icon,extra}) => (
+  <div style={{marginBottom:14}}>
+    {label&&<label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>{label}</label>}
+    <div style={{position:"relative"}}>
+      {icon&&<div style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:"#94A3B8"}}>{icon}</div>}
+      <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+        style={{width:"100%",padding:icon?"9px 40px 9px 36px":"9px 13px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit",boxSizing:"border-box",background:"#FAFBFD"}}/>
+      {extra&&<div style={{position:"absolute",right:11,top:"50%",transform:"translateY(-50%)"}}>{extra}</div>}
+    </div>
+  </div>
+);
+
+const FSel = ({label,value,onChange,options}) => (
+  <div style={{marginBottom:14}}>
+    {label&&<label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>{label}</label>}
+    <select value={value} onChange={e=>onChange(e.target.value)} style={{width:"100%",padding:"9px 13px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit",boxSizing:"border-box",background:"#FAFBFD"}}>
+      {options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  </div>
+);
+
+const Modal = ({title,onClose,children,width=520}) => (
+  <div style={{position:"fixed",inset:0,background:"rgba(17,24,39,0.5)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+    <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:width,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.25)"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 24px",borderBottom:"1px solid #EEF3F8"}}>
+        <div style={{fontSize:17,fontWeight:800,color:"#111827"}}>{title}</div>
+        <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#64748B"}}>×</button>
+      </div>
+      <div style={{padding:24}}>{children}</div>
+    </div>
+  </div>
+);
+
+const ConfirmModal = ({msg,onConfirm,onCancel}) => (
+  <div style={{position:"fixed",inset:0,background:"rgba(17,24,39,0.5)",zIndex:1100,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+    <div style={{background:"#fff",borderRadius:16,maxWidth:380,width:"100%",padding:28,boxShadow:"0 20px 60px rgba(0,0,0,0.25)",textAlign:"center"}}>
+      <div style={{fontSize:32,marginBottom:12}}>🗑️</div>
+      <div style={{fontSize:16,fontWeight:700,color:"#111827",marginBottom:8}}>Confirmar exclusão</div>
+      <div style={{fontSize:13,color:"#64748B",marginBottom:24}}>{msg}</div>
+      <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+        <Btn variant="ghost" onClick={onCancel}>Cancelar</Btn>
+        <Btn variant="danger" onClick={onConfirm}>Excluir</Btn>
+      </div>
+    </div>
+  </div>
+);
+
+const ST = ({children,action}) => (
+  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
+    <h2 style={{margin:0,fontSize:18,fontWeight:800,color:"#111827"}}>{children}</h2>
+    {action}
+  </div>
+);
+
+const Tbl = ({cols,rows}) => (
+  <div style={{overflowX:"auto"}}>
+    <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+      <thead><tr style={{background:"#F8FAFC"}}>{cols.map(c=><th key={c} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:"#64748B",fontSize:11,letterSpacing:0.5,textTransform:"uppercase",borderBottom:"1px solid #EEF3F8"}}>{c}</th>)}</tr></thead>
+      <tbody>{rows.length===0?<tr><td colSpan={cols.length} style={{padding:"32px 14px",textAlign:"center",color:"#64748B"}}>Nenhum registro.</td></tr>:rows.map((r,i)=><tr key={i} style={{borderBottom:"1px solid #EEF3F8",background:i%2===0?"#fff":"#FAFBFD"}}>{r.map((cell,j)=><td key={j} style={{padding:"11px 14px",color:"#374151",verticalAlign:"middle"}}>{cell}</td>)}</tr>)}</tbody>
+    </table>
+  </div>
+);
+
+const Loading = () => <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:200,color:"#64748B",fontSize:14}}>Carregando...</div>;
+
+// ── LOGO AVATAR ───────────────────────────────────────────────────────────────
+const ClientLogo = ({url,name,size=50}) => {
+  if(url) return <img src={url} alt={name} style={{width:size,height:size,borderRadius:12,objectFit:"cover",flexShrink:0}} onError={e=>{e.target.style.display="none"}}/>;
+  return <div style={{width:size,height:size,background:"linear-gradient(135deg,#1F2F46,#2D4A6A)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:size*0.35,fontWeight:800,flexShrink:0}}>{name?.charAt(0)||"?"}</div>;
+};
+
+// ── PORTAL DO CLIENTE ─────────────────────────────────────────────────────────
+const PortalClientePage = ({nomeUser,clienteId,onLogout}) => {
+  const [planejamentos,setPlanejamentos]=useState([]);
+  const [entregas,setEntregas]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [semanaOffset,setSemanaOffset]=useState(0);
+
+  useEffect(()=>{
+    const load=async()=>{
+      setLoading(true);
+      const {data:pl}=await supabase.from("planejamentos").select("*").eq("cliente_id",clienteId).eq("status","publicado").order("created_at",{ascending:false});
+      if(pl) setPlanejamentos(pl);
+      const {data:en}=await supabase.from("entregas").select("*").eq("cliente_id",clienteId).eq("interno",false).order("data_prevista");
+      if(en) setEntregas(en);
+      setLoading(false);
+    };
+    load();
+  },[clienteId]);
+
+  const hoje=new Date();
+  const dow=(hoje.getDay()+6)%7;
+  const seg=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()-dow+semanaOffset*7);
+  const diasSemana=Array.from({length:7},(_,i)=>{const d=new Date(seg);d.setDate(seg.getDate()+i);return d;});
+  const DIAS_LABEL=["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+  const STATUS_CORES={planejado:["#EFF6FF","#1D4ED8","Planejado"],em_producao:["#FFF7ED","#C2410C","Em produção"],aguardando_cliente:["#F5F3FF","#7C3AED","Aguardando"],entregue:["#DCFCE7","#166534","Entregue"]};
+
+  const mesAtual=hoje.toLocaleString("pt-BR",{month:"long",year:"numeric"});
+  const ini=`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-01`;
+  const fim=`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-${new Date(hoje.getFullYear(),hoje.getMonth()+1,0).getDate()}`;
+  const entregasMes=entregas.filter(e=>e.data_prevista>=ini&&e.data_prevista<=fim);
+
+  if(loading) return <div style={{minHeight:"100vh",background:"#1F2F46",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontFamily:"'Sora','Segoe UI',sans-serif"}}>Carregando...</div>;
+
+  return (
+    <div style={{minHeight:"100vh",background:"#EEF3F8",fontFamily:"'Sora','Segoe UI',sans-serif"}}>
+      {/* Header */}
+      <div style={{background:"#1F2F46",padding:"0 24px",height:62,display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 2px 12px rgba(0,0,0,0.2)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <img src="https://i.postimg.cc/jdB530mK/mkt.png" alt="MarketForge" style={{height:32,objectFit:"contain"}} onError={e=>{e.target.style.display="none"}}/>
+          <div style={{color:"rgba(255,255,255,0.5)",fontSize:13}}>Portal do Cliente</div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:16}}>
+          <div style={{color:"rgba(255,255,255,0.8)",fontSize:13}}>Olá, <b style={{color:"#fff"}}>{nomeUser}</b></div>
+          <button onClick={onLogout} style={{background:"rgba(255,255,255,0.1)",border:"none",color:"#fff",borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>Sair</button>
+        </div>
+      </div>
+
+      <div style={{maxWidth:960,margin:"0 auto",padding:"28px 20px"}}>
+
+        {/* Planejamento publicado */}
+        {planejamentos.length>0&&(
+          <div style={{marginBottom:32}}>
+            <h2 style={{fontSize:16,fontWeight:800,color:"#1F2F46",marginBottom:14}}>📋 Planejamento de Marketing</h2>
+            {planejamentos.map(pl=>(
+              <div key={pl.id} style={{background:"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",padding:20,display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:12}}>
+                <div>
+                  <div style={{fontWeight:800,color:"#111827",fontSize:15}}>{pl.titulo}</div>
+                  <div style={{fontSize:12,color:"#64748B",marginTop:2}}>{pl.mes_ref}</div>
+                </div>
+                {pl.pdf_url&&(
+                  <div style={{display:"flex",gap:8}}>
+                    <Btn size="sm" onClick={()=>window.open(pl.pdf_url,"_blank")}>👁️ Ver PDF</Btn>
+                    <Btn size="sm" variant="ghost" onClick={()=>{const a=document.createElement("a");a.href=pl.pdf_url;a.download="planejamento.pdf";a.click();}}>⬇ Baixar</Btn>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Esta semana */}
+        <div style={{marginBottom:32}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:8}}>
+            <h2 style={{fontSize:16,fontWeight:800,color:"#1F2F46",margin:0}}>📅 Esta semana</h2>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <button onClick={()=>setSemanaOffset(p=>p-1)} style={{background:"#fff",border:"1px solid #DDE5EF",borderRadius:8,width:32,height:32,cursor:"pointer",fontSize:16}}>‹</button>
+              <span style={{fontSize:13,color:"#64748B",minWidth:120,textAlign:"center"}}>
+                {seg.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})} – {diasSemana[6].toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}
+              </span>
+              <button onClick={()=>setSemanaOffset(p=>p+1)} style={{background:"#fff",border:"1px solid #DDE5EF",borderRadius:8,width:32,height:32,cursor:"pointer",fontSize:16}}>›</button>
+              {semanaOffset!==0&&<button onClick={()=>setSemanaOffset(0)} style={{background:"#FF6200",border:"none",borderRadius:8,color:"#fff",padding:"0 10px",height:32,cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>Hoje</button>}
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:10}}>
+            {diasSemana.map((dia,i)=>{
+              const dStr=ymd(dia);
+              const itens=entregas.filter(e=>e.data_prevista===dStr);
+              const isHoje=dStr===ymd(new Date());
+              return (
+                <div key={i} style={{background:"#fff",borderRadius:12,padding:12,boxShadow:"0 1px 3px rgba(0,0,0,0.06)",border:isHoje?"2px solid #FF6200":"1px solid #EEF3F8",minHeight:80}}>
+                  <div style={{fontSize:11,fontWeight:700,color:isHoje?"#FF6200":"#64748B",marginBottom:8,textTransform:"uppercase"}}>{DIAS_LABEL[i]} {dia.getDate()}</div>
+                  {itens.length===0?<div style={{fontSize:11,color:"#C0CADE"}}>—</div>:itens.map(e=>{
+                    const [bg,cor,label]=STATUS_CORES[e.status]||["#F3F4F6","#6B7280",e.status];
+                    return (
+                      <div key={e.id} style={{marginBottom:6,background:bg,borderRadius:8,padding:"5px 8px"}}>
+                        <div style={{fontSize:11,fontWeight:700,color:cor}}>{label}</div>
+                        <div style={{fontSize:12,color:"#111827",fontWeight:600,marginTop:2}}>{e.titulo}</div>
+                        {e.tipo&&<div style={{fontSize:10,color:"#94A3B8",marginTop:1}}>{e.tipo}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Este mês */}
+        <div>
+          <h2 style={{fontSize:16,fontWeight:800,color:"#1F2F46",marginBottom:14}}>📆 {mesAtual.charAt(0).toUpperCase()+mesAtual.slice(1)}</h2>
+          {entregasMes.length===0?(
+            <div style={{background:"#fff",borderRadius:14,padding:32,textAlign:"center",color:"#94A3B8",fontSize:13}}>Nenhuma entrega registrada para este mês.</div>
+          ):(
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {entregasMes.map(e=>{
+                const [bg,cor,label]=STATUS_CORES[e.status]||["#F3F4F6","#6B7280",e.status];
+                return (
+                  <div key={e.id} style={{background:"#fff",borderRadius:12,padding:"14px 18px",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
+                    <div style={{background:"#1F2F46",borderRadius:10,minWidth:44,height:44,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:"#fff",flexShrink:0}}>
+                      <div style={{fontSize:16,fontWeight:800,lineHeight:1}}>{e.data_prevista?.slice(8,10)}</div>
+                      <div style={{fontSize:9,opacity:0.7,textTransform:"uppercase"}}>{new Date(e.data_prevista+"T12:00:00").toLocaleString("pt-BR",{month:"short"})}</div>
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:700,color:"#111827",fontSize:14}}>{e.titulo}</div>
+                      {e.descricao&&<div style={{fontSize:12,color:"#64748B",marginTop:2}}>{e.descricao}</div>}
+                    </div>
+                    <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                      {e.tipo&&<span style={{fontSize:11,background:"#F3F4F6",color:"#6B7280",padding:"2px 8px",borderRadius:12,fontWeight:600}}>{e.tipo}</span>}
+                      <span style={{background:bg,color:cor,fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:20}}>{label}</span>
+                      {e.link&&<a href={e.link} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#FF6200",fontWeight:700}}>Ver material ↗</a>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── LOGIN ─────────────────────────────────────────────────────────────────────
+const LoginPage = ({onLogin}) => {
+  const [email,setEmail]=useState("");
+  const [senha,setSenha]=useState("");
+  const [show,setShow]=useState(false);
+  const [err,setErr]=useState("");
+  const [loading,setLoading]=useState(false);
+
+  const handle = async () => {
+    if(!email||!senha){setErr("Preencha todos os campos.");return;}
+    setLoading(true);setErr("");
+    const {data,error} = await supabase.auth.signInWithPassword({email,password:senha});
+    if(error){setErr("Email ou senha incorretos.");setLoading(false);return;}
+    const {data:u} = await supabase.from("usuarios").select("perfil,nome,cliente_id").eq("id",data.user.id).single();
+    onLogin(u?.perfil||"operacional", u?.nome||email, u?.cliente_id||null);
+    setLoading(false);
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"#1F2F46",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora','Segoe UI',sans-serif",padding:20}}>
+      <div style={{position:"fixed",inset:0,backgroundImage:"radial-gradient(circle at 20% 50%,rgba(255,98,0,0.1) 0%,transparent 50%),radial-gradient(circle at 80% 20%,rgba(255,98,0,0.06) 0%,transparent 40%)",pointerEvents:"none"}}/>
+      <div style={{background:"#fff",borderRadius:24,boxShadow:"0 32px 80px rgba(0,0,0,0.4)",padding:"52px 48px",width:"100%",maxWidth:440,textAlign:"center",position:"relative",zIndex:1}}>
+        <div style={{marginBottom:36}}>
+          <img src="https://i.postimg.cc/02xYt6Qp/logo-vertical-nomepreta.png" alt="MarketForge" style={{height:80,objectFit:"contain",display:"block",margin:"0 auto 20px"}} onError={e=>{e.target.style.display="none"}}/>
+          <div style={{fontSize:20,fontWeight:800,color:"#111827",marginBottom:6}}>Acesso ao Painel</div>
+          <div style={{fontSize:13,color:"#64748B"}}>Gestão financeira, clientes e produção da agência</div>
+        </div>
+        <div style={{textAlign:"left"}}>
+          <FInput label="Email" value={email} onChange={setEmail} placeholder="seu@email.com" icon={IC.user}/>
+          <FInput label="Senha" value={senha} onChange={setSenha} type={show?"text":"password"} placeholder="Sua senha" icon={IC.lock}
+            extra={<button onClick={()=>setShow(!show)} style={{background:"none",border:"none",cursor:"pointer",color:"#94A3B8",display:"flex"}}>{show?IC.eyeOff:IC.eye}</button>}/>
+        </div>
+        {err&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",color:"#991B1B",borderRadius:8,padding:"10px 14px",fontSize:13,marginBottom:16,textAlign:"left",display:"flex",alignItems:"center",gap:8}}><span style={{color:"#EF4444",flexShrink:0}}>{IC.alert}</span>{err}</div>}
+        <Btn onClick={handle} size="lg" style={{width:"100%",background:"linear-gradient(135deg,#FF6200,#FF8C00)",fontSize:15,marginBottom:14}} disabled={loading}>
+          {loading?"Entrando...":"Entrar no sistema"}
+        </Btn>
+        <div style={{marginTop:28,paddingTop:20,borderTop:"1px solid #EEF3F8",fontSize:11,color:"#94A3B8"}}>© 2025 MarketForge — @marketforge_</div>
+      </div>
+    </div>
+  );
+};
+
+// ── SIDEBAR ───────────────────────────────────────────────────────────────────
+const NAV_ADMIN=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"agenda",label:"Agenda",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"relatorios",label:"Relatórios",icon:IC.report},{id:"planejamento",label:"Planejamento",icon:IC.report},{id:"entregas",label:"Entregas",icon:IC.check},{id:"usuarios",label:"Usuários",icon:IC.lock}];
+const NAV_OP=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"agenda",label:"Agenda",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user}];
+const LABELS={hoje:"Hoje",dashboard:"Dashboard",prospeccao:"Prospecção CRM",clientes:"Clientes",financeiro:"Financeiro",cobr:"Cobranças",despesas:"Despesas",tarefas:"Tarefas",calendario:"Calendário Estratégico",gravacoes:"Agenda de Gravações",agenda:"Agenda Recorrente",equipe:"Equipe",trafego:"Saldo de Tráfego",relatorios:"Relatórios de Tráfego Pago",planejamento:"Planejamento de Marketing",entregas:"Agenda de Entregas",mensagens:"Modelos de Mensagem",usuarios:"Usuários e Acessos"};
+
+const Sidebar=({page,setPage,onLogout,cobrPend,perfil,open,setOpen})=>{
+const NAV = perfil==="admin" ? NAV_ADMIN : NAV_OP;
+const isMobile = typeof window!=="undefined"&&window.innerWidth<768;
+return (
+  <>
+    {isMobile&&open&&<div onClick={()=>setOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:99}}/>}
+    <div style={{width:230,background:"#1F2F46",minHeight:"100vh",display:"flex",flexDirection:"column",position:"fixed",top:0,left:isMobile?(open?0:-230):0,zIndex:100,transition:"left 0.3s"}}>
+      <div style={{padding:"20px 18px 16px",borderBottom:"1px solid rgba(255,255,255,0.08)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <img src="https://i.postimg.cc/jdB530mK/mkt.png" alt="MarketForge" style={{height:38,objectFit:"contain"}} onError={e=>{e.target.style.display="none"}}/>
+        {isMobile&&<button onClick={()=>setOpen(false)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.5)",fontSize:22,cursor:"pointer"}}>×</button>}
+      </div>
+      <nav style={{flex:1,padding:"14px 10px",overflowY:"auto"}}>
+        {NAV.map(n=>(
+          <div key={n.id} onClick={()=>{setPage(n.id);setOpen(false);}} style={{display:"flex",alignItems:"center",gap:11,padding:"9px 12px",borderRadius:10,marginBottom:2,cursor:"pointer",background:page===n.id?"rgba(255,98,0,0.18)":"transparent",color:page===n.id?"#FF6200":"rgba(255,255,255,0.65)",fontWeight:page===n.id?700:500,fontSize:13}}>
+            <span style={{opacity:page===n.id?1:0.7}}>{n.icon}</span>{n.label}
+            {n.id==="cobr"&&cobrPend>0&&<span style={{marginLeft:"auto",background:"#EF4444",color:"#fff",fontSize:10,fontWeight:700,borderRadius:10,padding:"1px 7px"}}>{cobrPend}</span>}
+          </div>
+        ))}
+      </nav>
+      <div style={{padding:"14px 10px",borderTop:"1px solid rgba(255,255,255,0.08)"}}>
+        <div onClick={onLogout} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,cursor:"pointer",color:"rgba(255,255,255,0.5)",fontSize:13}}>
+          {IC.logout} Sair
+        </div>
+      </div>
+    </div>
+  </>
+);};
+
+const Topbar=({page,nomeUser,perfil,onMenuClick})=>{
+const isMobile = typeof window!=="undefined"&&window.innerWidth<768;
+return (
+  <div style={{position:"fixed",top:0,left:isMobile?0:230,right:0,height:62,background:"#fff",borderBottom:"1px solid #DDE5EF",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",zIndex:99}}>
+    <div style={{display:"flex",alignItems:"center",gap:12}}>
+      {isMobile&&<button onClick={onMenuClick} style={{background:"none",border:"none",cursor:"pointer",color:"#64748B",fontSize:22,display:"flex",padding:0}}>☰</button>}
+      <div style={{fontSize:18,fontWeight:800,color:"#111827"}}>{LABELS[page]||page}</div>
+    </div>
+    <div style={{display:"flex",alignItems:"center",gap:16}}>
+      <div style={{position:"relative",cursor:"pointer",color:"#64748B"}}>{IC.bell}</div>
+      <div style={{display:"flex",alignItems:"center",gap:9}}>
+        <div style={{width:34,height:34,background:"linear-gradient(135deg,#FF6200,#FF8C00)",borderRadius:99,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:14,fontWeight:700}}>{nomeUser?.charAt(0).toUpperCase()||"E"}</div>
+        <div><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{nomeUser||"erikklinder"}</div><div style={{fontSize:11,color:"#64748B"}}>{perfil==="admin"?"Admin":"Operacional"}</div></div>
+      </div>
+    </div>
+  </div>
+);};
+
+// ── HOJE ──────────────────────────────────────────────────────────────────────
+const HojePage=({setPage,clients,cobr,tasks,gravacoes,perfil,nomeUser})=>{
+  const atrasadas=tasks.filter(t=>t.status==="atrasado");
+  const gravHoje=gravacoes.filter(g=>String(g.data).split("T")[0]===todayStr());
+  const cobHoje=cobr.filter(c=>c.status==="pendente"||c.status==="atrasado").slice(0,4);
+  return (
+    <div>
+      <div style={{marginBottom:22,display:"flex",alignItems:"center",gap:12}}>
+        <div style={{width:48,height:48,background:"linear-gradient(135deg,#FF6200,#FF8C00)",borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff"}}>{IC.sun}</div>
+        <div>
+          <div style={{fontSize:22,fontWeight:800,color:"#111827"}}>Bom dia, {nomeUser||"erikklinder"}!</div>
+          <div style={{fontSize:13,color:"#64748B"}}>Aqui está o que precisa de atenção hoje</div>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:14,marginBottom:28}}>
+        {perfil==="admin"&&<MC label="Cobranças pendentes" value={cobr.filter(c=>c.status==="pendente").length} icon={IC.money} bg="#FFF7F3"/>}
+        <MC label="Tarefas atrasadas" value={atrasadas.length} icon={IC.alert} bg="#FEF2F2"/>
+        <MC label="Clientes ativos" value={clients.filter(c=>c.status==="ativo").length} icon={IC.users} bg="#ECFDF5"/>
+        {perfil==="admin"&&<MC label="Inadimplentes" value={clients.filter(c=>c.status==="inadimplente").length} icon={IC.users} bg="#FEF2F2"/>}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:18}}>
+        {perfil==="admin"&&<Card>
+          <ST action={<Btn size="sm" variant="ghost" onClick={()=>setPage("cobr")}>Ver todas</Btn>}>Cobranças pendentes</ST>
+          {cobHoje.length===0?<div style={{color:"#10B981",textAlign:"center",padding:"20px 0",fontSize:13}}>Nenhuma pendência!</div>:cobHoje.map(c=>(
+            <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"#F8FAFC",borderRadius:10,marginBottom:8}}>
+              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{c.cliente}</div><div style={{fontSize:12,color:"#64748B",display:"flex",alignItems:"center",gap:4}}>{IC.clock} Venc: {fmtDate(c.vencimento)}</div></div>
+              <div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:800}}>R$ {c.valor?.toLocaleString()}</div><StatusBadge status={c.status}/></div>
+            </div>
+          ))}
+        </Card>}
+        <Card>
+          <ST action={<Btn size="sm" variant="ghost" onClick={()=>setPage("tarefas")}>Ver todas</Btn>}>Tarefas atrasadas</ST>
+          {atrasadas.length===0?<div style={{color:"#10B981",textAlign:"center",padding:"20px 0",fontSize:13}}>Nenhuma atrasada!</div>:atrasadas.map(t=>(
+            <div key={t.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"#FEF2F2",borderRadius:10,border:"1px solid #FECACA",marginBottom:8}}>
+              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{t.titulo}</div><div style={{fontSize:12,color:"#64748B"}}>{t.cliente} · {t.responsavel}</div></div>
+              <div style={{textAlign:"right"}}><div style={{fontSize:11,color:"#EF4444",fontWeight:700}}>Atrasada</div><div style={{fontSize:11,color:"#64748B"}}>{fmtDate(t.entrega)}</div></div>
+            </div>
+          ))}
+        </Card>
+        <Card>
+          <ST action={<Btn size="sm" variant="ghost" onClick={()=>setPage("gravacoes")}>Ver agenda</Btn>}>Gravações de hoje</ST>
+          {gravHoje.length===0?<div style={{color:"#64748B",textAlign:"center",padding:"20px 0",fontSize:13}}>Nenhuma gravação hoje.</div>:gravHoje.map(g=>(
+            <div key={g.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"#F8FAFC",borderRadius:10,marginBottom:8}}>
+              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{clients.find(c=>String(c.id)===String(g.estabelecimento))?.name||"—"}</div><div style={{fontSize:12,color:"#64748B"}}>{g.responsavel||"Sem responsável"}{g.notas?` · ${g.notas}`:""}</div></div>
+              <StatusBadge status={g.status}/>
+            </div>
+          ))}
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+const DashboardPage=({clients,cobr,despesas,gravacoes})=>{
+  const recR=cobr.filter(c=>c.status==="pago").reduce((a,c)=>a+Number(c.valor),0);
+  const recP=cobr.filter(c=>c.status==="pendente").reduce((a,c)=>a+Number(c.valor),0);
+  const recA=cobr.filter(c=>c.status==="atrasado").reduce((a,c)=>a+Number(c.valor),0);
+  const despT=despesas.reduce((a,d)=>a+Number(d.valor),0);
+  const atv=clients.filter(c=>c.status==="ativo").length;
+  return (
+    <div>
+      <AlertasGravacao alertas={gravacaoAlertas(gravacoes,clients)}/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:14,marginBottom:24}}>
+        <MC label="Receita recebida" value={`R$ ${recR.toLocaleString()}`} icon={IC.check} bg="#ECFDF5"/>
+        <MC label="Em aberto" value={`R$ ${recP.toLocaleString()}`} icon={IC.clock} bg="#FFFBEB"/>
+        <MC label="Atrasado" value={`R$ ${recA.toLocaleString()}`} icon={IC.alert} bg="#FEF2F2"/>
+        <MC label="Despesas" value={`R$ ${despT.toLocaleString()}`} icon={IC.money} bg="#F8FAFC"/>
+        <MC label="Lucro estimado" value={`R$ ${(recR-despT).toLocaleString()}`} icon={IC.trending} bg="#ECFDF5"/>
+        <MC label="Clientes ativos" value={atv} icon={IC.users} bg="#F5F3FF"/>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:18}}>
+        <Card>
+          <ST>Status de cobranças</ST>
+          {[{label:"Pagas",count:cobr.filter(c=>c.status==="pago").length,color:"#10B981"},{label:"Pendentes",count:cobr.filter(c=>c.status==="pendente").length,color:"#F59E0B"},{label:"Atrasadas",count:cobr.filter(c=>c.status==="atrasado").length,color:"#EF4444"}].map(s=>(
+            <div key={s.label} style={{marginBottom:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:13,color:"#374151",fontWeight:600}}>{s.label}</span><span style={{fontSize:13,fontWeight:800,color:s.color}}>{s.count}</span></div>
+              <div style={{background:"#EEF3F8",borderRadius:99,height:7,overflow:"hidden"}}><div style={{background:s.color,height:"100%",width:cobr.length?`${(s.count/cobr.length)*100}%`:"0%",borderRadius:99}}/></div>
+            </div>
+          ))}
+        </Card>
+        <Card>
+          <ST>Clientes por status</ST>
+          {[{label:"Ativos",color:"#10B981",key:"ativo"},{label:"Pausados",color:"#F59E0B",key:"pausado"},{label:"Inadimplentes",color:"#EF4444",key:"inadimplente"}].map(s=>(
+            <div key={s.key} style={{marginBottom:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:13,color:"#374151",fontWeight:600}}>{s.label}</span><span style={{fontSize:13,fontWeight:800,color:s.color}}>{clients.filter(c=>c.status===s.key).length}</span></div>
+              <div style={{background:"#EEF3F8",borderRadius:99,height:7,overflow:"hidden"}}><div style={{background:s.color,height:"100%",width:clients.length?`${(clients.filter(c=>c.status===s.key).length/clients.length)*100}%`:"0%",borderRadius:99}}/></div>
+            </div>
+          ))}
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+// ── CLIENTES ──────────────────────────────────────────────────────────────────
+const BLANK_CLIENT = {name:"",nicho:"",valor:"",vencimento:"",status:"ativo",responsavel:"",whatsapp:"",logo_url:"",cidade:"Marabá",plano:"Básico"};
+
+const ClientesPage=({clients,setClients,loading})=>{
+  const [search,setSearch]=useState("");
+  const [filter,setFilter]=useState("todos");
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState(BLANK_CLIENT);
+  const [editing,setEditing]=useState(null);
+  const [confirm,setConfirm]=useState(null);
+  const [saving,setSaving]=useState(false);
+
+  const fl=clients.filter(c=>(c.name?.toLowerCase().includes(search.toLowerCase())||c.nicho?.toLowerCase().includes(search.toLowerCase()))&&(filter==="todos"||c.status===filter));
+
+  const openNew=()=>{setForm(BLANK_CLIENT);setEditing(null);setModal(true);};
+  const openEdit=(c)=>{setForm({...c});setEditing(c.id);setModal(true);};
+
+  const save=async()=>{
+    if(!form.name){return;}
+    setSaving(true);
+    const data={name:form.name,nicho:form.nicho,valor:Number(form.valor),vencimento:Number(form.vencimento),status:form.status,responsavel:form.responsavel,whatsapp:form.whatsapp,logo_url:form.logo_url,cidade:form.cidade,plano:form.plano};
+    if(editing){
+      const {error}=await supabase.from("clientes").update(data).eq("id",editing);
+      if(!error) setClients(prev=>prev.map(c=>c.id===editing?{...c,...data}:c));
+    } else {
+      const {data:inserted,error}=await supabase.from("clientes").insert([data]).select();
+      if(!error&&inserted){
+        setClients(prev=>[...prev,...inserted]);
+        const novoCliente=inserted[0];
+        const hoje=new Date();
+        const anoVenc=hoje.getDate()>Number(form.vencimento)?hoje.getFullYear()+(hoje.getMonth()===11?1:0):hoje.getFullYear();
+        const mesVenc=hoje.getDate()>Number(form.vencimento)?(hoje.getMonth()+1)%12:hoje.getMonth();
+        const dataVenc=`${anoVenc}-${String(mesVenc+1).padStart(2,"0")}-${String(form.vencimento).padStart(2,"0")}`;
+        const cobData={cliente:novoCliente.name,valor:Number(form.valor),vencimento:dataVenc,status:"pendente",pagamento:""};
+        const {data:cobIns}=await supabase.from("cobrancas").insert([cobData]).select();
+        if(cobIns) setCobr(prev=>[...prev,...cobIns]);
+      }
+    }
+
+    setSaving(false);setModal(false);
+  };
+
+  const remove=async(id)=>{
+    await supabase.from("clientes").delete().eq("id",id);
+    setClients(prev=>prev.filter(c=>c.id!==id));
+    setConfirm(null);
+  };
+
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  if(loading) return <Loading/>;
+  return (
+    <div>
+      <div style={{display:"flex",gap:12,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar cliente..." style={{flex:1,minWidth:200,padding:"9px 14px",borderRadius:9,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit"}}/>
+        {["todos","ativo","pausado","inadimplente"].map(fi=><Btn key={fi} size="sm" variant={filter===fi?"secondary":"ghost"} onClick={()=>setFilter(fi)}>{fi.charAt(0).toUpperCase()+fi.slice(1)}</Btn>)}
+        <Btn onClick={openNew}>+ Novo Cliente</Btn>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:16}}>
+        {fl.map(c=>(
+          <Card key={c.id}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:14,marginBottom:14}}>
+              <ClientLogo url={c.logo_url} name={c.name}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+                  <div style={{fontSize:15,fontWeight:800,color:"#111827",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
+                  <StatusBadge status={c.status}/>
+                </div>
+                <div style={{fontSize:12,color:"#64748B",marginTop:3}}>{c.nicho} · {c.cidade}</div>
+                <div style={{fontSize:12,color:"#64748B",marginTop:2}}>{c.responsavel}</div>
+              </div>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",paddingTop:12,borderTop:"1px solid #EEF3F8",marginBottom:12}}>
+              <div><div style={{fontSize:10,color:"#64748B",fontWeight:600}}>MENSALIDADE</div><div style={{fontSize:17,fontWeight:800,color:"#111827"}}>R$ {Number(c.valor).toLocaleString()}</div></div>
+              <div style={{textAlign:"center"}}><div style={{fontSize:10,color:"#64748B",fontWeight:600}}>VENCIMENTO</div><div style={{fontSize:14,fontWeight:700,color:"#1F2F46"}}>Dia {c.vencimento}</div></div>
+              <div style={{textAlign:"right"}}><div style={{fontSize:10,color:"#64748B",fontWeight:600}}>PLANO</div><div style={{fontSize:13,fontWeight:700,color:"#FF6200"}}>{c.plano}</div></div>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <Btn size="sm" variant="ghost" style={{flex:1}} onClick={()=>openEdit(c)}>{IC.edit} Editar</Btn>
+              <Btn size="sm" variant="danger" style={{flex:1}} onClick={()=>setConfirm(c)}>{IC.trash} Remover</Btn>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {modal&&<Modal title={editing?"Editar Cliente":"Novo Cliente"} onClose={()=>setModal(false)}>
+        <div style={{marginBottom:14,textAlign:"center"}}>
+          <ClientLogo url={form.logo_url} name={form.name} size={64}/>
+        </div>
+        <FInput label="URL da Logo (opcional)" value={form.logo_url} onChange={v=>f("logo_url",v)} placeholder="https://exemplo.com/logo.png" icon={IC.image}/>
+        <FInput label="Nome da empresa *" value={form.name} onChange={v=>f("name",v)} placeholder="Churrascaria Pantanal"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <FInput label="Nicho" value={form.nicho} onChange={v=>f("nicho",v)} placeholder="Alimentação"/>
+          <FInput label="Cidade" value={form.cidade} onChange={v=>f("cidade",v)} placeholder="Marabá"/>
+        </div>
+        <FInput label="Responsável" value={form.responsavel} onChange={v=>f("responsavel",v)} placeholder="João Silva"/>
+        <FInput label="WhatsApp" value={form.whatsapp} onChange={v=>f("whatsapp",v)} placeholder="94991234567"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <FInput label="Valor mensal (R$)" value={form.valor} onChange={v=>f("valor",v)} placeholder="1800"/>
+          <FInput label="Dia de vencimento" value={form.vencimento} onChange={v=>f("vencimento",v)} placeholder="10"/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <FSel label="Status" value={form.status} onChange={v=>f("status",v)} options={[{value:"ativo",label:"Ativo"},{value:"pausado",label:"Pausado"},{value:"inadimplente",label:"Inadimplente"},{value:"cancelado",label:"Cancelado"}]}/>
+          <FSel label="Plano" value={form.plano} onChange={v=>f("plano",v)} options={["Básico","Essencial","Premium","Full"].map(p=>({value:p,label:p}))}/>
+        </div>
+        <div style={{display:"flex",gap:10,marginTop:4}}>
+          <Btn style={{flex:1}} onClick={save} disabled={saving}>{saving?"Salvando...":"Salvar Cliente"}</Btn>
+          <Btn variant="ghost" onClick={()=>setModal(false)} style={{flex:1}}>Cancelar</Btn>
+        </div>
+      </Modal>}
+
+      {confirm&&<ConfirmModal msg={`Remover "${confirm.name}"? Esta ação não pode ser desfeita.`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
+// ── PROSPECÇÃO CRM ────────────────────────────────────────────────────────────
+const BLANK_PROSPECCAO={empresa:"",segmento:"",bairro:"",instagram:"",whatsapp:"",responsavel:"",observacoes:"",status:"encontrado",prioridade:"media",temperatura:"morno",origem:"instagram",servicos:[],valor_estimado:"",motivo_perda:"",proxima_acao:"",proxima_acao_data:"",vendedor:""};
+const PROSP_COLS=[
+  {id:"encontrado",label:"Encontrado",color:"#64748B"},
+  {id:"mensagem_enviada",label:"Mensagem Enviada",color:"#3B82F6"},
+  {id:"ligacao_realizada",label:"Ligação Realizada",color:"#0EA5E9"},
+  {id:"visita_agendada",label:"Visita Agendada",color:"#8B5CF6"},
+  {id:"reuniao_realizada",label:"Reunião Realizada",color:"#F59E0B"},
+  {id:"proposta_enviada",label:"Proposta Enviada",color:"#FF6200"},
+  {id:"aguardando_resposta",label:"Aguardando Resposta",color:"#EAB308"},
+  {id:"fechado",label:"Fechado",color:"#10B981"},
+  {id:"perdido",label:"Perdido",color:"#EF4444"},
+];
+const PROSP_STATUS_LABEL=Object.fromEntries(PROSP_COLS.map(c=>[c.id,c.label]));
+const PROSP_STAGE_ORDER=["encontrado","mensagem_enviada","ligacao_realizada","visita_agendada","reuniao_realizada","proposta_enviada","aguardando_resposta","fechado"];
+const SERVICOS_OPTS=[
+  {value:"gestao_redes",label:"Gestão de Redes"},
+  {value:"trafego_pago",label:"Tráfego Pago"},
+  {value:"site",label:"Site"},
+  {value:"sistema",label:"Sistema"},
+  {value:"identidade_visual",label:"Identidade Visual"},
+  {value:"videos",label:"Vídeos"},
+  {value:"automacao",label:"Automação"},
+];
+const ORIGEM_OPTS=[
+  {value:"instagram",label:"Instagram"},
+  {value:"google_maps",label:"Google Maps"},
+  {value:"indicacao",label:"Indicação"},
+  {value:"rua",label:"Rua"},
+  {value:"facebook",label:"Facebook"},
+  {value:"tiktok",label:"TikTok"},
+  {value:"outro",label:"Outro"},
+];
+const MOTIVO_PERDA_OPTS=[
+  {value:"sem_orcamento",label:"Sem orçamento"},
+  {value:"ja_possui_agencia",label:"Já possui agência"},
+  {value:"nao_respondeu",label:"Não respondeu"},
+  {value:"nao_tem_interesse",label:"Não tem interesse"},
+  {value:"vai_pensar",label:"Vai pensar"},
+  {value:"outro",label:"Outro"},
+];
+const TEMP_EMOJI={quente:"🔥",morno:"🌤",frio:"❄️"};
+const IA_TABS=[
+  {id:"whatsapp",label:"Mensagem WhatsApp"},
+  {id:"ligacao",label:"Roteiro de Ligação"},
+  {id:"argumentos",label:"Argumentos de Venda"},
+  {id:"videos",label:"Ideias de Vídeo"},
+  {id:"instagram",label:"Diagnóstico Instagram"},
+  {id:"proposta",label:"Proposta"},
+];
+const selStyle={padding:"8px 12px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,color:"#374151",outline:"none",fontFamily:"inherit",background:"#fff"};
+
+const ProspStatusBadge=({status})=>{
+  const col=PROSP_COLS.find(c=>c.id===status)||{color:"#6B7280",label:status};
+  return <span style={{background:col.color+"22",color:col.color,fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:20}}>{col.label}</span>;
+};
+const ProspPrio=({p})=>{
+  const m={alta:["#FEE2E2","#991B1B","Alta"],media:["#FEF9C3","#92400E","Média"],baixa:["#DCFCE7","#166534","Baixa"]};
+  const [bg,c,label]=m[p]||["#F3F4F6","#6B7280",p];
+  return <span style={{background:bg,color:c,fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20}}>{label}</span>;
+};
+
+const ProspeccaoPage=({prospeccao,setProspeccao,equipe,loading})=>{
+  const isMobile = typeof window!=="undefined"&&window.innerWidth<768;
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState(BLANK_PROSPECCAO);
+  const [editing,setEditing]=useState(null);
+  const [confirm,setConfirm]=useState(null);
+  const [dragId,setDragId]=useState(null);
+  const [saving,setSaving]=useState(false);
+
+  const [fBairro,setFBairro]=useState("");
+  const [fSegmento,setFSegmento]=useState("");
+  const [fStatus,setFStatus]=useState("");
+  const [fVendedor,setFVendedor]=useState("");
+  const [fTemp,setFTemp]=useState("");
+
+  const [detail,setDetail]=useState(null);
+  const [historico,setHistorico]=useState([]);
+  const [histLoading,setHistLoading]=useState(false);
+  const [novoHist,setNovoHist]=useState("");
+
+  const [iaOpen,setIaOpen]=useState(false);
+  const [iaTab,setIaTab]=useState("whatsapp");
+  const [iaCache,setIaCache]=useState({});
+  const [iaLoading,setIaLoading]=useState(false);
+  const [iaErr,setIaErr]=useState("");
+  const [iaCopied,setIaCopied]=useState(false);
+
+  const gerarIA=async(tipo,forcar)=>{
+    if(!detail) return;
+    if(iaCache[tipo]&&!forcar) return;
+    setIaLoading(true);setIaErr("");
+    try{
+      const res=await fetch("/api/gerar-abordagem",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tipo,empresa:{empresa:detail.empresa,segmento:detail.segmento,bairro:detail.bairro,instagram:detail.instagram,servicos:(detail.servicos||[]).map(s=>SERVICOS_OPTS.find(o=>o.value===s)?.label||s),observacoes:detail.observacoes,temperatura:detail.temperatura,valor_estimado:detail.valor_estimado}})});
+      const json=await res.json();
+      if(!res.ok||json.error) throw new Error(json.error||"Erro ao gerar conteúdo");
+      setIaCache(prev=>({...prev,[tipo]:json.texto}));
+    }catch(e){
+      setIaErr(e.message||"Erro ao gerar conteúdo");
+    }
+    setIaLoading(false);
+  };
+
+  useEffect(()=>{
+    if(!iaOpen||!detail) return;
+    if(iaCache[iaTab]) return;
+    gerarIA(iaTab,false);
+  },[iaOpen,iaTab,detail]);
+
+  const copyIA=(texto)=>{navigator.clipboard.writeText(texto).catch(()=>{});setIaCopied(true);setTimeout(()=>setIaCopied(false),2000);};
+
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const openNew=()=>{setForm(BLANK_PROSPECCAO);setEditing(null);setModal(true);};
+  const openEdit=(p)=>{setForm({...BLANK_PROSPECCAO,...p,servicos:p.servicos||[],valor_estimado:p.valor_estimado??"",proxima_acao_data:p.proxima_acao_data?.split("T")[0]||p.proxima_acao_data||""});setEditing(p.id);setModal(true);};
+
+  const closeDetail=()=>{setDetail(null);setIaOpen(false);setIaCache({});setNovoHist("");setHistorico([]);};
+  const openDetail=async(p)=>{
+    setDetail(p);setIaCache({});setIaOpen(false);
+    setHistLoading(true);
+    const {data:h}=await supabase.from("prospeccao_historico").select("*").eq("prospeccao_id",p.id).order("created_at",{ascending:false});
+    setHistorico(h||[]);
+    setHistLoading(false);
+  };
+
+  const save=async()=>{
+    if(!form.empresa){return;}
+    setSaving(true);
+    const data={empresa:form.empresa,segmento:form.segmento,bairro:form.bairro,instagram:form.instagram,whatsapp:form.whatsapp,responsavel:form.responsavel,observacoes:form.observacoes,status:form.status,prioridade:form.prioridade,temperatura:form.temperatura,origem:form.origem,servicos:form.servicos,valor_estimado:form.valor_estimado?Number(form.valor_estimado):null,motivo_perda:form.status==="perdido"?form.motivo_perda:null,proxima_acao:form.proxima_acao,proxima_acao_data:form.proxima_acao_data||null,vendedor:form.vendedor};
+    if(editing){
+      const anterior=prospeccao.find(p=>p.id===editing);
+      await supabase.from("prospeccao").update(data).eq("id",editing);
+      setProspeccao(prev=>prev.map(p=>p.id===editing?{...p,...data,updated_at:new Date().toISOString()}:p));
+      if(anterior&&anterior.status!==data.status){
+        const texto=`Status alterado de "${PROSP_STATUS_LABEL[anterior.status]}" para "${PROSP_STATUS_LABEL[data.status]}"`;
+        const {data:h}=await supabase.from("prospeccao_historico").insert([{prospeccao_id:editing,texto}]).select();
+        if(h&&detail&&detail.id===editing) setHistorico(prev=>[...h,...prev]);
+      }
+    } else {
+      const {data:ins}=await supabase.from("prospeccao").insert([data]).select();
+      if(ins){
+        setProspeccao(prev=>[...prev,...ins]);
+        await supabase.from("prospeccao_historico").insert([{prospeccao_id:ins[0].id,texto:"Empresa cadastrada na prospecção"}]);
+      }
+    }
+    setSaving(false);setModal(false);
+  };
+
+  const remove=async(id)=>{
+    await supabase.from("prospeccao").delete().eq("id",id);
+    setProspeccao(prev=>prev.filter(p=>p.id!==id));
+    setConfirm(null);
+    if(detail&&detail.id===id) closeDetail();
+  };
+
+  const moveStatus=async(newStatus,taskId)=>{
+    const id=taskId||dragId;
+    if(!id) return;
+    const item=prospeccao.find(p=>p.id===id);
+    if(!item||item.status===newStatus){setDragId(null);return;}
+    await supabase.from("prospeccao").update({status:newStatus}).eq("id",id);
+    setProspeccao(prev=>prev.map(p=>p.id===id?{...p,status:newStatus,updated_at:new Date().toISOString()}:p));
+    const texto=`Status alterado de "${PROSP_STATUS_LABEL[item.status]}" para "${PROSP_STATUS_LABEL[newStatus]}"`;
+    const {data:h}=await supabase.from("prospeccao_historico").insert([{prospeccao_id:id,texto}]).select();
+    if(h&&detail&&detail.id===id) setHistorico(prev=>[...h,...prev]);
+    setDragId(null);
+  };
+
+  const addHistorico=async()=>{
+    if(!novoHist.trim()||!detail) return;
+    const {data:h}=await supabase.from("prospeccao_historico").insert([{prospeccao_id:detail.id,texto:novoHist.trim()}]).select();
+    if(h) setHistorico(prev=>[...h,...prev]);
+    setNovoHist("");
+  };
+
+  const filterSelStyle=isMobile?{...selStyle,width:"100%",boxSizing:"border-box" as const}:selStyle;
+  const miniSelect=(value,onChange,options,placeholder)=>(
+    <select value={value} onChange={e=>onChange(e.target.value)} style={filterSelStyle}>
+      <option value="">{placeholder}</option>
+      {options.map(o=><option key={o} value={o}>{o}</option>)}
+    </select>
+  );
+
+  const bairros=[...new Set(prospeccao.map(p=>p.bairro).filter(Boolean))];
+  const segmentos=[...new Set(prospeccao.map(p=>p.segmento).filter(Boolean))];
+  const vendedores=[...new Set(prospeccao.map(p=>p.vendedor).filter(Boolean))];
+
+  const fl=prospeccao.filter(p=>
+    (fBairro===""||p.bairro===fBairro)&&
+    (fSegmento===""||p.segmento===fSegmento)&&
+    (fStatus===""||p.status===fStatus)&&
+    (fVendedor===""||p.vendedor===fVendedor)&&
+    (fTemp===""||p.temperatura===fTemp)
+  );
+
+  const stageIdx=(s)=>PROSP_STAGE_ORDER.indexOf(s);
+  const atLeast=(stage)=>prospeccao.filter(p=>stageIdx(p.status)>=stageIdx(stage)).length;
+  const mensagensEnviadas=atLeast("mensagem_enviada");
+  const visitasRealizadas=atLeast("visita_agendada");
+  const reunioesRealizadas=atLeast("reuniao_realizada");
+  const propostasEnviadas=atLeast("proposta_enviada");
+  const clientesFechados=prospeccao.filter(p=>p.status==="fechado").length;
+  const taxaConversao=prospeccao.length?((clientesFechados/prospeccao.length)*100).toFixed(1):"0.0";
+  const valorNegociacao=prospeccao.filter(p=>p.status!=="fechado"&&p.status!=="perdido").reduce((a,p)=>a+Number(p.valor_estimado||0),0);
+  const valorFechado=prospeccao.filter(p=>p.status==="fechado").reduce((a,p)=>a+Number(p.valor_estimado||0),0);
+  const seteDiasAtras=new Date();seteDiasAtras.setDate(seteDiasAtras.getDate()-7);
+  const paradas=prospeccao.filter(p=>p.status!=="fechado"&&p.status!=="perdido"&&p.updated_at&&new Date(p.updated_at)<seteDiasAtras).length;
+
+  if(loading) return <Loading/>;
+  return (
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(auto-fill,minmax(190px,1fr))",gap:isMobile?8:14,marginBottom:22}}>
+        <MC compact={isMobile} label="Total empresas" value={prospeccao.length} icon={IC.users} bg="#EFF6FF"/>
+        <MC compact={isMobile} label="Mensagens enviadas" value={mensagensEnviadas} icon={IC.msg} bg="#F5F3FF"/>
+        <MC compact={isMobile} label="Visitas realizadas" value={visitasRealizadas} icon={IC.cal} bg="#FFF7ED"/>
+        <MC compact={isMobile} label="Reuniões realizadas" value={reunioesRealizadas} icon={IC.user} bg="#FFFBEB"/>
+        <MC compact={isMobile} label="Propostas enviadas" value={propostasEnviadas} icon={IC.list} bg="#ECFDF5"/>
+        <MC compact={isMobile} label="Clientes fechados" value={clientesFechados} icon={IC.check} bg="#ECFDF5"/>
+        <MC compact={isMobile} label="Taxa de conversão" value={`${taxaConversao}%`} icon={IC.trending} bg="#FFF7F3"/>
+        <MC compact={isMobile} label="Em negociação" value={`R$ ${valorNegociacao.toLocaleString("pt-BR")}`} icon={IC.money} bg="#F8FAFC"/>
+        <MC compact={isMobile} label="Valor fechado" value={`R$ ${valorFechado.toLocaleString("pt-BR")}`} icon={IC.money} bg="#ECFDF5"/>
+        <MC compact={isMobile} label="Paradas +7 dias" value={paradas} icon={IC.alert} bg="#FEF2F2"/>
+      </div>
+
+      <div style={{display:isMobile?"grid":"flex",gridTemplateColumns:isMobile?"1fr 1fr":undefined,gap:10,marginBottom:18,flexWrap:isMobile?undefined:"wrap",alignItems:"center"}}>
+        {miniSelect(fBairro,setFBairro,bairros,"Todos os bairros")}
+        {miniSelect(fSegmento,setFSegmento,segmentos,"Todos os segmentos")}
+        <select value={fStatus} onChange={e=>setFStatus(e.target.value)} style={filterSelStyle}>
+          <option value="">Todos os status</option>
+          {PROSP_COLS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+        </select>
+        {miniSelect(fVendedor,setFVendedor,vendedores,"Todos os vendedores")}
+        <select value={fTemp} onChange={e=>setFTemp(e.target.value)} style={filterSelStyle}>
+          <option value="">Todas as temperaturas</option>
+          <option value="quente">🔥 Quente</option>
+          <option value="morno">🌤 Morno</option>
+          <option value="frio">❄️ Frio</option>
+        </select>
+        {!isMobile&&<div style={{flex:1}}/>}
+        <Btn style={isMobile?{gridColumn:"1 / -1"}:undefined} onClick={openNew}>+ Nova Empresa</Btn>
+      </div>
+
+      <div style={{display:"flex",gap:isMobile?10:14,overflowX:"auto",paddingBottom:16,WebkitOverflowScrolling:"touch"}}>
+        {PROSP_COLS.map(col=>{
+          const ct=fl.filter(p=>p.status===col.id);
+          return (
+            <div key={col.id} style={{minWidth:isMobile?180:250,flex:isMobile?"0 0 180px":"0 0 250px"}} onDragOver={e=>e.preventDefault()} onDrop={()=>moveStatus(col.id)}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                <div style={{width:10,height:10,borderRadius:99,background:col.color}}/>
+                <span style={{fontSize:13,fontWeight:800,color:"#1F2F46"}}>{col.label}</span>
+                <span style={{marginLeft:"auto",background:"#EEF3F8",borderRadius:99,padding:"1px 9px",fontSize:11,fontWeight:700,color:"#64748B"}}>{ct.length}</span>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:10,minHeight:120,background:"#F0F4F9",borderRadius:12,padding:10}}>
+                {ct.map(p=>(
+                  <div key={p.id} draggable onDragStart={()=>setDragId(p.id)} onClick={()=>openDetail(p)} style={{background:"#fff",borderRadius:10,padding:"12px 14px",boxShadow:"0 1px 3px rgba(0,0,0,0.06)",cursor:"pointer",borderLeft:`3px solid ${col.color}`,userSelect:"none"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:6,marginBottom:4}}>
+                      <div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{p.empresa}</div>
+                      <span style={{fontSize:15,flexShrink:0}}>{TEMP_EMOJI[p.temperatura]||""}</span>
+                    </div>
+                    <div style={{fontSize:11,color:"#64748B",marginBottom:8}}>{p.segmento}{p.bairro?` · ${p.bairro}`:""}</div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                      <ProspPrio p={p.prioridade}/>
+                      {p.valor_estimado?<div style={{fontSize:12,fontWeight:800,color:"#111827"}}>R$ {Number(p.valor_estimado).toLocaleString("pt-BR")}</div>:null}
+                    </div>
+                    {p.proxima_acao&&<div style={{fontSize:11,color:"#94A3B8",display:"flex",alignItems:"center",gap:4,marginBottom:8}}>{IC.clock} {p.proxima_acao}{p.proxima_acao_data?` — ${fmtDate(p.proxima_acao_data)}`:""}</div>}
+                    <select onClick={e=>e.stopPropagation()} onChange={e=>{if(e.target.value)moveStatus(e.target.value,p.id);e.target.value="";}} style={{width:"100%",padding:"6px 10px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,color:"#64748B",background:"#F8FAFC",fontFamily:"inherit"}}>
+                      <option value="">Mover para...</option>
+                      {PROSP_COLS.filter(c=>c.id!==col.id).map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+                    </select>
+                  </div>
+                ))}
+                {ct.length===0&&<div style={{color:"#94A3B8",fontSize:12,textAlign:"center",padding:"20px 0"}}>Solte aqui</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {modal&&<Modal title={editing?"Editar Prospecção":"Nova Empresa"} onClose={()=>setModal(false)} width={560}>
+        <FInput label="Nome da empresa *" value={form.empresa} onChange={v=>f("empresa",v)} placeholder="Padaria Pão Quente"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <FInput label="Segmento" value={form.segmento} onChange={v=>f("segmento",v)} placeholder="Alimentação"/>
+          <FInput label="Bairro" value={form.bairro} onChange={v=>f("bairro",v)} placeholder="Centro"/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <FInput label="Instagram" value={form.instagram} onChange={v=>f("instagram",v)} placeholder="@empresa"/>
+          <FInput label="WhatsApp" value={form.whatsapp} onChange={v=>f("whatsapp",v)} placeholder="94999999999"/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <FInput label="Responsável" value={form.responsavel} onChange={v=>f("responsavel",v)} placeholder="Nome do responsável"/>
+          <FInput label="Vendedor" value={form.vendedor} onChange={v=>f("vendedor",v)} placeholder="Nome do vendedor"/>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>Observações</label>
+          <textarea value={form.observacoes} onChange={e=>f("observacoes",e.target.value)} rows={3} placeholder="Anotações sobre a empresa..." style={{width:"100%",padding:"9px 13px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit",boxSizing:"border-box",background:"#FAFBFD",resize:"vertical"}}/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14}}>
+          <FSel label="Status" value={form.status} onChange={v=>f("status",v)} options={PROSP_COLS.map(c=>({value:c.id,label:c.label}))}/>
+          <FSel label="Prioridade" value={form.prioridade} onChange={v=>f("prioridade",v)} options={[{value:"alta",label:"Alta"},{value:"media",label:"Média"},{value:"baixa",label:"Baixa"}]}/>
+          <FSel label="Temperatura" value={form.temperatura} onChange={v=>f("temperatura",v)} options={[{value:"quente",label:"🔥 Quente"},{value:"morno",label:"🌤 Morno"},{value:"frio",label:"❄️ Frio"}]}/>
+        </div>
+        <FSel label="Origem" value={form.origem} onChange={v=>f("origem",v)} options={ORIGEM_OPTS}/>
+        {form.status==="perdido"&&<FSel label="Motivo da perda" value={form.motivo_perda} onChange={v=>f("motivo_perda",v)} options={[{value:"",label:"Selecione..."},...MOTIVO_PERDA_OPTS]}/>}
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>Serviços de interesse</label>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+            {SERVICOS_OPTS.map(s=>{
+              const ativo=form.servicos.includes(s.value);
+              return (
+                <button key={s.value} type="button" onClick={()=>f("servicos",ativo?form.servicos.filter(x=>x!==s.value):[...form.servicos,s.value])}
+                  style={{border:ativo?"1.5px solid #FF6200":"1.5px solid #DDE5EF",background:ativo?"#FFF7F3":"#FAFBFD",color:ativo?"#FF6200":"#64748B",borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{s.label}</button>
+              );
+            })}
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <FInput label="Valor estimado (R$)" value={form.valor_estimado} onChange={v=>f("valor_estimado",v)} placeholder="1500"/>
+          <FInput label="Próxima ação" value={form.proxima_acao} onChange={v=>f("proxima_acao",v)} placeholder="Ligar novamente"/>
+        </div>
+        <FInput label="Data da próxima ação" value={form.proxima_acao_data} onChange={v=>f("proxima_acao_data",v)} type="date"/>
+        <div style={{display:"flex",gap:10,marginTop:4}}>
+          <Btn style={{flex:1}} onClick={save} disabled={saving}>{saving?"Salvando...":"Salvar"}</Btn>
+          <Btn variant="ghost" onClick={()=>setModal(false)} style={{flex:1}}>Cancelar</Btn>
+        </div>
+      </Modal>}
+
+      {detail&&<Modal title={detail.empresa} onClose={closeDetail} width={620}>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
+          <ProspStatusBadge status={detail.status}/>
+          <ProspPrio p={detail.prioridade}/>
+          <span style={{fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:20,background:"#F3F4F6",color:"#374151"}}>{TEMP_EMOJI[detail.temperatura]} {detail.temperatura?.charAt(0).toUpperCase()+detail.temperatura?.slice(1)}</span>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16,fontSize:13}}>
+          <div><div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>Segmento</div><div style={{color:"#111827",fontWeight:600}}>{detail.segmento||"—"}</div></div>
+          <div><div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>Bairro</div><div style={{color:"#111827",fontWeight:600}}>{detail.bairro||"—"}</div></div>
+          <div><div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>Instagram</div><div style={{color:"#111827",fontWeight:600}}>{detail.instagram||"—"}</div></div>
+          <div><div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>WhatsApp</div><div style={{color:"#111827",fontWeight:600}}>{detail.whatsapp||"—"}</div></div>
+          <div><div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>Responsável</div><div style={{color:"#111827",fontWeight:600}}>{detail.responsavel||"—"}</div></div>
+          <div><div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>Vendedor</div><div style={{color:"#111827",fontWeight:600}}>{detail.vendedor||"—"}</div></div>
+          <div><div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>Origem</div><div style={{color:"#111827",fontWeight:600}}>{ORIGEM_OPTS.find(o=>o.value===detail.origem)?.label||detail.origem||"—"}</div></div>
+          <div><div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>Valor estimado</div><div style={{color:"#111827",fontWeight:600}}>{detail.valor_estimado?`R$ ${Number(detail.valor_estimado).toLocaleString("pt-BR")}`:"—"}</div></div>
+        </div>
+        {detail.servicos?.length>0&&<div style={{marginBottom:16}}>
+          <div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase",marginBottom:6}}>Serviços de interesse</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{detail.servicos.map(s=><span key={s} style={{background:"#FFF7F3",color:"#FF6200",borderRadius:8,padding:"4px 12px",fontSize:12,fontWeight:700}}>{SERVICOS_OPTS.find(o=>o.value===s)?.label||s}</span>)}</div>
+        </div>}
+        {(detail.proxima_acao||detail.proxima_acao_data)&&<div style={{background:"#EEF3F8",borderRadius:10,padding:"12px 14px",marginBottom:16,fontSize:13}}>
+          <div style={{fontWeight:700,color:"#111827"}}>Próxima ação: {detail.proxima_acao||"—"}</div>
+          {detail.proxima_acao_data&&<div style={{color:"#64748B",fontSize:12,marginTop:2}}>{fmtDate(detail.proxima_acao_data)}</div>}
+        </div>}
+        {detail.observacoes&&<div style={{marginBottom:16}}>
+          <div style={{color:"#94A3B8",fontSize:11,fontWeight:700,textTransform:"uppercase",marginBottom:6}}>Observações</div>
+          <div style={{fontSize:13,color:"#374151",lineHeight:1.6,background:"#F8FAFC",borderRadius:10,padding:"12px 14px"}}>{detail.observacoes}</div>
+        </div>}
+        {detail.status==="perdido"&&detail.motivo_perda&&<div style={{marginBottom:16,background:"#FEF2F2",borderRadius:10,padding:"12px 14px",fontSize:13,color:"#991B1B"}}>Motivo da perda: {MOTIVO_PERDA_OPTS.find(o=>o.value===detail.motivo_perda)?.label||detail.motivo_perda}</div>}
+
+        <Btn style={{width:"100%",marginBottom:20,background:"linear-gradient(135deg,#7C3AED,#A855F7)"}} onClick={()=>setIaOpen(true)}>🤖 Gerar abordagem com IA</Btn>
+
+        <div style={{fontSize:12,fontWeight:700,color:"#64748B",textTransform:"uppercase",letterSpacing:0.5,marginBottom:10}}>Histórico</div>
+        <div style={{display:"flex",gap:8,marginBottom:14}}>
+          <input value={novoHist} onChange={e=>setNovoHist(e.target.value)} placeholder="Adicionar registro ao histórico..." onKeyDown={e=>{if(e.key==="Enter")addHistorico();}} style={{flex:1,padding:"8px 12px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,color:"#111827",outline:"none",fontFamily:"inherit"}}/>
+          <Btn size="sm" onClick={addHistorico}>Adicionar</Btn>
+        </div>
+        <div style={{maxHeight:220,overflowY:"auto"}}>
+          {histLoading?<div style={{color:"#94A3B8",fontSize:12,textAlign:"center",padding:"14px 0"}}>Carregando...</div>:historico.length===0?<div style={{color:"#94A3B8",fontSize:12,textAlign:"center",padding:"14px 0"}}>Nenhum registro ainda.</div>:historico.map(h=>(
+            <div key={h.id} style={{padding:"10px 0",borderBottom:"1px solid #EEF3F8"}}>
+              <div style={{fontSize:12,color:"#374151"}}>{h.texto}</div>
+              <div style={{fontSize:10,color:"#94A3B8",marginTop:2}}>{new Date(h.created_at).toLocaleString("pt-BR")}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{display:"flex",gap:10,marginTop:20}}>
+          <Btn variant="ghost" style={{flex:1}} onClick={()=>{const p=detail;closeDetail();openEdit(p);}}>{IC.edit} Editar</Btn>
+          <Btn variant="danger" style={{flex:1}} onClick={()=>setConfirm(detail)}>{IC.trash} Excluir</Btn>
+        </div>
+      </Modal>}
+
+      {iaOpen&&detail&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(17,24,39,0.5)",zIndex:1200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:640,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.25)"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 24px",borderBottom:"1px solid #EEF3F8"}}>
+              <div style={{fontSize:17,fontWeight:800,color:"#111827"}}>🤖 Gerar abordagem — {detail.empresa}</div>
+              <button onClick={()=>setIaOpen(false)} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#64748B"}}>×</button>
+            </div>
+            <div style={{display:"flex",gap:6,padding:"14px 24px 0",flexWrap:"wrap",borderBottom:"1px solid #EEF3F8"}}>
+              {IA_TABS.map(t=><button key={t.id} onClick={()=>setIaTab(t.id)} style={{background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,padding:"8px 10px",color:iaTab===t.id?"#FF6200":"#64748B",borderBottom:iaTab===t.id?"2px solid #FF6200":"2px solid transparent",marginBottom:-1}}>{t.label}</button>)}
+            </div>
+            <div style={{padding:24}}>
+              {iaLoading&&<div style={{textAlign:"center",padding:"40px 0",color:"#64748B",fontSize:13}}>Gerando conteúdo com IA...</div>}
+              {!iaLoading&&iaErr&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",color:"#991B1B",borderRadius:8,padding:"12px 14px",fontSize:13,marginBottom:14}}>{iaErr}</div>}
+              {!iaLoading&&!iaErr&&iaCache[iaTab]&&(
+                <div style={{background:"#F8FAFC",borderRadius:10,padding:"16px 18px",fontSize:13,color:"#374151",lineHeight:1.7,whiteSpace:"pre-wrap",marginBottom:16}}>{iaCache[iaTab]}</div>
+              )}
+              {!iaLoading&&(
+                <div style={{display:"flex",gap:10}}>
+                  <Btn variant={iaCopied?"success":"ghost"} style={{flex:1}} onClick={()=>copyIA(iaCache[iaTab]||"")} disabled={!iaCache[iaTab]}>{iaCopied?"Copiado!":"Copiar"}</Btn>
+                  <Btn variant="secondary" style={{flex:1}} onClick={()=>gerarIA(iaTab,true)}>⟳ Regenerar</Btn>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirm&&<ConfirmModal msg={`Remover "${confirm.empresa}" da prospecção?`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
+// ── FINANCEIRO ────────────────────────────────────────────────────────────────
+const FinanceiroPage=({clients,cobr,despesas})=>{
+  const recR=cobr.filter(c=>c.status==="pago").reduce((a,c)=>a+Number(c.valor),0);
+  const recP=cobr.filter(c=>c.status==="pendente").reduce((a,c)=>a+Number(c.valor),0);
+  const recA=cobr.filter(c=>c.status==="atrasado").reduce((a,c)=>a+Number(c.valor),0);
+  const despT=despesas.reduce((a,d)=>a+Number(d.valor),0);
+  const despPago=despesas.filter(d=>d.status==="pago").reduce((a,d)=>a+Number(d.valor),0);
+  return (
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14,marginBottom:24}}>
+        <MC label="Receita recebida" value={`R$ ${recR.toLocaleString()}`} icon={IC.check} bg="#ECFDF5"/>
+        <MC label="Em aberto" value={`R$ ${recP.toLocaleString()}`} icon={IC.clock} bg="#FFFBEB"/>
+        <MC label="Atrasado" value={`R$ ${recA.toLocaleString()}`} icon={IC.alert} bg="#FEF2F2"/>
+        <MC label="Despesas do mês" value={`R$ ${despT.toLocaleString()}`} icon={IC.money} bg="#F8FAFC"/>
+        <MC label="Lucro líquido" value={`R$ ${(recR-despPago).toLocaleString()}`} icon={IC.trending} bg="#ECFDF5"/>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:18}}>
+        <Card>
+          <ST>Receita por cliente</ST>
+          {clients.filter(c=>c.status==="ativo").map(c=>(
+            <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid #EEF3F8"}}>
+              <ClientLogo url={c.logo_url} name={c.name} size={36}/>
+              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{c.name}</div><div style={{fontSize:11,color:"#64748B"}}>Dia {c.vencimento}</div></div>
+              <div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:800}}>R$ {Number(c.valor).toLocaleString()}</div></div>
+            </div>
+          ))}
+        </Card>
+        <Card>
+          <ST>Despesas por categoria</ST>
+          {Object.entries(despesas.reduce((acc,d)=>{acc[d.categoria]=(acc[d.categoria]||0)+Number(d.valor);return acc;},{})).map(([cat,val])=>(
+            <div key={cat} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #EEF3F8",fontSize:13}}>
+              <span style={{color:"#374151",fontWeight:600}}>{cat}</span><span style={{fontWeight:800}}>R$ {val.toLocaleString()}</span>
+            </div>
+          ))}
+          <div style={{marginTop:14,display:"flex",justifyContent:"space-between",fontWeight:800,fontSize:15}}><span>Total</span><span style={{color:"#EF4444"}}>R$ {despT.toLocaleString()}</span></div>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+// ── COBRANÇAS ─────────────────────────────────────────────────────────────────
+const BLANK_COBR={cliente:"",valor:"",vencimento:"",status:"pendente",pagamento:""};
+
+const CobrancasPage=({cobr,setCobr,clients,loading})=>{
+  const [filter,setFilter]=useState("todos");
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState(BLANK_COBR);
+  const [editing,setEditing]=useState(null);
+  const [confirm,setConfirm]=useState(null);
+  const [saving,setSaving]=useState(false);
+
+  const fl=cobr.filter(c=>filter==="todos"||c.status===filter);
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  const openNew=()=>{setForm(BLANK_COBR);setEditing(null);setModal(true);};
+  const openEdit=(c)=>{setForm({...c,vencimento:c.vencimento?.split("T")[0]||c.vencimento});setEditing(c.id);setModal(true);};
+
+  const marcarPago=async(id)=>{
+    const cobAtual=cobr.find(c=>c.id===id);
+    if(!cobAtual) return;
+    const pagamento=cobAtual.pagamento||"Pix";
+    await supabase.from("cobrancas").update({status:"pago",pagamento}).eq("id",id);
+    setCobr(prev=>prev.map(c=>c.id===id?{...c,status:"pago",pagamento}:c));
+    // Gera a cobrança do mês seguinte (mesmo cliente, valor e dia), se ainda não existir
+    const novaData=addMonths(cobAtual.vencimento,1);
+    if(cobr.some(c=>c.cliente===cobAtual.cliente&&String(c.vencimento).split("T")[0]===novaData)) return;
+    const novaCob={cliente:cobAtual.cliente,valor:cobAtual.valor,vencimento:novaData,status:"pendente",pagamento:""};
+    const {data:ins}=await supabase.from("cobrancas").insert([novaCob]).select();
+    if(ins) setCobr(prev=>[...prev,...ins]);
+  };
+
+  const save=async()=>{
+    if(!form.cliente||!form.valor){return;}
+    setSaving(true);
+    const data={cliente:form.cliente,valor:Number(form.valor),vencimento:form.vencimento,status:form.status,pagamento:form.pagamento};
+    if(editing){
+      await supabase.from("cobrancas").update(data).eq("id",editing);
+      setCobr(prev=>prev.map(c=>c.id===editing?{...c,...data}:c));
+    } else {
+      const {data:ins}=await supabase.from("cobrancas").insert([data]).select();
+      if(ins) setCobr(prev=>[...prev,...ins]);
+    }
+    setSaving(false);setModal(false);
+  };
+
+  const remove=async(id)=>{
+    await supabase.from("cobrancas").delete().eq("id",id);
+    setCobr(prev=>prev.filter(c=>c.id!==id));
+    setConfirm(null);
+  };
+
+  if(loading) return <Loading/>;
+  return (
+    <div>
+      <div style={{display:"flex",gap:12,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
+        {["todos","pendente","pago","atrasado"].map(fi=><Btn key={fi} size="sm" variant={filter===fi?"secondary":"ghost"} onClick={()=>setFilter(fi)}>{fi.charAt(0).toUpperCase()+fi.slice(1)} <span style={{marginLeft:6,background:filter===fi?"rgba(255,255,255,0.25)":"#EEF3F8",borderRadius:99,padding:"0 6px",fontSize:11,fontWeight:800,color:filter===fi?"#fff":"#64748B"}}>{cobr.filter(c=>fi==="todos"||c.status===fi).length}</span></Btn>)}
+        <div style={{flex:1}}/><Btn onClick={openNew}>+ Nova Cobrança</Btn>
+      </div>
+      <Card style={{padding:0}}>
+        <Tbl cols={["Cliente","Valor","Vencimento","Forma","Status","Ações"]}
+          rows={fl.map(c=>[
+            <span style={{fontWeight:700,color:"#111827"}}>{c.cliente}</span>,
+            <span style={{fontWeight:800}}>R$ {Number(c.valor).toLocaleString()}</span>,
+            fmtDate(c.vencimento),
+            c.pagamento||<span style={{color:"#94A3B8"}}>—</span>,
+            <StatusBadge status={c.status}/>,
+            <div style={{display:"flex",gap:6}}>
+              {c.status!=="pago"&&<Btn size="sm" variant="success" onClick={()=>marcarPago(c.id)}>Pago</Btn>}
+              <Btn size="sm" variant="ghost" onClick={()=>openEdit(c)}>{IC.edit}</Btn>
+              <Btn size="sm" variant="danger" onClick={()=>setConfirm(c)}>{IC.trash}</Btn>
+            </div>
+          ])}/>
+      </Card>
+      {modal&&<Modal title={editing?"Editar Cobrança":"Nova Cobrança"} onClose={()=>setModal(false)}>
+        <FSel label="Cliente" value={form.cliente} onChange={v=>f("cliente",v)} options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.name,label:c.name}))]}/>
+        <FInput label="Valor (R$)" value={form.valor} onChange={v=>f("valor",v)} placeholder="1800"/>
+        <FInput label="Data de vencimento" value={form.vencimento} onChange={v=>f("vencimento",v)} type="date"/>
+        <FSel label="Status" value={form.status} onChange={v=>f("status",v)} options={[{value:"pendente",label:"Pendente"},{value:"pago",label:"Pago"},{value:"atrasado",label:"Atrasado"}]}/>
+        <FSel label="Forma de pagamento" value={form.pagamento} onChange={v=>f("pagamento",v)} options={[{value:"",label:"—"},{value:"Pix",label:"Pix"},{value:"Transferência",label:"Transferência"},{value:"Boleto",label:"Boleto"}]}/>
+        <div style={{display:"flex",gap:10}}><Btn style={{flex:1}} onClick={save} disabled={saving}>{saving?"Salvando...":"Salvar"}</Btn><Btn variant="ghost" onClick={()=>setModal(false)} style={{flex:1}}>Cancelar</Btn></div>
+      </Modal>}
+      {confirm&&<ConfirmModal msg={`Remover cobrança de "${confirm.cliente}"?`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
+// ── DESPESAS ──────────────────────────────────────────────────────────────────
+const BLANK_DESP={nome:"",categoria:"Ferramentas",valor:"",vencimento:"",status:"pendente",tipo:"uma_vez",parcelado_em:"1"};
+
+const DespesasPage=({despesas,setDespesas,loading})=>{
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState(BLANK_DESP);
+  const [editing,setEditing]=useState(null);
+  const [confirm,setConfirm]=useState(null);
+  const [saving,setSaving]=useState(false);
+
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const total=despesas.reduce((a,d)=>a+Number(d.valor),0);
+  const pagas=despesas.filter(d=>d.status==="pago").reduce((a,d)=>a+Number(d.valor),0);
+
+  const openNew=()=>{setForm({...BLANK_DESP,vencimento:todayStr()});setEditing(null);setModal(true);};
+  const openEdit=(d)=>{setForm({...d,tipo:d.tipo||"uma_vez",parcelado_em:String(d.parcelado_em||1),vencimento:d.vencimento?.split("T")[0]||d.vencimento});setEditing(d.id);setModal(true);};
+
+  const marcarPago=async(id)=>{
+    const desp=despesas.find(d=>d.id===id);
+    if(!desp) return;
+    await supabase.from("despesas").update({status:"pago"}).eq("id",id);
+    setDespesas(prev=>prev.map(d=>d.id===id?{...d,status:"pago"}:d));
+    // Conta fixa: cria a do mês seguinte (a atual fica registrada como paga)
+    if(desp.tipo!=="fixa") return;
+    const novaData=addMonths(desp.vencimento,1);
+    if(despesas.some(d=>d.tipo==="fixa"&&d.nome===desp.nome&&String(d.vencimento).split("T")[0]===novaData)) return;
+    const nova={nome:desp.nome,categoria:desp.categoria,valor:desp.valor,vencimento:novaData,status:"pendente",tipo:"fixa",parcelado_em:1,parcela_numero:1};
+    const {data:ins}=await supabase.from("despesas").insert([nova]).select();
+    if(ins) setDespesas(prev=>[...prev,...ins]);
+  };
+
+  const desativarFixa=async(id)=>{
+    await supabase.from("despesas").update({tipo:"uma_vez"}).eq("id",id);
+    setDespesas(prev=>prev.map(d=>d.id===id?{...d,tipo:"uma_vez"}:d));
+  };
+
+  const save=async()=>{
+    if(!form.nome){return;}
+    setSaving(true);
+    const base={nome:form.nome,categoria:form.categoria,valor:Number(form.valor),vencimento:form.vencimento||null,status:form.status,tipo:form.tipo};
+    if(editing){
+      await supabase.from("despesas").update(base).eq("id",editing);
+      setDespesas(prev=>prev.map(d=>d.id===editing?{...d,...base}:d));
+    } else {
+      // Parcelada: uma linha por parcela, vencendo mês a mês a partir da data informada
+      const n=form.tipo==="uma_vez"?Math.max(1,parseInt(form.parcelado_em)||1):1;
+      const venc0=form.vencimento||todayStr();
+      const rows=Array.from({length:n},(_,i)=>({...base,vencimento:addMonths(venc0,i),parcelado_em:n,parcela_numero:i+1,status:i===0?form.status:"pendente"}));
+      const {data:ins}=await supabase.from("despesas").insert(rows).select();
+      if(ins) setDespesas(prev=>[...prev,...ins]);
+    }
+    setSaving(false);setModal(false);
+  };
+
+  const remove=async(id)=>{
+    await supabase.from("despesas").delete().eq("id",id);
+    setDespesas(prev=>prev.filter(d=>d.id!==id));
+    setConfirm(null);
+  };
+
+  if(loading) return <Loading/>;
+  return (
+    <div>
+      <div style={{display:"flex",gap:14,marginBottom:20,flexWrap:"wrap",alignItems:"flex-start"}}>
+        <MC label="Total despesas" value={`R$ ${total.toLocaleString()}`} icon={IC.money} bg="#F8FAFC"/>
+        <MC label="Já pagas" value={`R$ ${pagas.toLocaleString()}`} icon={IC.check} bg="#ECFDF5"/>
+        <MC label="A pagar" value={`R$ ${(total-pagas).toLocaleString()}`} icon={IC.clock} bg="#FFFBEB"/>
+        <div style={{marginLeft:"auto"}}><Btn onClick={openNew}>+ Adicionar Despesa</Btn></div>
+      </div>
+      <Card style={{padding:0}}>
+        <Tbl cols={["Nome","Categoria","Tipo","Valor","Vencimento","Status","Ações"]}
+          rows={despesas.map(d=>[
+            <span style={{fontWeight:700,color:"#111827"}}>{d.nome}</span>,
+            <span style={{background:"#EEF3F8",borderRadius:6,padding:"2px 8px",fontSize:12,fontWeight:600,color:"#64748B"}}>{d.categoria}</span>,
+            d.tipo==="fixa"?<span style={{background:"#F5F3FF",color:"#7C3AED",borderRadius:6,padding:"2px 8px",fontSize:12,fontWeight:700}}>Fixa</span>
+              :d.parcelado_em>1?<span style={{background:"#FFF7ED",color:"#C2410C",borderRadius:6,padding:"2px 8px",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>Parcela {d.parcela_numero}/{d.parcelado_em}</span>
+              :<span style={{color:"#94A3B8",fontSize:12}}>Uma vez</span>,
+            <span style={{fontWeight:800}}>R$ {Number(d.valor).toLocaleString()}</span>,
+            fmtDate(d.vencimento),
+            <StatusBadge status={d.status}/>,
+            <div style={{display:"flex",gap:6}}>
+              {d.status!=="pago"&&<Btn size="sm" variant="success" onClick={()=>marcarPago(d.id)}>Pago</Btn>}
+              {d.tipo==="fixa"&&d.status!=="pago"&&<Btn size="sm" variant="ghost" onClick={()=>desativarFixa(d.id)} style={{whiteSpace:"nowrap"}}>Parar de repetir</Btn>}
+              <Btn size="sm" variant="ghost" onClick={()=>openEdit(d)}>{IC.edit}</Btn>
+              <Btn size="sm" variant="danger" onClick={()=>setConfirm(d)}>{IC.trash}</Btn>
+            </div>
+          ])}/>
+      </Card>
+      {modal&&<Modal title={editing?"Editar Despesa":"Nova Despesa"} onClose={()=>setModal(false)}>
+        <FInput label="Nome da despesa *" value={form.nome} onChange={v=>f("nome",v)} placeholder="Adobe Creative Cloud"/>
+        <FSel label="Categoria" value={form.categoria} onChange={v=>f("categoria",v)} options={["Ferramentas","Assinaturas","Colaboradores","Internet","Equipamentos","Outros"].map(c=>({value:c,label:c}))}/>
+        <FSel label="Tipo" value={form.tipo} onChange={v=>f("tipo",v)} options={[{value:"uma_vez",label:"Uma vez"},{value:"fixa",label:"Fixa (repete todo mês)"}]}/>
+        {!editing&&form.tipo==="uma_vez"&&<FSel label="Parcelado em" value={form.parcelado_em} onChange={v=>f("parcelado_em",v)} options={Array.from({length:24},(_,i)=>({value:String(i+1),label:i===0?"À vista (1x)":`${i+1}x`}))}/>}
+        <FInput label={Number(form.parcelado_em)>1&&!editing&&form.tipo==="uma_vez"?"Valor de cada parcela (R$)":"Valor (R$)"} value={form.valor} onChange={v=>f("valor",v)} placeholder="349"/>
+        <FInput label={Number(form.parcelado_em)>1&&!editing&&form.tipo==="uma_vez"?"Vencimento da 1ª parcela":"Data de vencimento"} value={form.vencimento} onChange={v=>f("vencimento",v)} type="date"/>
+        {form.tipo==="fixa"&&<div style={{fontSize:12,color:"#64748B",marginTop:-6,marginBottom:14}}>Ao marcar como paga, a conta do mês seguinte é criada automaticamente.</div>}
+        <FSel label="Status" value={form.status} onChange={v=>f("status",v)} options={[{value:"pendente",label:"Pendente"},{value:"pago",label:"Pago"}]}/>
+        <div style={{display:"flex",gap:10}}><Btn style={{flex:1}} onClick={save} disabled={saving}>{saving?"Salvando...":"Salvar"}</Btn><Btn variant="ghost" onClick={()=>setModal(false)} style={{flex:1}}>Cancelar</Btn></div>
+      </Modal>}
+      {confirm&&<ConfirmModal msg={`Remover "${confirm.nome}"?`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
+// ── GRAVAÇÕES ─────────────────────────────────────────────────────────────────
+const BLANK_GRAV={estabelecimento:"",data:"",frequencia_acordada:"1x/semana",status:"agendada",responsavel:"",notas:""};
+const STATUS_GRAV=[{value:"agendada",label:"Agendada"},{value:"feita",label:"Feita"},{value:"cancelada",label:"Cancelada"},{value:"nao_foi",label:"Não foi"}];
+
+const GravacoesPage=({gravacoes,setGravacoes,clients,equipe,loading})=>{
+  const [filter,setFilter]=useState("todos");
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState(BLANK_GRAV);
+  const [editing,setEditing]=useState(null);
+  const [confirm,setConfirm]=useState(null);
+  const [saving,setSaving]=useState(false);
+
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const nomeCli=(id)=>clients.find(c=>String(c.id)===String(id))?.name||"—";
+  const fl=gravacoes.filter(g=>filter==="todos"||g.status===filter).sort((a,b)=>String(b.data).localeCompare(String(a.data)));
+
+  // Ao escolher o estabelecimento, sugere a última frequência acordada com ele
+  const escolherCliente=(id)=>{
+    const ultima=gravacoes.filter(g=>String(g.estabelecimento)===String(id)).sort((a,b)=>String(b.data).localeCompare(String(a.data)))[0];
+    setForm(p=>({...p,estabelecimento:id,frequencia_acordada:ultima?.frequencia_acordada||p.frequencia_acordada}));
+  };
+
+  const openNew=()=>{setForm({...BLANK_GRAV,data:todayStr()});setEditing(null);setModal(true);};
+  const openEdit=(g)=>{setForm({...BLANK_GRAV,...g,notas:g.notas||"",responsavel:g.responsavel||"",data:String(g.data).split("T")[0]});setEditing(g.id);setModal(true);};
+
+  const marcarFeita=async(id)=>{
+    await supabase.from("gravacoes").update({status:"feita"}).eq("id",id);
+    setGravacoes(prev=>prev.map(g=>g.id===id?{...g,status:"feita"}:g));
+  };
+
+  const save=async()=>{
+    if(!form.estabelecimento||!form.data){return;}
+    setSaving(true);
+    const data={estabelecimento:form.estabelecimento,data:form.data,frequencia_acordada:form.frequencia_acordada,status:form.status,responsavel:form.responsavel||null,notas:form.notas||null};
+    if(editing){
+      await supabase.from("gravacoes").update(data).eq("id",editing);
+      setGravacoes(prev=>prev.map(g=>g.id===editing?{...g,...data}:g));
+    } else {
+      const {data:ins}=await supabase.from("gravacoes").insert([data]).select();
+      if(ins) setGravacoes(prev=>[...prev,...ins]);
+    }
+    setSaving(false);setModal(false);
+  };
+
+  const remove=async(id)=>{
+    await supabase.from("gravacoes").delete().eq("id",id);
+    setGravacoes(prev=>prev.filter(g=>g.id!==id));
+    setConfirm(null);
+  };
+
+  if(loading) return <Loading/>;
+  return (
+    <div>
+      <AlertasGravacao alertas={gravacaoAlertas(gravacoes,clients)}/>
+      <div style={{display:"flex",gap:12,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
+        {[{value:"todos",label:"Todas"},...STATUS_GRAV].map(fi=><Btn key={fi.value} size="sm" variant={filter===fi.value?"secondary":"ghost"} onClick={()=>setFilter(fi.value)}>{fi.label} <span style={{marginLeft:6,background:filter===fi.value?"rgba(255,255,255,0.25)":"#EEF3F8",borderRadius:99,padding:"0 6px",fontSize:11,fontWeight:800,color:filter===fi.value?"#fff":"#64748B"}}>{gravacoes.filter(g=>fi.value==="todos"||g.status===fi.value).length}</span></Btn>)}
+        <div style={{flex:1}}/><Btn onClick={openNew}>+ Nova Gravação</Btn>
+      </div>
+      <Card style={{padding:0}}>
+        <Tbl cols={["Estabelecimento","Data","Status","Responsável","Ações"]}
+          rows={fl.map(g=>[
+            <div><div style={{fontWeight:700,color:"#111827"}}>{nomeCli(g.estabelecimento)}</div><div style={{fontSize:11,color:"#64748B"}}>{g.frequencia_acordada}{g.notas?` · ${g.notas}`:""}</div></div>,
+            <span style={{whiteSpace:"nowrap"}}>{fmtDate(g.data)}</span>,
+            <StatusBadge status={g.status}/>,
+            g.responsavel||<span style={{color:"#94A3B8"}}>—</span>,
+            <div style={{display:"flex",gap:6}}>
+              {g.status!=="feita"&&<Btn size="sm" variant="success" onClick={()=>marcarFeita(g.id)}>Feita</Btn>}
+              <Btn size="sm" variant="ghost" onClick={()=>openEdit(g)}>{IC.edit}</Btn>
+              <Btn size="sm" variant="danger" onClick={()=>setConfirm(g)}>{IC.trash}</Btn>
+            </div>
+          ])}/>
+      </Card>
+      {modal&&<Modal title={editing?"Editar Gravação":"Nova Gravação"} onClose={()=>setModal(false)}>
+        <FSel label="Estabelecimento *" value={form.estabelecimento} onChange={escolherCliente} options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.id,label:c.name}))]}/>
+        <FInput label="Data *" value={form.data} onChange={v=>f("data",v)} type="date"/>
+        <FSel label="Frequência acordada" value={form.frequencia_acordada} onChange={v=>f("frequencia_acordada",v)} options={FREQ_GRAV}/>
+        <FSel label="Status" value={form.status} onChange={v=>f("status",v)} options={STATUS_GRAV}/>
+        <FSel label="Responsável" value={form.responsavel} onChange={v=>f("responsavel",v)} options={[{value:"",label:"Selecione..."},...equipe.map(e=>({value:e.nome,label:e.nome}))]}/>
+        <FInput label="Notas" value={form.notas} onChange={v=>f("notas",v)} placeholder="Ex.: gravar cardápio novo"/>
+        <div style={{display:"flex",gap:10}}><Btn style={{flex:1}} onClick={save} disabled={saving||!form.estabelecimento||!form.data}>{saving?"Salvando...":"Salvar"}</Btn><Btn variant="ghost" onClick={()=>setModal(false)} style={{flex:1}}>Cancelar</Btn></div>
+      </Modal>}
+      {confirm&&<ConfirmModal msg={`Remover gravação de "${nomeCli(confirm.estabelecimento)}" em ${fmtDate(confirm.data)}?`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
+// ── AGENDA RECORRENTE ─────────────────────────────────────────────────────────
+const DIAS_SEMANA=[{label:"Seg",value:1},{label:"Ter",value:2},{label:"Qua",value:3},{label:"Qui",value:4},{label:"Sex",value:5},{label:"Sáb",value:6},{label:"Dom",value:0}];
+const TIPO_AGENDA={gravacao:{label:"Gravação",emoji:"📹",color:"#FF6200",bg:"#FFF7F3"},reuniao:{label:"Reunião",emoji:"📞",color:"#3B82F6",bg:"#EFF6FF"},atendimento:{label:"Atendimento",emoji:"🤝",color:"#10B981",bg:"#ECFDF5"}};
+// Colunas do kanban semanal: segunda é o início da semana
+const SEMANA_COLS=[{label:"Seg",dia:1},{label:"Ter",dia:2},{label:"Qua",dia:3},{label:"Qui",dia:4},{label:"Sex",dia:5},{label:"Sáb",dia:6},{label:"Dom",dia:0}];
+const BLANK_AGENDA={cliente_id:"",tipo:"gravacao",dias_semana:[],horario:"",local_descricao:"",responsavel_id:"",briefing:""};
+const AGENDA_SEMANAS=12;
+
+// Gera as ocorrências futuras (próximas 12 semanas) de uma agenda recorrente
+const gerarOcorrencias=(ag,semanas=AGENDA_SEMANAS)=>{
+  const agora=new Date();
+  const hoje=new Date(agora);hoje.setHours(0,0,0,0);
+  const [h,m]=String(ag.horario).split(":").map(Number);
+  const out=[];
+  for(let s=0;s<semanas;s++){
+    for(const dia of ag.dias_semana||[]){
+      const d=new Date(hoje);
+      d.setDate(d.getDate()+((dia-hoje.getDay()+7)%7)+s*7);
+      d.setHours(h,m,0,0);
+      if(d>agora) out.push({agenda_recorrente_id:ag.id,data_hora:d.toISOString(),status:"pendente",notificacao_enviada:false});
+    }
+  }
+  return out.sort((a,b)=>a.data_hora.localeCompare(b.data_hora));
+};
+
+const getMondayOfWeek=(date)=>{const d=new Date(date);d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return d;};
+const fmtHora=(iso)=>new Date(iso).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+const mesmoDia=(iso,offset=0)=>{const d=new Date();d.setDate(d.getDate()+offset);return new Date(iso).toDateString()===d.toDateString();};
+const diasLabel=(dias)=>DIAS_SEMANA.filter(d=>(dias||[]).includes(d.value)).map(d=>d.label).join(", ");
+
+// Notificações PWA: usa o service worker quando houver (obrigatório no Android), senão a API direta
+const notificar=async(titulo,corpo)=>{
+  if(typeof window==="undefined"||!("Notification" in window)||Notification.permission!=="granted") return;
+  const opts={body:corpo,icon:"/icon.png",badge:"/icon.png"};
+  try{
+    const reg=await navigator.serviceWorker?.getRegistration();
+    if(reg){await reg.showNotification(titulo,opts);return;}
+    new Notification(titulo,opts);
+  }catch(e){console.error("Erro ao notificar",e);}
+};
+
+const TipoAgendaBadge=({tipo})=>{const t=TIPO_AGENDA[tipo];return t?<span style={{background:t.bg,color:t.color,fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:20,whiteSpace:"nowrap"}}>{t.emoji} {t.label}</span>:null;};
+
+const AgendaPage=({clients,equipe})=>{
+  const isMobile=typeof window!=="undefined"&&window.innerWidth<768;
+  const [agendas,setAgendas]=useState([]);
+  const [ocorrencias,setOcorrencias]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [filtro,setFiltro]=useState("todos");
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState(BLANK_AGENDA);
+  const [editing,setEditing]=useState(null);
+  const [confirm,setConfirm]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [notifOk,setNotifOk]=useState(typeof window!=="undefined"&&"Notification" in window&&Notification.permission==="granted");
+  const [banner,setBanner]=useState(null);
+  const [semanaOffset,setSemanaOffset]=useState(0);
+  const [ocsSemana,setOcsSemana]=useState([]);
+  const [hojeKey,setHojeKey]=useState(()=>new Date().toDateString());
+
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const nomeCli=(id)=>clients.find(c=>String(c.id)===String(id))?.name||"—";
+  const nomeResp=(id)=>equipe.find(e=>String(e.id)===String(id))?.nome||"";
+  const agendaDe=(oc)=>agendas.find(a=>a.id===oc.agenda_recorrente_id);
+
+  const load=async()=>{
+    setLoading(true);
+    try{
+      const inicioHoje=new Date();inicioHoje.setHours(0,0,0,0);
+      const {data:ags,error}=await supabase.from("agenda_recorrente").select("*").eq("ativa",true).order("created_at",{ascending:false});
+      if(error) throw error;
+      // Completa a janela de 12 semanas (agendas antigas vão "andando" sozinhas)
+      const novas=(ags||[]).flatMap(a=>gerarOcorrencias(a));
+      if(novas.length) await supabase.from("agenda_ocorrencia").upsert(novas,{onConflict:"agenda_recorrente_id,data_hora",ignoreDuplicates:true});
+      const {data:ocs}=await supabase.from("agenda_ocorrencia").select("*").gte("data_hora",inicioHoje.toISOString()).order("data_hora");
+      const ativos=new Set((ags||[]).map(a=>a.id));
+      setAgendas(ags||[]);
+      setOcorrencias((ocs||[]).filter(o=>ativos.has(o.agenda_recorrente_id)));
+    }catch(e){console.error("Erro ao carregar agenda",e);}
+    setLoading(false);
+  };
+  useEffect(()=>{load();},[]);
+
+  // Vira o dia (ex.: domingo → segunda) sem recarregar a página: o kanban acompanha a nova semana
+  useEffect(()=>{
+    const t=setInterval(()=>setHojeKey(new Date().toDateString()),60000);
+    return ()=>clearInterval(t);
+  },[]);
+
+  const segunda=getMondayOfWeek(new Date(hojeKey));
+  segunda.setDate(segunda.getDate()+semanaOffset*7);
+  const domingoFim=new Date(segunda);domingoFim.setDate(domingoFim.getDate()+7);
+
+  // Ocorrências da semana exibida (inclui semanas passadas)
+  useEffect(()=>{
+    if(agendas.length===0){setOcsSemana([]);return;}
+    const ativos=new Set(agendas.map(a=>a.id));
+    supabase.from("agenda_ocorrencia").select("*").gte("data_hora",segunda.toISOString()).lt("data_hora",domingoFim.toISOString()).order("data_hora")
+      .then(({data})=>setOcsSemana((data||[]).filter(o=>ativos.has(o.agenda_recorrente_id))));
+  },[semanaOffset,agendas,hojeKey]);
+
+  // Alerta 24h antes de cada ocorrência pendente (uma única vez por ocorrência)
+  useEffect(()=>{
+    if(!notifOk||agendas.length===0) return;
+    const agora=Date.now(),em24h=agora+24*60*60*1000;
+    const alvo=ocorrencias.filter(o=>o.status==="pendente"&&!o.notificacao_enviada&&new Date(o.data_hora).getTime()>agora&&new Date(o.data_hora).getTime()<=em24h);
+    if(alvo.length===0) return;
+    alvo.forEach(o=>{
+      const ag=agendaDe(o);if(!ag) return;
+      const t=TIPO_AGENDA[ag.tipo];
+      notificar(`${t.emoji} ${t.label} — ${mesmoDia(o.data_hora)?"hoje":"amanhã"} ${fmtHora(o.data_hora)}`,`${nomeCli(ag.cliente_id)}${ag.local_descricao?` • ${ag.local_descricao}`:""}`);
+    });
+    const ids=alvo.map(o=>o.id);
+    supabase.from("agenda_ocorrencia").update({notificacao_enviada:true}).in("id",ids).then(()=>{});
+    setOcorrencias(prev=>prev.map(o=>ids.includes(o.id)?{...o,notificacao_enviada:true}:o));
+  },[ocorrencias,agendas,notifOk]);
+
+  const ativarNotif=async()=>{
+    if(!("Notification" in window)){setBanner(["err","Este navegador não suporta notificações."]);return;}
+    const r=await Notification.requestPermission();
+    setNotifOk(r==="granted");
+    setBanner(r==="granted"?["ok","Notificações ativadas! Você receberá alertas 24h antes."]:["err","Permissão negada. Ative nas configurações do navegador."]);
+    setTimeout(()=>setBanner(null),4000);
+  };
+
+  const openNew=()=>{setForm(BLANK_AGENDA);setEditing(null);setModal(true);};
+  const openEdit=(a)=>{setForm({cliente_id:a.cliente_id||"",tipo:a.tipo,dias_semana:a.dias_semana||[],horario:String(a.horario||"").slice(0,5),local_descricao:a.local_descricao||"",responsavel_id:a.responsavel_id||"",briefing:a.briefing||""});setEditing(a);setModal(true);};
+  const toggleDia=(v)=>setForm(p=>({...p,dias_semana:p.dias_semana.includes(v)?p.dias_semana.filter(d=>d!==v):[...p.dias_semana,v]}));
+
+  const save=async()=>{
+    if(!form.cliente_id||!form.tipo||form.dias_semana.length===0||!form.horario) return;
+    setSaving(true);
+    try{
+      const data={cliente_id:form.cliente_id,tipo:form.tipo,dias_semana:[...form.dias_semana].sort(),horario:form.horario,local_descricao:form.local_descricao||null,responsavel_id:form.responsavel_id||null,briefing:form.briefing||null};
+      let ag;
+      if(editing){
+        const {data:up,error}=await supabase.from("agenda_recorrente").update(data).eq("id",editing.id).select().single();
+        if(error) throw error;
+        ag=up;
+        // Regenera só as futuras pendentes; feitas/canceladas ficam no histórico
+        await supabase.from("agenda_ocorrencia").delete().eq("agenda_recorrente_id",ag.id).eq("status","pendente").gte("data_hora",new Date().toISOString());
+      } else {
+        const {data:ins,error}=await supabase.from("agenda_recorrente").insert([{...data,ativa:true}]).select().single();
+        if(error) throw error;
+        ag=ins;
+      }
+      const ocs=gerarOcorrencias(ag);
+      if(ocs.length) await supabase.from("agenda_ocorrencia").upsert(ocs,{onConflict:"agenda_recorrente_id,data_hora",ignoreDuplicates:true});
+      setModal(false);
+      await load();
+    }catch(e){
+      console.error("Erro ao salvar agenda",e);
+    }
+    setSaving(false);
+  };
+
+  const remove=async(a)=>{
+    await supabase.from("agenda_ocorrencia").delete().eq("agenda_recorrente_id",a.id).gte("data_hora",new Date().toISOString());
+    await supabase.from("agenda_recorrente").update({ativa:false}).eq("id",a.id);
+    setAgendas(prev=>prev.filter(x=>x.id!==a.id));
+    setOcorrencias(prev=>prev.filter(o=>o.agenda_recorrente_id!==a.id));
+    setOcsSemana(prev=>prev.filter(o=>o.agenda_recorrente_id!==a.id));
+    setConfirm(null);
+  };
+
+  const setStatusOc=async(id,status)=>{
+    await supabase.from("agenda_ocorrencia").update({status}).eq("id",id);
+    setOcorrencias(prev=>prev.map(o=>o.id===id?{...o,status}:o));
+    setOcsSemana(prev=>prev.map(o=>o.id===id?{...o,status}:o));
+  };
+
+  if(loading) return <Loading/>;
+
+  const agora=Date.now(),em7=agora+7*24*60*60*1000;
+  const fl=ocsSemana.filter(o=>filtro==="todos"||agendaDe(o)?.tipo===filtro);
+  const diasSemana=SEMANA_COLS.map((c,i)=>{const d=new Date(segunda);d.setDate(d.getDate()+i);return {...c,data:d,ocs:fl.filter(o=>new Date(o.data_hora).toDateString()===d.toDateString())};});
+  const fimSemana=diasSemana[6].data;
+  const fmtDM=(d)=>d.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"}).replace(".","");
+  const pend=(o)=>o.status==="pendente";
+  const totalHoje=ocorrencias.filter(o=>pend(o)&&mesmoDia(o.data_hora)).length;
+  const totalAmanha=ocorrencias.filter(o=>pend(o)&&mesmoDia(o.data_hora,1)).length;
+  const totalSemana=ocorrencias.filter(o=>{const t=new Date(o.data_hora).getTime();return pend(o)&&t>=agora&&t<=em7;}).length;
+
+  return (
+    <div>
+      {banner&&<div style={{background:banner[0]==="ok"?"#DCFCE7":"#FEE2E2",color:banner[0]==="ok"?"#166534":"#991B1B",borderRadius:10,padding:"10px 14px",fontSize:13,fontWeight:600,marginBottom:16}}>{banner[1]}</div>}
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:isMobile?8:16,marginBottom:20}}>
+        <MC compact={isMobile} label="Hoje" value={totalHoje} icon={IC.cal}/>
+        <MC compact={isMobile} label="Amanhã" value={totalAmanha} icon={IC.clock} bg="#EFF6FF"/>
+        <MC compact={isMobile} label="Próx. 7 dias" value={totalSemana} icon={IC.repeat} bg="#F0FDF4"/>
+      </div>
+
+      <div style={{display:"flex",gap:isMobile?8:12,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
+        {[{value:"todos",label:"Todos"},...Object.entries(TIPO_AGENDA).map(([value,t])=>({value,label:`${t.emoji} ${t.label}`}))].map(fi=><Btn key={fi.value} size="sm" variant={filtro===fi.value?"secondary":"ghost"} onClick={()=>setFiltro(fi.value)}>{fi.label} <span style={{marginLeft:6,background:filtro===fi.value?"rgba(255,255,255,0.25)":"#EEF3F8",borderRadius:99,padding:"0 6px",fontSize:11,fontWeight:800,color:filtro===fi.value?"#fff":"#64748B"}}>{ocsSemana.filter(o=>fi.value==="todos"||agendaDe(o)?.tipo===fi.value).length}</span></Btn>)}
+        <div style={{flex:1}}/>
+        {!notifOk&&<Btn variant="ghost" onClick={ativarNotif}>🔔 Ativar notificações</Btn>}
+        <Btn onClick={openNew}>+ Nova Agenda</Btn>
+      </div>
+
+      <Card style={{padding:0,marginBottom:24}}>
+        <div style={{padding:"16px 18px 12px",fontSize:14,fontWeight:800,color:"#111827",display:"flex",alignItems:"center",gap:8}}><span style={{color:"#FF6200",display:"flex"}}>{IC.repeat}</span>Agendas fixas <span style={{fontSize:12,color:"#64748B",fontWeight:600}}>· {agendas.length} ativa{agendas.length!==1?"s":""}</span></div>
+        <Tbl cols={["Cliente","Tipo","Dias","Horário","Responsável","Ações"]}
+          rows={agendas.map(a=>[
+            <div><div style={{fontWeight:700,color:"#111827"}}>{nomeCli(a.cliente_id)}</div>{a.local_descricao&&<div style={{fontSize:11,color:"#64748B"}}>{a.local_descricao}</div>}</div>,
+            <TipoAgendaBadge tipo={a.tipo}/>,
+            <span style={{whiteSpace:"nowrap"}}>{diasLabel(a.dias_semana)}</span>,
+            <span style={{fontWeight:700,whiteSpace:"nowrap"}}>{String(a.horario).slice(0,5)}</span>,
+            nomeResp(a.responsavel_id)||<span style={{color:"#94A3B8"}}>—</span>,
+            <div style={{display:"flex",gap:6}}>
+              <Btn size="sm" variant="ghost" onClick={()=>openEdit(a)}>{IC.edit}</Btn>
+              <Btn size="sm" variant="danger" onClick={()=>setConfirm(a)}>{IC.trash}</Btn>
+            </div>
+          ])}/>
+      </Card>
+
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+        <h2 style={{margin:0,fontSize:18,fontWeight:800,color:"#111827",marginRight:"auto"}}>{semanaOffset===0?"Esta semana":semanaOffset===1?"Próxima semana":semanaOffset===-1?"Semana passada":"Semana"} <span style={{fontSize:13,fontWeight:600,color:"#64748B"}}>· {fmtDM(segunda)} – {fmtDM(fimSemana)}</span></h2>
+        <Btn size="sm" variant="ghost" onClick={()=>setSemanaOffset(o=>o-1)}>← Anterior</Btn>
+        <Btn size="sm" variant={semanaOffset===0?"secondary":"ghost"} onClick={()=>setSemanaOffset(0)}>Hoje</Btn>
+        <Btn size="sm" variant="ghost" onClick={()=>setSemanaOffset(o=>o+1)}>Próxima →</Btn>
+      </div>
+      <div style={{overflowX:"auto",paddingBottom:8}}>
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(7,minmax(140px,1fr))":"repeat(7,1fr)",gap:10}}>
+          {diasSemana.map(col=>{
+            const ehHoje=col.data.toDateString()===hojeKey;
+            return (
+              <div key={col.dia} style={{display:"flex",flexDirection:"column",minHeight:200,background:"#F0F4F9",borderRadius:12,overflow:"hidden",minWidth:0}}>
+                <div style={{background:ehHoje?"#FF6200":"#F8FAFC",color:ehHoje?"#fff":"#1F2F46",padding:"8px 10px",textAlign:"center",borderBottom:ehHoje?"none":"1px solid #DDE5EF"}}>
+                  <div style={{fontSize:13,fontWeight:800}}>{col.label}</div>
+                  <div style={{fontSize:11,fontWeight:600,opacity:ehHoje?0.9:0.6}}>{col.data.getDate()}</div>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8,padding:8,flex:1}}>
+                  {col.ocs.map(o=>{
+                    const ag=agendaDe(o);if(!ag) return null;
+                    const t=TIPO_AGENDA[ag.tipo];
+                    const resp=nomeResp(ag.responsavel_id);
+                    return (
+                      <div key={o.id} title={ag.briefing||""} style={{background:"#fff",borderRadius:8,padding:10,boxShadow:"0 1px 3px rgba(0,0,0,0.06)",borderLeft:`3px solid ${t.color}`,opacity:o.status==="pendente"?1:0.55}}>
+                        <div style={{fontSize:13,fontWeight:800,color:"#111827",textDecoration:o.status==="cancelada"?"line-through":"none"}}>{fmtHora(o.data_hora)}</div>
+                        <div style={{fontSize:12,fontWeight:700,color:"#1F2F46",margin:"2px 0 6px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nomeCli(ag.cliente_id)}</div>
+                        <TipoAgendaBadge tipo={ag.tipo}/>
+                        {resp&&<div style={{fontSize:11,color:"#64748B",marginTop:6,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>👤 {resp}</div>}
+                        <div style={{display:"flex",gap:4,marginTop:8,alignItems:"center"}}>
+                          {o.status==="pendente"
+                            ?<><Btn size="sm" variant="success" style={{flex:1,padding:"3px 6px"}} onClick={()=>setStatusOc(o.id,"feita")}>✓</Btn><Btn size="sm" variant="ghost" style={{flex:1,padding:"3px 6px"}} onClick={()=>setStatusOc(o.id,"cancelada")}>✕</Btn></>
+                            :<><div style={{flex:1}}><StatusBadge status={o.status}/></div><Btn size="sm" variant="ghost" style={{padding:"3px 6px"}} onClick={()=>setStatusOc(o.id,"pendente")}>↺</Btn></>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {col.ocs.length===0&&<div style={{color:"#94A3B8",fontSize:12,textAlign:"center",padding:"20px 0"}}>—</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {modal&&<Modal title={editing?"Editar Agenda":"Nova Agenda Recorrente"} onClose={()=>setModal(false)}>
+        <FSel label="Cliente *" value={form.cliente_id} onChange={v=>f("cliente_id",v)} options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.id,label:c.name}))]}/>
+        <FSel label="Tipo *" value={form.tipo} onChange={v=>f("tipo",v)} options={Object.entries(TIPO_AGENDA).map(([value,t])=>({value,label:`${t.emoji} ${t.label}`}))}/>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>Dias da semana *</label>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {DIAS_SEMANA.map(d=>{const on=form.dias_semana.includes(d.value);return (
+              <label key={d.value} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:700,border:`1.5px solid ${on?"#FF6200":"#DDE5EF"}`,background:on?"#FFF7F3":"#FAFBFD",color:on?"#FF6200":"#374151"}}>
+                <input type="checkbox" checked={on} onChange={()=>toggleDia(d.value)} style={{accentColor:"#FF6200",margin:0}}/>{d.label}
+              </label>
+            );})}
+          </div>
+        </div>
+        <FInput label="Horário *" value={form.horario} onChange={v=>f("horario",v)} type="time"/>
+        <FInput label="Local / Descrição" value={form.local_descricao} onChange={v=>f("local_descricao",v)} placeholder="Ex.: Studio da agência, sala de reuniões..."/>
+        <FSel label="Responsável" value={form.responsavel_id} onChange={v=>f("responsavel_id",v)} options={[{value:"",label:"Selecione..."},...equipe.map(e=>({value:e.id,label:e.nome}))]}/>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>Briefing</label>
+          <textarea value={form.briefing} onChange={e=>f("briefing",e.target.value)} rows={3} placeholder="O que será feito..." style={{width:"100%",padding:"9px 13px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit",boxSizing:"border-box",background:"#FAFBFD",resize:"vertical"}}/>
+        </div>
+        <div style={{background:"#FFF7F3",border:"1px solid #FFD8BF",color:"#9A3412",borderRadius:10,padding:"10px 14px",fontSize:12,fontWeight:600,marginBottom:16}}>
+          {editing?"Salvar vai regenerar as ocorrências pendentes futuras.":`Serão geradas automaticamente as ocorrências das próximas ${AGENDA_SEMANAS} semanas.`}
+        </div>
+        <div style={{display:"flex",gap:10}}><Btn style={{flex:1}} onClick={save} disabled={saving||!form.cliente_id||form.dias_semana.length===0||!form.horario}>{saving?"Salvando...":"Salvar"}</Btn><Btn variant="ghost" onClick={()=>setModal(false)} style={{flex:1}}>Cancelar</Btn></div>
+      </Modal>}
+      {confirm&&<ConfirmModal msg={`Excluir a agenda de "${nomeCli(confirm.cliente_id)}"? As ocorrências futuras também serão removidas.`} onConfirm={()=>remove(confirm)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
+// ── TAREFAS KANBAN ────────────────────────────────────────────────────────────
+const BLANK_TASK={titulo:"",cliente:"",responsavel:"",prioridade:"media",status:"a_fazer",tipo:"Design",entrega:""};
+
+const TarefasPage=({tasks,setTasks,clients,equipe,loading})=>{
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState(BLANK_TASK);
+  const [editing,setEditing]=useState(null);
+  const [confirm,setConfirm]=useState(null);
+  const [dragId,setDragId]=useState(null);
+  const [filter,setFilter]=useState("");
+  const [saving,setSaving]=useState(false);
+
+  const cols=[{id:"a_fazer",label:"A Fazer",color:"#1D4ED8"},{id:"em_producao",label:"Em Produção",color:"#FF6200"},{id:"aguardando",label:"Aguardando",color:"#7C3AED"},{id:"ajustes",label:"Ajustes",color:"#F59E0B"},{id:"finalizado",label:"Finalizado",color:"#10B981"},{id:"atrasado",label:"Atrasado",color:"#EF4444"}];
+  const fl=tasks.filter(t=>filter===""||t.cliente?.toLowerCase().includes(filter.toLowerCase())||t.responsavel?.toLowerCase().includes(filter.toLowerCase()));
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  const openNew=()=>{setForm(BLANK_TASK);setEditing(null);setModal(true);};
+  const openEdit=(t)=>{setForm({...t,entrega:t.entrega?.split("T")[0]||t.entrega});setEditing(t.id);setModal(true);};
+
+const drop=async(newStatus,taskId?)=>{
+  const id=taskId||dragId;
+  if(!id) return;
+  await supabase.from("tarefas").update({status:newStatus}).eq("id",id);
+  setTasks(prev=>prev.map(t=>t.id===id?{...t,status:newStatus}:t));
+  setDragId(null);
+};
+  const save=async()=>{
+    if(!form.titulo){return;}
+    setSaving(true);
+    const data={titulo:form.titulo,cliente:form.cliente,responsavel:form.responsavel,prioridade:form.prioridade,status:form.status,tipo:form.tipo,entrega:form.entrega};
+    if(editing){
+      await supabase.from("tarefas").update(data).eq("id",editing);
+      setTasks(prev=>prev.map(t=>t.id===editing?{...t,...data}:t));
+    } else {
+      const {data:ins}=await supabase.from("tarefas").insert([data]).select();
+      if(ins) setTasks(prev=>[...prev,...ins]);
+    }
+    setSaving(false);setModal(false);
+  };
+
+  const remove=async(id)=>{
+    await supabase.from("tarefas").delete().eq("id",id);
+    setTasks(prev=>prev.filter(t=>t.id!==id));
+    setConfirm(null);
+  };
+
+  if(loading) return <Loading/>;
+  return (
+    <div>
+      <div style={{display:"flex",gap:12,marginBottom:18,alignItems:"center"}}>
+        <input value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Filtrar por cliente ou responsável..." style={{flex:1,padding:"9px 14px",borderRadius:9,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit"}}/>
+        <Btn onClick={openNew}>+ Nova Tarefa</Btn>
+      </div>
+      <div style={{display:"flex",gap:14,overflowX:"auto",paddingBottom:16}}>
+        {cols.map(col=>{
+          const ct=fl.filter(t=>t.status===col.id);
+          return (
+            <div key={col.id} style={{minWidth:240,flex:"0 0 240px"}} onDragOver={e=>e.preventDefault()} onDrop={()=>drop(col.id)}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                <div style={{width:10,height:10,borderRadius:99,background:col.color}}/>
+                <span style={{fontSize:13,fontWeight:800,color:"#1F2F46"}}>{col.label}</span>
+                <span style={{marginLeft:"auto",background:"#EEF3F8",borderRadius:99,padding:"1px 9px",fontSize:11,fontWeight:700,color:"#64748B"}}>{ct.length}</span>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:10,minHeight:120,background:"#F0F4F9",borderRadius:12,padding:10}}>
+                {ct.map(t=>(
+                  <div key={t.id} draggable onDragStart={()=>setDragId(t.id)} style={{background:"#fff",borderRadius:10,padding:"12px 14px",boxShadow:"0 1px 3px rgba(0,0,0,0.06)",cursor:"grab",borderLeft:`3px solid ${col.color}`,userSelect:"none"}}>
+  <div style={{fontSize:13,fontWeight:700,color:"#111827",marginBottom:4}}>{t.titulo}</div>
+  <div style={{fontSize:11,color:"#64748B",marginBottom:8}}>{t.cliente}</div>
+  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><PBadge p={t.prioridade}/><div style={{fontSize:11,color:"#64748B"}}>{t.responsavel}</div></div>
+  <div style={{fontSize:11,color:"#94A3B8",display:"flex",alignItems:"center",gap:4,marginBottom:8}}>{IC.clock} {fmtDate(t.entrega)}</div>
+  <div style={{display:"flex",gap:6,marginBottom:6}}>
+    <Btn size="sm" variant="ghost" style={{flex:1,padding:"4px 8px"}} onClick={()=>openEdit(t)}>{IC.edit}</Btn>
+    <Btn size="sm" variant="danger" style={{flex:1,padding:"4px 8px"}} onClick={()=>setConfirm(t)}>{IC.trash}</Btn>
+  </div>
+  <select onChange={e=>{if(e.target.value)drop(e.target.value,t.id);e.target.value="";}} style={{width:"100%",padding:"6px 10px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,color:"#64748B",background:"#F8FAFC",fontFamily:"inherit"}}>
+    <option value="">Mover para...</option>
+    {cols.filter(c=>c.id!==col.id).map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+  </select>
+</div>
+                ))}
+                {ct.length===0&&<div style={{color:"#94A3B8",fontSize:12,textAlign:"center",padding:"20px 0"}}>Solte aqui</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {modal&&<Modal title={editing?"Editar Tarefa":"Nova Tarefa"} onClose={()=>setModal(false)}>
+        <FInput label="Título *" value={form.titulo} onChange={v=>f("titulo",v)} placeholder="Arte Dia dos Namorados"/>
+        <FSel label="Cliente" value={form.cliente} onChange={v=>f("cliente",v)} options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.name,label:c.name}))]}/>
+        <FSel label="Responsável" value={form.responsavel} onChange={v=>f("responsavel",v)} options={[{value:"",label:"Selecione..."},...equipe.map(e=>({value:e.nome.split(" ")[0],label:e.nome}))]}/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <FSel label="Prioridade" value={form.prioridade} onChange={v=>f("prioridade",v)} options={["baixa","media","alta","urgente"].map(p=>({value:p,label:p.charAt(0).toUpperCase()+p.slice(1)}))}/>
+          <FSel label="Tipo" value={form.tipo} onChange={v=>f("tipo",v)} options={["Design","Vídeo","Tráfego pago","Relatório","Aprovação","Conteúdo"].map(t=>({value:t,label:t}))}/>
+        </div>
+        <FSel label="Status" value={form.status} onChange={v=>f("status",v)} options={["a_fazer","em_producao","aguardando","ajustes","finalizado","atrasado"].map(s=>({value:s,label:s.replace("_"," ").replace(/\b\w/g,l=>l.toUpperCase())}))}/>
+        <FInput label="Data de entrega" value={form.entrega} onChange={v=>f("entrega",v)} type="date"/>
+        <div style={{display:"flex",gap:10}}><Btn style={{flex:1}} onClick={save} disabled={saving}>{saving?"Salvando...":"Salvar"}</Btn><Btn variant="ghost" onClick={()=>setModal(false)} style={{flex:1}}>Cancelar</Btn></div>
+      </Modal>}
+      {confirm&&<ConfirmModal msg={`Remover tarefa "${confirm.titulo}"?`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
+// ── EQUIPE ────────────────────────────────────────────────────────────────────
+const BLANK_EQ={nome:"",funcao:"",tipo:"fixo",status:"ativo",whatsapp:""};
+
+const EquipePage=({equipe,setEquipe,tasks,loading})=>{
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState(BLANK_EQ);
+  const [editing,setEditing]=useState(null);
+  const [confirm,setConfirm]=useState(null);
+  const [verTarefas,setVerTarefas]=useState(null);
+  const [saving,setSaving]=useState(false);
+
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const openNew=()=>{setForm(BLANK_EQ);setEditing(null);setModal(true);};
+  const openEdit=(e)=>{setForm({...e});setEditing(e.id);setModal(true);};
+
+  const save=async()=>{
+    if(!form.nome){return;}
+    setSaving(true);
+    const data={nome:form.nome,funcao:form.funcao,tipo:form.tipo,status:form.status,whatsapp:form.whatsapp};
+    if(editing){
+      await supabase.from("colaboradores").update(data).eq("id",editing);
+      setEquipe(prev=>prev.map(e=>e.id===editing?{...e,...data}:e));
+    } else {
+      const {data:ins}=await supabase.from("colaboradores").insert([data]).select();
+      if(ins) setEquipe(prev=>[...prev,...ins]);
+    }
+    setSaving(false);setModal(false);
+  };
+
+  const remove=async(id)=>{
+    await supabase.from("colaboradores").delete().eq("id",id);
+    setEquipe(prev=>prev.filter(e=>e.id!==id));
+    setConfirm(null);
+  };
+
+  if(loading) return <Loading/>;
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:18}}><Btn onClick={openNew}>+ Adicionar Colaborador</Btn></div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
+        {equipe.map(e=>{
+          const primeiroNome=e.nome.split(" ")[0];
+          const tf=tasks.filter(t=>t.responsavel===primeiroNome);
+          const at=tf.filter(t=>t.status==="atrasado");
+          return (
+            <Card key={e.id}>
+              <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:14}}>
+                <div style={{width:50,height:50,background:"linear-gradient(135deg,#1F2F46,#2D4A6A)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:20,fontWeight:800}}>{e.nome.charAt(0)}</div>
+                <div>
+                  <div style={{fontSize:15,fontWeight:800,color:"#111827"}}>{e.nome}</div>
+                  <div style={{fontSize:12,color:"#64748B"}}>{e.funcao}</div>
+                  <span style={{background:e.tipo==="fixo"?"#EFF6FF":"#F5F3FF",color:e.tipo==="fixo"?"#1D4ED8":"#7C3AED",fontSize:11,fontWeight:700,borderRadius:6,padding:"2px 8px"}}>{e.tipo?.charAt(0).toUpperCase()+e.tipo?.slice(1)}</span>
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
+                <div style={{background:"#F8FAFC",borderRadius:8,padding:"8px 10px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:"#111827"}}>{tf.length}</div><div style={{fontSize:10,color:"#64748B",fontWeight:600}}>Total</div></div>
+                <div style={{background:"#ECFDF5",borderRadius:8,padding:"8px 10px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:"#10B981"}}>{tf.filter(t=>t.status==="finalizado").length}</div><div style={{fontSize:10,color:"#10B981",fontWeight:600}}>Feitas</div></div>
+                <div style={{background:at.length>0?"#FEF2F2":"#F8FAFC",borderRadius:8,padding:"8px 10px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:at.length>0?"#EF4444":"#94A3B8"}}>{at.length}</div><div style={{fontSize:10,color:"#64748B",fontWeight:600}}>Atras.</div></div>
+              </div>
+              <div style={{fontSize:12,color:"#64748B",marginBottom:12}}>{e.whatsapp}</div>
+              <div style={{display:"flex",gap:8}}>
+                <Btn size="sm" variant="ghost" style={{flex:1}} onClick={()=>setVerTarefas({nome:e.nome,tasks:tf})}>Ver tarefas</Btn>
+                <Btn size="sm" variant="ghost" onClick={()=>openEdit(e)}>{IC.edit}</Btn>
+                <Btn size="sm" variant="danger" onClick={()=>setConfirm(e)}>{IC.trash}</Btn>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {verTarefas&&<Modal title={`Tarefas — ${verTarefas.nome}`} onClose={()=>setVerTarefas(null)}>
+        {verTarefas.tasks.length===0?<div style={{textAlign:"center",color:"#64748B",padding:"20px 0"}}>Nenhuma tarefa atribuída.</div>:verTarefas.tasks.map(t=>(
+          <div key={t.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:"#F8FAFC",borderRadius:10,marginBottom:8}}>
+            <div><div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{t.titulo}</div><div style={{fontSize:11,color:"#64748B"}}>{t.cliente} · {fmtDate(t.entrega)}</div></div>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}><PBadge p={t.prioridade}/><StatusBadge status={t.status}/></div>
+          </div>
+        ))}
+      </Modal>}
+
+      {modal&&<Modal title={editing?"Editar Colaborador":"Novo Colaborador"} onClose={()=>setModal(false)}>
+        <FInput label="Nome completo *" value={form.nome} onChange={v=>f("nome",v)} placeholder="Juliana Ferreira"/>
+        <FInput label="Função" value={form.funcao} onChange={v=>f("funcao",v)} placeholder="Designer"/>
+        <FInput label="WhatsApp" value={form.whatsapp} onChange={v=>f("whatsapp",v)} placeholder="94997001122"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <FSel label="Tipo" value={form.tipo} onChange={v=>f("tipo",v)} options={[{value:"fixo",label:"Fixo"},{value:"freelancer",label:"Freelancer"}]}/>
+          <FSel label="Status" value={form.status} onChange={v=>f("status",v)} options={[{value:"ativo",label:"Ativo"},{value:"inativo",label:"Inativo"}]}/>
+        </div>
+        <div style={{display:"flex",gap:10}}><Btn style={{flex:1}} onClick={save} disabled={saving}>{saving?"Salvando...":"Salvar"}</Btn><Btn variant="ghost" onClick={()=>setModal(false)} style={{flex:1}}>Cancelar</Btn></div>
+      </Modal>}
+
+      {confirm&&<ConfirmModal msg={`Remover "${confirm.nome}" da equipe?`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
+// ── CALENDÁRIO ────────────────────────────────────────────────────────────────
+const MOCK_DATAS=[
+  {id:1,nome:"Dia dos Namorados",data:"12/06/2026",tipo:"Comercial",nivel:"alto",nichos:["Restaurantes","Floricultura","Moda","Presentes"],status:"urgente"},
+  {id:2,nome:"Festa Junina / São João",data:"24/06/2026",tipo:"Sazonal",nivel:"medio",nichos:["Alimentação","Vestuário","Eventos"],status:"planejar"},
+  {id:3,nome:"Dia do Psicólogo",data:"27/05/2026",tipo:"Nicho",nivel:"medio",nichos:["Saúde","Clínicas","Bem-estar"],status:"urgente"},
+  {id:4,nome:"Dia do Hambúrguer",data:"28/05/2026",tipo:"Nicho",nivel:"medio",nichos:["Alimentação","Restaurantes","Delivery"],status:"urgente"},
+  {id:5,nome:"Dia do Recepcionista",data:"28/05/2026",tipo:"Nicho",nivel:"medio",nichos:["Clínicas","Empresas","Serviços"],status:"urgente"},
+  {id:6,nome:"Dia Mundial do Meio Ambiente",data:"05/06/2026",tipo:"Sazonal",nivel:"medio",nichos:["Todos os nichos"],status:"planejar"},
+  {id:7,nome:"Dia dos Pais",data:"09/08/2026",tipo:"Comercial",nivel:"alto",nichos:["Presentes","Moda","Restaurantes","Eletrônicos"],status:"futuro"},
+  {id:8,nome:"Dia do Cliente",data:"15/09/2026",tipo:"Comercial",nivel:"alto",nichos:["Todos os nichos"],status:"futuro"},
+  {id:9,nome:"Dia das Crianças",data:"12/10/2026",tipo:"Comercial",nivel:"alto",nichos:["Brinquedos","Moda Infantil","Alimentação"],status:"futuro"},
+  {id:10,nome:"Halloween",data:"31/10/2026",tipo:"Comercial",nivel:"medio",nichos:["Festas","Alimentação","Moda"],status:"futuro"},
+  {id:11,nome:"Black Friday",data:"27/11/2026",tipo:"Comercial",nivel:"critico",nichos:["Todos os nichos"],status:"futuro"},
+  {id:12,nome:"Natal",data:"25/12/2026",tipo:"Comercial",nivel:"critico",nichos:["Todos os nichos"],status:"futuro"},
+  {id:13,nome:"Ano Novo",data:"01/01/2027",tipo:"Comercial",nivel:"alto",nichos:["Festas","Restaurantes","Viagens"],status:"futuro"},
+  {id:14,nome:"Aniversário de Marabá",data:"04/04/2027",tipo:"Local",nivel:"medio",nichos:["Comércio local","Serviços"],status:"futuro"},
+];
+const CalendarioPage=()=>{
+  const [sel,setSel]=useState(null);
+  const nm={alto:"#FF6200",medio:"#F59E0B",critico:"#EF4444"};
+  return (
+    <div>
+      <div style={{fontSize:13,color:"#64748B",marginBottom:20}}>Datas comemorativas e oportunidades para seus clientes</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14}}>
+        {MOCK_DATAS.filter(d=>{
+  const [dia,mes,ano]=d.data.split("/").map(Number);
+  const dataEvento=new Date(ano,mes-1,dia);
+  const hoje=new Date();
+  const doisMeses=new Date();
+  doisMeses.setMonth(doisMeses.getMonth()+2);
+  const importante=d.nivel==="critico"||d.nivel==="alto";
+  return dataEvento>=hoje && dataEvento<=doisMeses;
+}).map(d=>(
+          <Card key={d.id} onClick={()=>setSel(d)} style={{cursor:"pointer",borderLeft:`4px solid ${nm[d.nivel]||"#64748B"}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+              <div><div style={{fontSize:15,fontWeight:800,color:"#111827"}}>{d.nome}</div><div style={{fontSize:12,color:"#64748B",marginTop:2}}>{d.data}</div></div>
+              <StatusBadge status={d.status}/>
+            </div>
+            <div style={{fontSize:12,color:"#64748B"}}>Nichos: {d.nichos.slice(0,3).join(", ")}</div>
+          </Card>
+        ))}
+      </div>
+      {sel&&<Modal title={sel.nome} onClose={()=>setSel(null)}>
+        <div style={{background:"#EEF3F8",borderRadius:10,padding:"14px 16px",marginBottom:16,fontSize:13,fontWeight:700,color:"#111827"}}>{sel.data} · {sel.tipo}</div>
+        <div style={{marginBottom:14}}><div style={{fontSize:12,fontWeight:700,color:"#64748B",textTransform:"uppercase",letterSpacing:0.5,marginBottom:8}}>Nichos</div><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{sel.nichos.map(n=><span key={n} style={{background:"#FFF7F3",color:"#FF6200",borderRadius:8,padding:"4px 12px",fontSize:12,fontWeight:700}}>{n}</span>)}</div></div>
+        <div style={{display:"flex",gap:10}}><Btn style={{flex:1}}>Criar Campanha</Btn><Btn variant="secondary" style={{flex:1}}>Criar Tarefas</Btn></div>
+      </Modal>}
+    </div>
+  );
+};
+
+// ── TRÁFEGO ───────────────────────────────────────────────────────────────────
+const META_TOKEN = "EAANu31tVGzQBRj3NDQ4dzbRJB8OqmKypfUtmZCOdhgdsCU3yeyn4IEWIAP4qAR3yQ8F6YZCUsQKLAoijwM9dHMrkZAW62jk8LwvC95zuwYRYACEIOoNZC4kmJQ7bTywjGLW0bJCI54ZAFuov9Fs83AK1kNZBZAm2vDw0o5kPczdS2klWnFdJEstet5rCgU1lt30PAZDZD";
+
+const META_CONTAS = [
+  { id: "65170252229843",    cliente: "Medellin",     plataforma: "Meta Ads" },
+  { id: "750043358048860",   cliente: "Lá em Casa",   plataforma: "Meta Ads" },
+  { id: "141116179588051",   cliente: "Ki-Burg",      plataforma: "Meta Ads" },
+  { id: "1104013311850054",  cliente: "Di Chinello",  plataforma: "Meta Ads" },
+  { id: "861354603644905",   cliente: "L&A Pneus",    plataforma: "Meta Ads" },
+  { id: "1383953866799392",  cliente: "MarketForge",  plataforma: "Meta Ads" },
+  { id: "286396705545158",  cliente: "Dolce Morena",  plataforma: "Meta Ads" },
+];
+
+const TráfegoPage = () => {
+  const [contas, setContas] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [ultimaAtualizacao, setUltimaAtualizacao] = useState(null);
+  const [erro, setErro] = useState("");
+
+  const getStatus = (saldo) => {
+    if (saldo <= 0) return "zerado";
+    if (saldo < 100) return "baixo";
+    return "ok";
+  };
+
+  const buscarSaldos = async () => {
+    setLoading(true);
+    setErro("");
+    const resultados = [];
+    for (const conta of META_CONTAS) {
+      try {
+        const res = await fetch(
+  `https://graph.facebook.com/v25.0/act_${conta.id}?fields=name,balance,currency,amount_spent,spend_cap&access_token=${META_TOKEN}`
+);
+        const json = await res.json();
+        if (json.error) {
+          resultados.push({ ...conta, saldo: null, gasto: null, moeda: "BRL", erro: json.error.message, status: "zerado" });
+        } else {
+          const balance = Number(json.balance);
+const spendCap = Number(json.spend_cap);
+const amountSpent = Number(json.amount_spent);
+
+// Se tem spend_cap, calcula saldo como cap - gasto
+const saldo = spendCap > 0
+  ? (spendCap - amountSpent) / 100
+  : balance / 100;
+const gasto = amountSpent / 100;
+          resultados.push({ ...conta, nomeReal: json.name, saldo, gasto, moeda: json.currency || "BRL", status: getStatus(saldo), erro: null });
+        }
+      } catch (e) {
+        resultados.push({ ...conta, saldo: null, gasto: null, erro: "Erro de rede", status: "zerado" });
+      }
+    }
+    setContas(resultados);
+    setUltimaAtualizacao(new Date().toLocaleTimeString("pt-BR"));
+    setLoading(false);
+  };
+
+  useEffect(() => { buscarSaldos(); }, []);
+
+  const totalSaldo = contas.filter(c => c.saldo !== null).reduce((a, c) => a + c.saldo, 0);
+  const totalGasto = contas.filter(c => c.gasto !== null).reduce((a, c) => a + c.gasto, 0);
+  const semSaldo = contas.filter(c => c.status !== "ok").length;
+
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:12}}>
+        <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
+          <MC label="Saldo total" value={`R$ ${totalSaldo.toLocaleString("pt-BR",{minimumFractionDigits:2})}`} icon={IC.money} bg="#ECFDF5"/>
+          <MC label="Total gasto" value={`R$ ${totalGasto.toLocaleString("pt-BR",{minimumFractionDigits:2})}`} icon={IC.chart} bg="#FEF2F2"/>
+          <MC label="Atenção" value={semSaldo} icon={IC.alert} bg="#FFFBEB"/>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
+          <Btn onClick={buscarSaldos} disabled={loading} variant="secondary">{loading?"Atualizando...":"⟳ Atualizar Saldos"}</Btn>
+          {ultimaAtualizacao&&<span style={{fontSize:11,color:"#94A3B8"}}>Última atualização: {ultimaAtualizacao}</span>}
+        </div>
+      </div>
+      {erro&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,padding:"12px 16px",marginBottom:16,fontSize:13,color:"#991B1B"}}>{erro}</div>}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:16}}>
+        {contas.length===0&&loading&&[1,2,3,4,5,6].map(i=>(
+          <Card key={i} style={{borderLeft:"4px solid #EEF3F8",opacity:0.5}}>
+            <div style={{height:80,background:"#F8FAFC",borderRadius:8}}/>
+          </Card>
+        ))}
+        {contas.map((t,i)=>{
+          const cor=t.status==="ok"?"#10B981":t.status==="baixo"?"#F59E0B":"#EF4444";
+          return (
+            <Card key={i} style={{borderLeft:`4px solid ${cor}`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+                <div>
+                  <div style={{fontSize:15,fontWeight:800,color:"#111827"}}>{t.cliente}</div>
+                  <div style={{fontSize:12,color:"#64748B"}}>{t.plataforma}</div>
+                  {t.nomeReal&&t.nomeReal!==t.cliente&&<div style={{fontSize:11,color:"#94A3B8",marginTop:2}}>{t.nomeReal}</div>}
+                </div>
+                <StatusBadge status={t.status}/>
+              </div>
+              {t.erro?(
+                <div style={{background:"#FEF2F2",borderRadius:8,padding:"10px 12px",fontSize:12,color:"#991B1B"}}>⚠️ {t.erro}</div>
+              ):(
+                <>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+                    <div style={{background:"#F8FAFC",borderRadius:8,padding:"10px 12px"}}>
+                      <div style={{fontSize:10,color:"#64748B",fontWeight:700,textTransform:"uppercase",marginBottom:4}}>Saldo Disponível</div>
+                      <div style={{fontSize:18,fontWeight:800,color:t.saldo<100?"#EF4444":"#10B981"}}>R$ {t.saldo?.toLocaleString("pt-BR",{minimumFractionDigits:2})??"—"}</div>
+                    </div>
+                    <div style={{background:"#F8FAFC",borderRadius:8,padding:"10px 12px"}}>
+                      <div style={{fontSize:10,color:"#64748B",fontWeight:700,textTransform:"uppercase",marginBottom:4}}>Total Gasto</div>
+                      <div style={{fontSize:18,fontWeight:800,color:"#EF4444"}}>R$ {t.gasto?.toLocaleString("pt-BR",{minimumFractionDigits:2})??"—"}</div>
+                    </div>
+                  </div>
+                  {t.status!=="ok"&&<div style={{marginTop:4}}><Btn size="sm" style={{width:"100%"}}>{t.status==="zerado"?"🚨 Campanha pausada — Solicitar recarga":"⚠️ Saldo baixo — Solicitar recarga"}</Btn></div>}
+                </>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+// ── MODELOS ───────────────────────────────────────────────────────────────────
+const MODELOS=[
+  {cat:"Cobrança",nome:"Lembrete 3 dias antes",msg:"Olá, {{nome}}! Passando para lembrar que a mensalidade referente aos serviços da MarketForge vence no dia {{data}}. Valor: R$ {{valor}}. Qualquer dúvida, estou à disposição."},
+  {cat:"Cobrança",nome:"Vencimento hoje",msg:"Olá, {{nome}}! Hoje é o vencimento da mensalidade referente aos serviços da MarketForge. Valor: R$ {{valor}}. Pode enviar o comprovante por aqui assim que realizar o pagamento."},
+  {cat:"Cobrança",nome:"2 dias em atraso",msg:"Olá, {{nome}}! Identificamos que a mensalidade com vencimento em {{data}} ainda consta como pendente. Consegue verificar para a gente, por favor?"},
+  {cat:"Tráfego",nome:"Saldo baixo",msg:"Olá, {{nome}}! O saldo atual da campanha é de R$ {{saldo}}. Para mantermos os anúncios ativos sem interrupção, recomendamos uma nova recarga."},
+  {cat:"Equipe",nome:"Lembrete tarefa",msg:"Oi, {{colaborador}}! Você tem uma tarefa para entregar {{data}}: {{titulo}}. Cliente: {{cliente}}. Acesse o painel e atualize o status quando finalizar."},
+  {cat:"Contratos",nome:"Renovação de contrato",msg:"Olá, {{nome}}! Seu contrato com a MarketForge está próximo do vencimento. Podemos alinhar a renovação para manter a continuidade dos serviços."},
+];
+const MensagensPage=()=>{
+  const cats=[...new Set(MODELOS.map(m=>m.cat))];
+  const [ac,setAc]=useState("Cobrança");
+  const [cp,setCp]=useState(null);
+  const copy=(msg,i)=>{navigator.clipboard.writeText(msg).catch(()=>{});setCp(i);setTimeout(()=>setCp(null),2000);};
+  return (
+    <div>
+      <div style={{display:"flex",gap:8,marginBottom:20}}>{cats.map(c=><Btn key={c} size="sm" variant={ac===c?"secondary":"ghost"} onClick={()=>setAc(c)}>{c}</Btn>)}</div>
+      {MODELOS.filter(m=>m.cat===ac).map((m,i)=>(
+        <Card key={i} style={{marginBottom:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+            <span style={{fontSize:15,fontWeight:800,color:"#111827"}}>{m.nome}</span>
+            <Btn size="sm" variant={cp===i?"success":"ghost"} onClick={()=>copy(m.msg,i)}>{cp===i?"Copiado!":"Copiar"}</Btn>
+          </div>
+          <div style={{background:"#F8FAFC",borderRadius:10,padding:"14px 16px",fontSize:13,color:"#374151",lineHeight:1.6}}>
+            {m.msg.split(/({{[^}]+}})/).map((part,j)=>/{{.+}}/.test(part)?<span key={j} style={{background:"#FFF7F3",color:"#FF6200",fontWeight:700,borderRadius:4,padding:"0 4px"}}>{part}</span>:part)}
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+};
+
+// ── RELATÓRIOS DE TRÁFEGO PAGO ─────────────────────────────────────────────────
+const BLANK_RELATORIO_FORM={clienteId:"",campanhaNome:"",objetivo:"",dataInicial:"",dataFinal:"",valorInvestido:"",valorGasto:"",valorProduto:"",qtdVendas:""};
+
+const calcDiasCampanha=(ini,fim)=>{
+  if(!ini||!fim) return 0;
+  const d1=new Date(ini+"T00:00:00"),d2=new Date(fim+"T00:00:00");
+  const diff=Math.round((d2-d1)/86400000)+1;
+  return diff>0?diff:0;
+};
+
+const RelatoriosTrafegoPage=({clients})=>{
+  const [relatorios,setRelatorios]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState(BLANK_RELATORIO_FORM);
+  const [desempenho,setDesempenho]=useState([{dia:"",mensagens:""}]);
+  const [confirm,setConfirm]=useState(null);
+  const [gerando,setGerando]=useState(false);
+  const [etapa,setEtapa]=useState("");
+  const [erro,setErro]=useState("");
+  const [pronto,setPronto]=useState(null);
+
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  const carregar=async()=>{
+    setLoading(true);
+    const {data,error}=await supabase.from("relatorios_trafego").select("*").order("created_at",{ascending:false});
+    if(!error&&data) setRelatorios(data);
+    setLoading(false);
+  };
+  useEffect(()=>{carregar();},[]);
+
+  const openNew=()=>{setForm(BLANK_RELATORIO_FORM);setDesempenho([{dia:"",mensagens:""}]);setErro("");setModal(true);};
+
+  const addLinha=()=>setDesempenho(p=>[...p,{dia:"",mensagens:""}]);
+  const removeLinha=(i)=>setDesempenho(p=>p.filter((_,idx)=>idx!==i));
+  const setLinha=(i,k,v)=>setDesempenho(p=>p.map((row,idx)=>idx===i?{...row,[k]:v}:row));
+
+  const dias=calcDiasCampanha(form.dataInicial,form.dataFinal);
+
+  const remove=async(id)=>{
+    await supabase.from("relatorios_trafego").delete().eq("id",id);
+    setRelatorios(prev=>prev.filter(r=>r.id!==id));
+    setConfirm(null);
+  };
+
+  const gerar=async()=>{
+    if(!form.clienteId||!form.campanhaNome||!form.dataInicial||!form.dataFinal||!form.valorInvestido){
+      setErro("Preencha cliente, campanha, período e valor investido.");
+      return;
+    }
+    const cliente=clients.find(c=>c.id===form.clienteId);
+    setErro("");setGerando(true);
+
+    const linhasValidas=desempenho.filter(d=>d.dia&&d.mensagens!=="").map(d=>({dia:d.dia,mensagens:Number(d.mensagens)}));
+    const totalMensagens=linhasValidas.reduce((a,d)=>a+d.mensagens,0);
+    const mediaDiaria=linhasValidas.length?Math.round((totalMensagens/linhasValidas.length)*10)/10:0;
+    const melhorDia=linhasValidas.length?linhasValidas.reduce((a,d)=>d.mensagens>a.mensagens?d:a):null;
+    const piorDia=linhasValidas.length?linhasValidas.reduce((a,d)=>d.mensagens<a.mensagens?d:a):null;
+    const valorInvestido=Number(form.valorInvestido);
+    const valorGasto=form.valorGasto?Number(form.valorGasto):null;
+    const valorProduto=form.valorProduto?Number(form.valorProduto):null;
+    const qtdVendas=form.qtdVendas?Number(form.qtdVendas):null;
+    const baseCusto=valorGasto!=null?valorGasto:valorInvestido;
+    const custoPorMensagem=totalMensagens>0?Math.round((baseCusto/totalMensagens)*100)/100:null;
+    const faturamentoEstimado=(qtdVendas&&valorProduto)?qtdVendas*valorProduto:null;
+    const roi=(faturamentoEstimado!=null&&valorInvestido>0)?Math.round(((faturamentoEstimado-valorInvestido)/valorInvestido)*1000)/10:null;
+
+    const metricas={clienteNome:cliente?.name,campanhaNome:form.campanhaNome,objetivo:form.objetivo,dias,valorInvestido,valorGasto,totalMensagens,mediaDiaria,melhorDia,piorDia,custoPorMensagem,qtdVendas,valorProduto,faturamentoEstimado,roi};
+
+    try{
+      setEtapa("Gerando análise com IA...");
+      const resIA=await fetch("/api/gerar-relatorio-trafego",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(metricas)});
+      const jsonIA=await resIA.json();
+      if(!resIA.ok||jsonIA.error) throw new Error(jsonIA.error||"Erro ao gerar textos com IA");
+
+      setEtapa("Salvando relatório...");
+      const registro={
+        cliente_id:form.clienteId,cliente_nome:cliente?.name||"",campanha_nome:form.campanhaNome,objetivo:form.objetivo,
+        data_inicial:form.dataInicial,data_final:form.dataFinal,valor_investido:valorInvestido,valor_gasto:valorGasto,
+        valor_produto:valorProduto,qtd_vendas:qtdVendas,desempenho_diario:linhasValidas,
+        analise_ia:jsonIA.analise_resultados,resumo_executivo_ia:jsonIA.resumo_executivo,
+        recomendacoes_ia:(jsonIA.recomendacoes||[]).map(r=>`- ${r}`).join("\n"),
+      };
+      const {data:ins,error:insErr}=await supabase.from("relatorios_trafego").insert([registro]).select();
+      if(insErr||!ins) throw new Error(insErr?.message||"Erro ao salvar relatório");
+      const novo=ins[0];
+      setRelatorios(prev=>[novo,...prev]);
+
+      setEtapa("Gerando PDF...");
+      const resPDF=await fetch("/api/gerar-pdf-trafego",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        relatorioId:novo.id,clienteNome:cliente?.name,clienteLogoUrl:cliente?.logo_url,campanhaNome:form.campanhaNome,objetivo:form.objetivo,
+        dataInicial:form.dataInicial,dataFinal:form.dataFinal,dias,valorInvestido,valorGasto,valorProduto,qtdVendas,
+        desempenhoDiario:linhasValidas,totalMensagens,mediaDiaria,melhorDia,piorDia,custoPorMensagem,faturamentoEstimado,roi,
+        resumoExecutivo:jsonIA.resumo_executivo,analiseResultados:jsonIA.analise_resultados,recomendacoes:jsonIA.recomendacoes,
+      })});
+      const jsonPDF=await resPDF.json();
+      if(!resPDF.ok||jsonPDF.error) throw new Error(jsonPDF.error||"Erro ao gerar PDF");
+
+      await supabase.from("relatorios_trafego").update({pdf_url:jsonPDF.pdfUrl}).eq("id",novo.id);
+      setRelatorios(prev=>prev.map(r=>r.id===novo.id?{...r,pdf_url:jsonPDF.pdfUrl}:r));
+
+      setPronto({pdfUrl:jsonPDF.pdfUrl,campanhaNome:form.campanhaNome});
+      setModal(false);
+    }catch(e){
+      setErro(e.message||"Erro ao gerar relatório");
+    }
+    setGerando(false);setEtapa("");
+  };
+
+  if(loading) return <Loading/>;
+
+  return (
+    <div>
+      <ST action={<Btn onClick={openNew} size="lg">+ Novo Relatório</Btn>}>Relatórios de Tráfego Pago</ST>
+
+      {relatorios.length===0?(
+        <Card style={{textAlign:"center",padding:48,color:"#64748B"}}>Nenhum relatório gerado ainda.</Card>
+      ):(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:16}}>
+          {relatorios.map(r=>{
+            const clienteRef=clients.find(c=>c.id===r.cliente_id);
+            return (
+              <Card key={r.id}>
+                <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:14}}>
+                  <ClientLogo url={clienteRef?.logo_url} name={r.cliente_nome} size={40}/>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:14,fontWeight:800,color:"#111827"}}>{r.cliente_nome}</div>
+                    <div style={{fontSize:12,color:"#64748B"}}>{r.campanha_nome}</div>
+                  </div>
+                  <Btn size="sm" variant="danger" onClick={()=>setConfirm(r)}>{IC.trash}</Btn>
+                </div>
+                <div style={{fontSize:12,color:"#64748B",marginBottom:14}}>{fmtDate(r.data_inicial)} — {fmtDate(r.data_final)}</div>
+                <div style={{display:"flex",gap:8}}>
+                  {r.pdf_url?(
+                    <>
+                      <Btn size="sm" style={{flex:1}} onClick={()=>window.open(r.pdf_url,"_blank")}>👁️ Ver PDF</Btn>
+                      <Btn size="sm" variant="ghost" style={{flex:1}} onClick={()=>{const a=document.createElement("a");a.href=r.pdf_url;a.download="";a.click();}}>⬇ Baixar</Btn>
+                    </>
+                  ):<span style={{fontSize:12,color:"#94A3B8"}}>PDF indisponível</span>}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {modal&&(
+        <Modal title="Novo Relatório de Tráfego Pago" onClose={()=>!gerando&&setModal(false)} width={640}>
+          <FSel label="Cliente" value={form.clienteId} onChange={v=>f("clienteId",v)} options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.id,label:c.name}))]}/>
+          <FInput label="Nome da campanha" value={form.campanhaNome} onChange={v=>f("campanhaNome",v)} placeholder="Ex: Campanha Dia das Mães"/>
+          <div style={{marginBottom:14}}>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>Objetivo da campanha</label>
+            <textarea value={form.objetivo} onChange={e=>f("objetivo",e.target.value)} rows={2} placeholder="Ex: Gerar mensagens no WhatsApp para agendamento de consultas"
+              style={{width:"100%",padding:"9px 13px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:13,color:"#111827",outline:"none",fontFamily:"inherit",boxSizing:"border-box",background:"#FAFBFD",resize:"vertical"}}/>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <FInput label="Data inicial" value={form.dataInicial} onChange={v=>f("dataInicial",v)} type="date"/>
+            <FInput label="Data final" value={form.dataFinal} onChange={v=>f("dataFinal",v)} type="date"/>
+          </div>
+          {form.dataInicial&&form.dataFinal&&<div style={{fontSize:12,color:"#64748B",marginTop:-8,marginBottom:14}}>{dias>0?`${dias} dias de campanha`:"Data final deve ser depois da inicial"}</div>}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+            <FInput label="Valor investido (R$)" value={form.valorInvestido} onChange={v=>f("valorInvestido",v)} type="number" placeholder="1000"/>
+            <FInput label="Valor gasto (opcional)" value={form.valorGasto} onChange={v=>f("valorGasto",v)} type="number" placeholder="980"/>
+            <FInput label="Qtd. vendas (opcional)" value={form.qtdVendas} onChange={v=>f("qtdVendas",v)} type="number" placeholder="12"/>
+          </div>
+          <FInput label="Valor do produto/serviço (opcional)" value={form.valorProduto} onChange={v=>f("valorProduto",v)} type="number" placeholder="150"/>
+
+          <div style={{marginTop:18,marginBottom:10,fontSize:13,fontWeight:800,color:"#111827"}}>Desempenho diário</div>
+          {desempenho.map((row,i)=>(
+            <div key={i} style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
+              <input type="date" value={row.dia} onChange={e=>setLinha(i,"dia",e.target.value)} style={{flex:2,padding:"8px 10px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,fontFamily:"inherit",background:"#FAFBFD"}}/>
+              <input type="number" value={row.mensagens} onChange={e=>setLinha(i,"mensagens",e.target.value)} placeholder="Mensagens" style={{flex:1,padding:"8px 10px",borderRadius:8,border:"1.5px solid #DDE5EF",fontSize:12,fontFamily:"inherit",background:"#FAFBFD"}}/>
+              <button onClick={()=>removeLinha(i)} disabled={desempenho.length===1} style={{background:"none",border:"none",cursor:desempenho.length===1?"not-allowed":"pointer",color:"#EF4444",opacity:desempenho.length===1?0.4:1}}>{IC.trash}</button>
+            </div>
+          ))}
+          <Btn variant="ghost" size="sm" onClick={addLinha} style={{marginBottom:20}}>+ Adicionar dia</Btn>
+
+          {erro&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",color:"#991B1B",borderRadius:8,padding:"10px 14px",fontSize:13,marginBottom:16}}>{erro}</div>}
+
+          <Btn onClick={gerar} disabled={gerando} size="lg" style={{width:"100%",background:"linear-gradient(135deg,#FF6200,#FF8C00)"}}>
+            {gerando?(etapa||"Gerando..."):"📄 Gerar Relatório"}
+          </Btn>
+        </Modal>
+      )}
+
+      {pronto&&(
+        <Modal title="Relatório pronto!" onClose={()=>setPronto(null)} width={420}>
+          <div style={{textAlign:"center",padding:"10px 0"}}>
+            <div style={{fontSize:40,marginBottom:14}}>✅</div>
+            <div style={{fontSize:14,color:"#374151",marginBottom:24}}>O relatório da campanha "{pronto.campanhaNome}" foi gerado com sucesso.</div>
+            <div style={{display:"flex",gap:10}}>
+              <Btn style={{flex:1}} onClick={()=>window.open(pronto.pdfUrl,"_blank")}>Ver PDF</Btn>
+              <Btn variant="ghost" style={{flex:1}} onClick={()=>setPronto(null)}>Fechar</Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {confirm&&<ConfirmModal msg={`Remover relatório de "${confirm.cliente_nome}" (${confirm.campanha_nome})?`} onConfirm={()=>remove(confirm.id)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
+// ── GESTÃO DE USUÁRIOS ────────────────────────────────────────────────────────
+const BLANK_USER={nome:"",email:"",papel:"colaborador",cliente_id:"",senha_temp:""};
+const UsuariosPage=({clients,perfil:perfilAtual})=>{
+  const [usuarios,setUsuarios]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState(BLANK_USER);
+  const [editing,setEditing]=useState(null);
+  const [confirm,setConfirm]=useState(null);
+  const [err,setErr]=useState("");
+  const [saving,setSaving]=useState(false);
+  const [showSenha,setShowSenha]=useState(false);
+
+  const carregar=async()=>{
+    setLoading(true);
+    const {data}=await supabase.from("usuarios").select("*").order("created_at",{ascending:false});
+    if(data) setUsuarios(data);
+    setLoading(false);
+  };
+  useEffect(()=>{carregar();},[]);
+
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  const openNew=()=>{setForm(BLANK_USER);setEditing(null);setErr("");setSaving(false);setShowSenha(false);setModal(true);};
+  const openEdit=(u)=>{setForm({nome:u.nome||"",email:u.email||"",papel:u.papel||"colaborador",cliente_id:u.cliente_id||"",senha_temp:""});setEditing(u.id);setErr("");setSaving(false);setShowSenha(false);setModal(true);};
+
+  const salvar=async()=>{
+    if(!form.nome.trim()||!form.email.trim()){setErr("Nome e e-mail são obrigatórios.");return;}
+    if(form.papel==="cliente"&&!form.cliente_id){setErr("Selecione o cliente vinculado.");return;}
+    if(!editing&&!form.senha_temp.trim()){setErr("Informe uma senha temporária para o novo usuário.");return;}
+    setSaving(true);setErr("");
+    try{
+      if(editing){
+        // Apenas atualiza metadados — não toca na senha auth (use "Redefinir senha")
+        const {error}=await supabase.from("usuarios").update({
+          nome:form.nome.trim(),
+          papel:form.papel,
+          cliente_id:form.papel==="cliente"?form.cliente_id:null,
+        }).eq("id",editing);
+        if(error) throw new Error(error.message);
+        setUsuarios(p=>p.map(u=>u.id===editing?{...u,nome:form.nome,papel:form.papel,cliente_id:form.papel==="cliente"?form.cliente_id:null}:u));
+      } else {
+        // Criação via rota server-side (service role)
+        const res=await fetch("/api/criar-usuario",{method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({nome:form.nome.trim(),email:form.email.trim(),senha:form.senha_temp,papel:form.papel,cliente_id:form.papel==="cliente"?form.cliente_id:null})});
+        const json=await res.json();
+        if(!res.ok||json.error) throw new Error(json.error||"Erro ao criar usuário");
+        if(json.usuario) setUsuarios(p=>[json.usuario,...p]);
+      }
+      setModal(false);
+    }catch(e){
+      setErr(e.message||"Erro ao salvar");
+    }
+    setSaving(false);
+  };
+
+  const toggleAtivo=async(u)=>{
+    const novoAtivo=!u.ativo;
+    await supabase.from("usuarios").update({ativo:novoAtivo}).eq("id",u.id);
+    setUsuarios(p=>p.map(x=>x.id===u.id?{...x,ativo:novoAtivo}:x));
+  };
+
+  const redefinirSenha=async(u)=>{
+    const nova=window.prompt(`Nova senha para ${u.nome||u.email} (mín. 6 caracteres):`);
+    if(!nova||nova.length<6){return;}
+    const res=await fetch("/api/criar-usuario",{method:"PATCH",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({userId:u.id,novaSenha:nova})});
+    const json=await res.json();
+    if(!res.ok||json.error){window.alert("Erro: "+json.error);return;}
+    window.alert("Senha redefinida com sucesso!");
+  };
+
+  const PAPEL_LABEL={admin:"Admin",colaborador:"Colaborador",cliente:"Cliente"};
+  const PAPEL_CORES={admin:["#FFF7F3","#FF6200"],colaborador:["#EFF6FF","#1D4ED8"],cliente:["#F0FDF4","#166534"]};
+
+  if(loading) return <Loading/>;
+
+  return (
+    <div>
+      <ST action={<Btn onClick={openNew}>+ Novo Usuário</Btn>}>Usuários e Acessos</ST>
+
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {usuarios.length===0&&<Card style={{textAlign:"center",color:"#64748B",padding:40}}>Nenhum usuário cadastrado.</Card>}
+        {usuarios.map(u=>{
+          const [bg,cor]=PAPEL_CORES[u.papel]||["#F3F4F6","#6B7280"];
+          const cli=clients.find(c=>c.id===u.cliente_id);
+          return (
+            <Card key={u.id} style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap",padding:"16px 20px"}}>
+              <div style={{width:42,height:42,borderRadius:12,background:"linear-gradient(135deg,#1F2F46,#2D4A6A)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:16,flexShrink:0}}>
+                {(u.nome||u.email||"?").charAt(0).toUpperCase()}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:700,color:"#111827",fontSize:14}}>{u.nome||"—"}</div>
+                <div style={{fontSize:12,color:"#64748B"}}>{u.email}</div>
+                {u.papel==="cliente"&&cli&&<div style={{fontSize:11,color:"#94A3B8",marginTop:2}}>↳ {cli.name}</div>}
+              </div>
+              <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                <span style={{background:bg,color:cor,fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:20}}>{PAPEL_LABEL[u.papel]||u.papel}</span>
+                <span style={{background:u.ativo!==false?"#DCFCE7":"#FEE2E2",color:u.ativo!==false?"#166534":"#991B1B",fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:20}}>{u.ativo!==false?"Ativo":"Inativo"}</span>
+              </div>
+              <div style={{display:"flex",gap:6,flexShrink:0}}>
+                <Btn size="sm" variant="ghost" onClick={()=>openEdit(u)}>{IC.edit}</Btn>
+                <Btn size="sm" variant="ghost" onClick={()=>toggleAtivo(u)} title={u.ativo!==false?"Desativar":"Reativar"}>
+                  {u.ativo!==false?"⏸":"▶"}
+                </Btn>
+                <Btn size="sm" variant="ghost" onClick={()=>redefinirSenha(u)} title="Redefinir senha">{IC.lock}</Btn>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {modal&&(
+        <Modal title={editing?"Editar Usuário":"Novo Usuário"} onClose={()=>setModal(false)}>
+          <FInput label="Nome" value={form.nome} onChange={v=>f("nome",v)} placeholder="Nome completo"/>
+          {!editing&&<FInput label="E-mail" value={form.email} onChange={v=>f("email",v)} placeholder="email@exemplo.com"/>}
+          <FSel label="Papel" value={form.papel} onChange={v=>f("papel",v)} options={[{value:"colaborador",label:"Colaborador"},{value:"admin",label:"Admin"},{value:"cliente",label:"Cliente"}]}/>
+          {form.papel==="cliente"&&(
+            <FSel label="Cliente vinculado" value={form.cliente_id} onChange={v=>f("cliente_id",v)}
+              options={[{value:"",label:"Selecione..."},...clients.map(c=>({value:c.id,label:c.name}))]}/>
+          )}
+          {!editing&&(
+            <FInput label="Senha temporária" value={form.senha_temp} onChange={v=>f("senha_temp",v)}
+              type={showSenha?"text":"password"} placeholder="Mínimo 6 caracteres"
+              extra={<button onClick={()=>setShowSenha(s=>!s)} style={{background:"none",border:"none",cursor:"pointer",color:"#94A3B8",display:"flex"}}>{showSenha?IC.eyeOff:IC.eye}</button>}/>
+          )}
+          {err&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",color:"#991B1B",borderRadius:8,padding:"10px 14px",fontSize:13,marginBottom:14}}>{err}</div>}
+          <div style={{display:"flex",gap:10,marginTop:4}}>
+            <Btn style={{flex:1}} onClick={salvar} disabled={saving}>{saving?"Salvando...":editing?"Salvar alterações":"Criar usuário"}</Btn>
+            <Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+};
+
+// ── PLANEJAMENTO ─────────────────────────────────────────────────────────────
+const TIPOS_BLOCO = [
+  {value:"capa",label:"🎨 Capa"},
+  {value:"objetivo",label:"🎯 Objetivo"},
+  {value:"lista",label:"📋 Lista numerada"},
+  {value:"cronograma",label:"📅 Cronograma"},
+  {value:"destaque_data",label:"📌 Destaque de data"},
+  {value:"duas_colunas",label:"⬛⬛ Duas colunas"},
+  {value:"resumo",label:"📊 Resumo da estratégia"},
+];
+
+const BlocoEditor = ({bloco,onChange,onRemove,onMoveUp,onMoveDown,isFirst,isLast}) => {
+  const f = (k,v) => onChange({...bloco,[k]:v});
+  const s = {marginBottom:6,width:"100%",padding:"8px 10px",borderRadius:7,border:"1.5px solid #DDE5EF",fontSize:13,fontFamily:"inherit",background:"#FAFBFD",boxSizing:"border-box"};
+  const ta = {resize:"vertical",minHeight:80};
+
+  return (
+    <div style={{background:"#F8FAFC",border:"1.5px solid #DDE5EF",borderRadius:12,padding:16,marginBottom:12,position:"relative"}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+        <select value={bloco.tipo} onChange={e=>f("tipo",e.target.value)} style={{...s,marginBottom:0,flex:1}}>
+          {TIPOS_BLOCO.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}
+        </select>
+        <div style={{display:"flex",gap:4}}>
+          <button onClick={onMoveUp} disabled={isFirst} style={{padding:"4px 8px",border:"1px solid #DDE5EF",borderRadius:6,background:"#fff",cursor:isFirst?"not-allowed":"pointer",opacity:isFirst?0.4:1,fontSize:12}}>↑</button>
+          <button onClick={onMoveDown} disabled={isLast} style={{padding:"4px 8px",border:"1px solid #DDE5EF",borderRadius:6,background:"#fff",cursor:isLast?"not-allowed":"pointer",opacity:isLast?0.4:1,fontSize:12}}>↓</button>
+          <button onClick={onRemove} style={{padding:"4px 8px",border:"1px solid #FECACA",borderRadius:6,background:"#FEF2F2",cursor:"pointer",color:"#EF4444",fontSize:12}}>✕</button>
+        </div>
+      </div>
+
+      {bloco.tipo==="capa"&&<>
+        <input style={s} placeholder="Título da capa" value={bloco.titulo||""} onChange={e=>f("titulo",e.target.value)}/>
+        <input style={s} placeholder="Subtítulo / mês de referência" value={bloco.subtitulo||""} onChange={e=>f("subtitulo",e.target.value)}/>
+        <input style={s} placeholder="URL do logo do cliente (opcional)" value={bloco.logo_url||""} onChange={e=>f("logo_url",e.target.value)}/>
+      </>}
+
+      {bloco.tipo==="objetivo"&&<>
+        <input style={s} placeholder="Título" value={bloco.titulo||""} onChange={e=>f("titulo",e.target.value)}/>
+        <textarea style={{...s,...ta}} placeholder="Descrição do objetivo" value={bloco.texto||""} onChange={e=>f("texto",e.target.value)}/>
+      </>}
+
+      {bloco.tipo==="lista"&&<>
+        <input style={s} placeholder="Título da lista" value={bloco.titulo||""} onChange={e=>f("titulo",e.target.value)}/>
+        <textarea style={{...s,...ta}} placeholder={"Um item por linha"} value={(bloco.itens||[]).join("\n")} onChange={e=>f("itens",e.target.value.split("\n"))}/>
+      </>}
+
+      {bloco.tipo==="cronograma"&&<>
+        <input style={s} placeholder="Título (ex: Cronograma de postagens)" value={bloco.titulo||""} onChange={e=>f("titulo",e.target.value)}/>
+        <div style={{fontSize:11,color:"#64748B",marginBottom:6,fontWeight:600}}>Itens do cronograma (um por linha: DATA | TÍTULO | DESCRIÇÃO)</div>
+        <textarea style={{...s,...ta,minHeight:120}} placeholder={"01/11 | Lançamento de campanha | Post + stories\n05/11 | Reels educativo | Vídeo sobre produto"}
+          value={(bloco.itens||[]).map(it=>typeof it==="object"?`${it.data||""} | ${it.titulo||""} | ${it.desc||""}`:it).join("\n")}
+          onChange={e=>f("itens",e.target.value.split("\n").map(l=>{const p=l.split("|").map(x=>x.trim());return p.length>=2?{data:p[0]||"",titulo:p[1]||"",desc:p[2]||""}:l;}))}/>
+      </>}
+
+      {bloco.tipo==="destaque_data"&&<>
+        <input style={s} placeholder="Data (ex: 15/11/2026)" value={bloco.data||""} onChange={e=>f("data",e.target.value)}/>
+        <input style={s} placeholder="Evento / título" value={bloco.titulo||""} onChange={e=>f("titulo",e.target.value)}/>
+        <input style={s} placeholder="Descrição (opcional)" value={bloco.desc||""} onChange={e=>f("desc",e.target.value)}/>
+      </>}
+
+      {bloco.tipo==="duas_colunas"&&<>
+        <input style={s} placeholder="Título (opcional)" value={bloco.titulo||""} onChange={e=>f("titulo",e.target.value)}/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <textarea style={{...s,...ta}} placeholder="Coluna esquerda" value={bloco.col_esq||""} onChange={e=>f("col_esq",e.target.value)}/>
+          <textarea style={{...s,...ta}} placeholder="Coluna direita" value={bloco.col_dir||""} onChange={e=>f("col_dir",e.target.value)}/>
+        </div>
+      </>}
+
+      {bloco.tipo==="resumo"&&<>
+        <input style={s} placeholder="Título do resumo" value={bloco.titulo||""} onChange={e=>f("titulo",e.target.value)}/>
+        <textarea style={{...s,...ta}} placeholder="Texto do resumo estratégico" value={bloco.texto||""} onChange={e=>f("texto",e.target.value)}/>
+      </>}
+    </div>
+  );
+};
+
+const PlanejamentoPage = ({clients}) => {
+  const [lista,setLista]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [editando,setEditando]=useState(null); // planejamento sendo editado
+  const [saving,setSaving]=useState(false);
+  const [gerandoPdf,setGerandoPdf]=useState(null); // id do plano gerando PDF
+  const [confirm,setConfirm]=useState(null);
+
+  const BLANK = {cliente_id:"",titulo:"",mes_ref:"",status:"rascunho",blocos:[]};
+  const [form,setForm]=useState(BLANK);
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  const load = async()=>{
+    setLoading(true);
+    const {data}=await supabase.from("planejamentos").select("*").order("created_at",{ascending:false});
+    if(data) setLista(data);
+    setLoading(false);
+  };
+  useEffect(()=>{load();},[]);
+
+  const abrirNovo=()=>{setForm(BLANK);setEditando("novo");};
+  const abrirEditar=(pl)=>{setForm({cliente_id:pl.cliente_id,titulo:pl.titulo,mes_ref:pl.mes_ref||"",status:pl.status,blocos:pl.blocos||[]});setEditando(pl.id);};
+
+  const addBloco=()=>f("blocos",[...form.blocos,{tipo:"objetivo",titulo:"",texto:""}]);
+  const updateBloco=(i,b)=>f("blocos",form.blocos.map((x,j)=>j===i?b:x));
+  const removeBloco=(i)=>f("blocos",form.blocos.filter((_,j)=>j!==i));
+  const moveBloco=(i,dir)=>{
+    const arr=[...form.blocos];
+    const ni=i+dir;
+    if(ni<0||ni>=arr.length) return;
+    [arr[i],arr[ni]]=[arr[ni],arr[i]];
+    f("blocos",arr);
+  };
+
+  const salvar=async()=>{
+    if(!form.cliente_id||!form.titulo){return;}
+    setSaving(true);
+    const payload={cliente_id:form.cliente_id,titulo:form.titulo,mes_ref:form.mes_ref,status:form.status,blocos:form.blocos,updated_at:new Date().toISOString()};
+    if(editando==="novo"){
+      const {data,error}=await supabase.from("planejamentos").insert([payload]).select().single();
+      if(!error&&data) setLista(p=>[data,...p]);
+    } else {
+      const {data,error}=await supabase.from("planejamentos").update(payload).eq("id",editando).select().single();
+      if(!error&&data) setLista(p=>p.map(x=>x.id===editando?data:x));
+    }
+    setSaving(false);
+    setEditando(null);
+  };
+
+  const excluir=async(id)=>{
+    await supabase.from("planejamentos").delete().eq("id",id);
+    setLista(p=>p.filter(x=>x.id!==id));
+    setConfirm(null);
+  };
+
+  const gerarPdf=async(pl)=>{
+    setGerandoPdf(pl.id);
+    try {
+      const cli=clients.find(c=>String(c.id)===String(pl.cliente_id));
+      const res=await fetch("/api/gerar-pdf-planejamento",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({planejamentoId:pl.id,titulo:pl.titulo,mesRef:pl.mes_ref,clienteNome:cli?.name||"",clienteLogoUrl:cli?.logo_url||"",blocos:pl.blocos||[]})});
+      const json=await res.json();
+      if(json.pdfUrl){
+        await supabase.from("planejamentos").update({pdf_url:json.pdfUrl}).eq("id",pl.id);
+        setLista(p=>p.map(x=>x.id===pl.id?{...x,pdf_url:json.pdfUrl}:x));
+        window.open(json.pdfUrl,"_blank");
+      } else {
+        console.error("Erro ao gerar PDF:",json.error);
+      }
+    } catch(e){ console.error(e); }
+    setGerandoPdf(null);
+  };
+
+  const STATUS_COR={rascunho:["#FEF9C3","#854D0E","Rascunho"],publicado:["#DCFCE7","#166534","Publicado"]};
+
+  if(loading) return <Loading/>;
+
+  // ── EDITOR ──
+  if(editando!==null) return (
+    <div style={{maxWidth:780,margin:"0 auto"}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:24}}>
+        <Btn variant="ghost" onClick={()=>setEditando(null)}>← Voltar</Btn>
+        <h2 style={{margin:0,fontSize:18,fontWeight:800,color:"#111827"}}>{editando==="novo"?"Novo Planejamento":"Editar Planejamento"}</h2>
+      </div>
+      <Card style={{marginBottom:20}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <FSel label="Cliente" value={form.cliente_id} onChange={v=>f("cliente_id",v)}
+            options={[{value:"",label:"Selecione o cliente..."},...clients.map(c=>({value:c.id,label:c.name}))]}/>
+          <FInput label="Mês de referência" value={form.mes_ref} onChange={v=>f("mes_ref",v)} placeholder="ex: Novembro de 2026"/>
+        </div>
+        <FInput label="Título do planejamento" value={form.titulo} onChange={v=>f("titulo",v)} placeholder="ex: Plano de Marketing — Novembro 2026"/>
+        <FSel label="Status" value={form.status} onChange={v=>f("status",v)}
+          options={[{value:"rascunho",label:"Rascunho"},{value:"publicado",label:"Publicado (visível ao cliente)"}]}/>
+      </Card>
+
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+        <div style={{fontSize:15,fontWeight:800,color:"#111827"}}>Blocos de conteúdo</div>
+        <Btn size="sm" onClick={addBloco}>+ Adicionar bloco</Btn>
+      </div>
+
+      {form.blocos.length===0&&(
+        <div style={{background:"#F8FAFC",border:"2px dashed #DDE5EF",borderRadius:12,padding:"32px 20px",textAlign:"center",color:"#94A3B8",marginBottom:16}}>
+          Nenhum bloco ainda. Clique em "+ Adicionar bloco" para começar.
+        </div>
+      )}
+
+      {form.blocos.map((b,i)=>(
+        <BlocoEditor key={i} bloco={b} onChange={nb=>updateBloco(i,nb)} onRemove={()=>removeBloco(i)}
+          onMoveUp={()=>moveBloco(i,-1)} onMoveDown={()=>moveBloco(i,1)} isFirst={i===0} isLast={i===form.blocos.length-1}/>
+      ))}
+
+      <div style={{display:"flex",gap:10,marginTop:20}}>
+        <Btn onClick={salvar} disabled={saving||!form.cliente_id||!form.titulo}>{saving?"Salvando...":"Salvar planejamento"}</Btn>
+        <Btn variant="ghost" onClick={()=>setEditando(null)}>Cancelar</Btn>
+      </div>
+    </div>
+  );
+
+  // ── LISTA ──
+  return (
+    <div>
+      <ST action={<Btn onClick={abrirNovo}>+ Novo planejamento</Btn>}>Planejamentos</ST>
+
+      {lista.length===0&&(
+        <Card style={{textAlign:"center",color:"#94A3B8",padding:40}}>
+          Nenhum planejamento criado ainda.
+        </Card>
+      )}
+
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        {lista.map(pl=>{
+          const cli=clients.find(c=>String(c.id)===String(pl.cliente_id));
+          const [sbg,scor,slabel]=STATUS_COR[pl.status]||["#F3F4F6","#6B7280",pl.status];
+          return (
+            <Card key={pl.id} style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+              <ClientLogo url={cli?.logo_url} name={cli?.name||"?"} size={44}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:800,fontSize:15,color:"#111827"}}>{pl.titulo}</div>
+                <div style={{fontSize:12,color:"#64748B",marginTop:2}}>
+                  {cli?.name||"Cliente não encontrado"}{pl.mes_ref?` · ${pl.mes_ref}`:""}
+                  {" · "}{(pl.blocos||[]).length} bloco{(pl.blocos||[]).length!==1?"s":""}
+                </div>
+              </div>
+              <span style={{background:sbg,color:scor,fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:20}}>{slabel}</span>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {pl.pdf_url&&<Btn size="sm" variant="ghost" onClick={()=>window.open(pl.pdf_url,"_blank")}>👁 PDF</Btn>}
+                <Btn size="sm" variant={gerandoPdf===pl.id?"ghost":"secondary"} disabled={gerandoPdf===pl.id} onClick={()=>gerarPdf(pl)}>
+                  {gerandoPdf===pl.id?"Gerando...":"🖨 Gerar PDF"}
+                </Btn>
+                <Btn size="sm" variant="ghost" onClick={()=>abrirEditar(pl)}>{IC.edit} Editar</Btn>
+                <Btn size="sm" variant="danger" onClick={()=>setConfirm(pl.id)}>{IC.trash}</Btn>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {confirm&&<ConfirmModal msg="Excluir este planejamento?" onConfirm={()=>excluir(confirm)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
+// ── ENTREGAS / AGENDA SEMANAL ─────────────────────────────────────────────────
+const NOMES_DIA=["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"];
+const STATUS_ENTREGA=[
+  {value:"planejado",   label:"Planejado",          bg:"#EFF6FF",cor:"#1D4ED8"},
+  {value:"em_producao", label:"Em produção",         bg:"#FEF9C3",cor:"#854D0E"},
+  {value:"aguardando_cliente",label:"Aguard. cliente",bg:"#FFF7ED",cor:"#C2410C"},
+  {value:"entregue",    label:"Entregue",            bg:"#DCFCE7",cor:"#166534"},
+];
+const TIPOS_ENTREGA=["Post feed","Stories","Reels","Vídeo","Arte","Campanha","Relatório","Reunião","Outro"];
+
+// Retorna a segunda-feira da semana da data dada
+function getSegunda(d: Date): Date {
+  const dt=new Date(d);
+  const dia=dt.getDay(); // 0=dom,1=seg,...,6=sab
+  const diff=dia===0?-6:1-dia;
+  dt.setDate(dt.getDate()+diff);
+  dt.setHours(0,0,0,0);
+  return dt;
+}
+function addDias(d: Date, n: number): Date {
+  const dt=new Date(d);
+  dt.setDate(dt.getDate()+n);
+  return dt;
+}
+function fmtDataBR(d: Date): string {
+  return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"});
+}
+function fmtIso(d: Date): string {
+  return d.toISOString().slice(0,10);
+}
+
+const EntregasPage = ({clients}) => {
+  const [lista,setLista]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [semana,setSemana]=useState(()=>getSegunda(new Date()));
+  const [filtroCliente,setFiltroCliente]=useState("");
+  const [modal,setModal]=useState<null|"novo"|{id:string}>(null);
+  const [confirm,setConfirm]=useState<null|string>(null);
+
+  const BLANK={
+    cliente_id:"",titulo:"",descricao:"",tipo:"Post feed",
+    data_prevista:fmtIso(new Date()),status:"planejado",
+    data_entrega:"",link:"",interno:false,
+  };
+  const [form,setForm]=useState<any>(BLANK);
+  const [saving,setSaving]=useState(false);
+  const fv=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  const load=async()=>{
+    setLoading(true);
+    const {data}=await supabase.from("entregas").select("*").order("data_prevista",{ascending:true});
+    if(data) setLista(data);
+    setLoading(false);
+  };
+  useEffect(()=>{load();},[]);
+
+  const abrirNovo=()=>{setForm(BLANK);setModal("novo");};
+  const abrirEditar=(e)=>{
+    setForm({
+      cliente_id:e.cliente_id||"",titulo:e.titulo||"",descricao:e.descricao||"",
+      tipo:e.tipo||"Post feed",data_prevista:e.data_prevista||"",
+      status:e.status||"planejado",data_entrega:e.data_entrega||"",
+      link:e.link||"",interno:e.interno||false,
+    });
+    setModal({id:e.id});
+  };
+
+  const salvar=async()=>{
+    if(!form.cliente_id||!form.titulo||!form.data_prevista){return;}
+    setSaving(true);
+    const payload={
+      cliente_id:form.cliente_id,titulo:form.titulo,descricao:form.descricao,
+      tipo:form.tipo,data_prevista:form.data_prevista,status:form.status,
+      data_entrega:form.data_entrega||null,link:form.link,interno:form.interno,
+    };
+    if(modal==="novo"){
+      const {data,error}=await supabase.from("entregas").insert([payload]).select().single();
+      if(!error&&data) setLista(p=>[...p,data].sort((a,b)=>a.data_prevista>b.data_prevista?1:-1));
+    } else {
+      const id=(modal as {id:string}).id;
+      const {data,error}=await supabase.from("entregas").update(payload).eq("id",id).select().single();
+      if(!error&&data) setLista(p=>p.map(x=>x.id===id?data:x));
+    }
+    setSaving(false);
+    setModal(null);
+  };
+
+  const excluir=async(id)=>{
+    await supabase.from("entregas").delete().eq("id",id);
+    setLista(p=>p.filter(x=>x.id!==id));
+    setConfirm(null);
+  };
+
+  const mudarStatus=async(id,novoStatus)=>{
+    const extra=novoStatus==="entregue"?{data_entrega:fmtIso(new Date())}:{};
+    const {data,error}=await supabase.from("entregas").update({status:novoStatus,...extra}).eq("id",id).select().single();
+    if(!error&&data) setLista(p=>p.map(x=>x.id===id?data:x));
+  };
+
+  // dias da semana exibida
+  const diasSemana=Array.from({length:7},(_,i)=>addDias(semana,i));
+  const semAnterior=()=>setSemana(d=>addDias(d,-7));
+  const semProxima=()=>setSemana(d=>addDias(d,7));
+  const hoje=()=>setSemana(getSegunda(new Date()));
+
+  // filtra por cliente e semana
+  const entregasDaSemana=lista.filter(e=>{
+    if(filtroCliente&&e.cliente_id!==filtroCliente) return false;
+    const dp=e.data_prevista;
+    if(!dp) return false;
+    const ini=fmtIso(semana);
+    const fim=fmtIso(addDias(semana,6));
+    return dp>=ini&&dp<=fim;
+  });
+
+  const statusInfo=(v)=>STATUS_ENTREGA.find(s=>s.value===v)||{label:v,bg:"#F3F4F6",cor:"#6B7280"};
+
+  const inpS={width:"100%",padding:"8px 10px",borderRadius:7,border:"1.5px solid #DDE5EF",fontSize:13,fontFamily:"inherit",background:"#FAFBFD",boxSizing:"border-box" as const,marginBottom:6};
+
+  if(loading) return <Loading/>;
+
+  return (
+    <div>
+      <ST action={<Btn onClick={abrirNovo}>+ Nova entrega</Btn>}>Agenda de Entregas</ST>
+
+      {/* Controles de semana + filtro */}
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18,flexWrap:"wrap"}}>
+        <Btn size="sm" variant="ghost" onClick={semAnterior}>← Semana anterior</Btn>
+        <Btn size="sm" variant="ghost" onClick={hoje}>Hoje</Btn>
+        <Btn size="sm" variant="ghost" onClick={semProxima}>Próxima semana →</Btn>
+        <div style={{fontWeight:700,fontSize:13,color:"#1F2F46",margin:"0 6px"}}>
+          {fmtDataBR(semana)} – {fmtDataBR(addDias(semana,6))}
+        </div>
+        <select value={filtroCliente} onChange={e=>setFiltroCliente(e.target.value)}
+          style={{padding:"6px 10px",borderRadius:7,border:"1.5px solid #DDE5EF",fontSize:13,fontFamily:"inherit",background:"#fff",minWidth:160}}>
+          <option value="">Todos os clientes</option>
+          {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </div>
+
+      {/* Grade semanal */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:8,marginBottom:28}}>
+        {diasSemana.map((dia,i)=>{
+          const isoDay=fmtIso(dia);
+          const isHoje=isoDay===fmtIso(new Date());
+          const entregas=entregasDaSemana.filter(e=>e.data_prevista===isoDay);
+          return (
+            <div key={i} style={{background:"#fff",border:`2px solid ${isHoje?"#FF6200":"#E2E8F0"}`,borderRadius:12,minHeight:120,padding:"8px 6px"}}>
+              <div style={{textAlign:"center",marginBottom:6}}>
+                <div style={{fontSize:10,fontWeight:700,color:isHoje?"#FF6200":"#64748B",textTransform:"uppercase"}}>{NOMES_DIA[i]}</div>
+                <div style={{fontSize:16,fontWeight:800,color:isHoje?"#FF6200":"#111827"}}>{dia.getDate()}</div>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                {entregas.map(e=>{
+                  const cli=clients.find(c=>String(c.id)===String(e.cliente_id));
+                  const st=statusInfo(e.status);
+                  return (
+                    <div key={e.id} onClick={()=>abrirEditar(e)} style={{background:st.bg,border:`1px solid ${st.cor}33`,borderRadius:7,padding:"5px 7px",cursor:"pointer",position:"relative"}}>
+                      {e.interno&&<span style={{position:"absolute",top:3,right:4,fontSize:9,fontWeight:800,color:"#6B7280"}}>🔒</span>}
+                      <div style={{fontSize:10,fontWeight:800,color:st.cor}}>{st.label}</div>
+                      <div style={{fontSize:11,fontWeight:700,color:"#111827",lineHeight:1.3,marginTop:1}}>{e.titulo}</div>
+                      {cli&&<div style={{fontSize:10,color:"#64748B",marginTop:1}}>{cli.name}</div>}
+                      <div style={{fontSize:10,color:"#94A3B8"}}>{e.tipo}</div>
+                    </div>
+                  );
+                })}
+                {entregas.length===0&&<div style={{fontSize:10,color:"#CBD5E1",textAlign:"center",paddingTop:8}}>—</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Lista da semana */}
+      <div style={{marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
+        <div style={{fontWeight:800,fontSize:15,color:"#111827"}}>Entregas da semana</div>
+        <span style={{fontSize:12,color:"#64748B"}}>{entregasDaSemana.length} entrega{entregasDaSemana.length!==1?"s":""}</span>
+      </div>
+
+      {entregasDaSemana.length===0?(
+        <Card style={{textAlign:"center",color:"#94A3B8",padding:32}}>Nenhuma entrega nesta semana.</Card>
+      ):(
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {entregasDaSemana.map(e=>{
+            const cli=clients.find(c=>String(c.id)===String(e.cliente_id));
+            const st=statusInfo(e.status);
+            return (
+              <Card key={e.id} style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+                <ClientLogo url={cli?.logo_url} name={cli?.name||"?"} size={40}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:800,fontSize:14,color:"#111827",display:"flex",alignItems:"center",gap:6}}>
+                    {e.titulo}
+                    {e.interno&&<span style={{fontSize:10,background:"#F1F5F9",color:"#64748B",padding:"1px 6px",borderRadius:10,fontWeight:600}}>🔒 Interno</span>}
+                  </div>
+                  <div style={{fontSize:12,color:"#64748B",marginTop:2}}>
+                    {cli?.name||"?"} · {e.tipo}
+                    {e.data_prevista&&` · ${new Date(e.data_prevista+"T12:00:00").toLocaleDateString("pt-BR")}`}
+                    {e.descricao&&` · ${e.descricao.slice(0,60)}${e.descricao.length>60?"…":""}`}
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                  {/* Troca de status rápida */}
+                  <select value={e.status} onChange={ev=>mudarStatus(e.id,ev.target.value)}
+                    style={{padding:"4px 8px",borderRadius:7,border:`1.5px solid ${st.cor}55`,fontSize:12,fontFamily:"inherit",background:st.bg,color:st.cor,fontWeight:700,cursor:"pointer"}}>
+                    {STATUS_ENTREGA.map(s=><option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
+                  {e.link&&<a href={e.link} target="_blank" rel="noreferrer"><Btn size="sm" variant="ghost">🔗 Link</Btn></a>}
+                  <Btn size="sm" variant="ghost" onClick={()=>abrirEditar(e)}>{IC.edit}</Btn>
+                  <Btn size="sm" variant="danger" onClick={()=>setConfirm(e.id)}>{IC.trash}</Btn>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal criação/edição */}
+      {modal!==null&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div style={{background:"#fff",borderRadius:16,padding:28,width:"100%",maxWidth:540,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.25)"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+              <div style={{fontSize:17,fontWeight:800,color:"#111827"}}>{modal==="novo"?"Nova Entrega":"Editar Entrega"}</div>
+              <button onClick={()=>setModal(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#9CA3AF"}}>✕</button>
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div style={{gridColumn:"1/-1"}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:4}}>Cliente *</label>
+                <select value={form.cliente_id} onChange={e=>fv("cliente_id",e.target.value)} style={inpS}>
+                  <option value="">Selecione o cliente...</option>
+                  {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div style={{gridColumn:"1/-1"}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:4}}>Título *</label>
+                <input style={inpS} placeholder="Ex: Post feed — Promoção" value={form.titulo} onChange={e=>fv("titulo",e.target.value)}/>
+              </div>
+              <div>
+                <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:4}}>Tipo</label>
+                <select value={form.tipo} onChange={e=>fv("tipo",e.target.value)} style={inpS}>
+                  {TIPOS_ENTREGA.map(t=><option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:4}}>Data prevista *</label>
+                <input type="date" style={inpS} value={form.data_prevista} onChange={e=>fv("data_prevista",e.target.value)}/>
+              </div>
+              <div>
+                <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:4}}>Status</label>
+                <select value={form.status} onChange={e=>fv("status",e.target.value)} style={inpS}>
+                  {STATUS_ENTREGA.map(s=><option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:4}}>Data de entrega</label>
+                <input type="date" style={inpS} value={form.data_entrega} onChange={e=>fv("data_entrega",e.target.value)}/>
+              </div>
+              <div style={{gridColumn:"1/-1"}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:4}}>Descrição</label>
+                <textarea style={{...inpS,resize:"vertical",minHeight:64}} placeholder="Detalhes da entrega..." value={form.descricao} onChange={e=>fv("descricao",e.target.value)}/>
+              </div>
+              <div style={{gridColumn:"1/-1"}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:4}}>Link</label>
+                <input style={inpS} placeholder="https://..." value={form.link} onChange={e=>fv("link",e.target.value)}/>
+              </div>
+              <div style={{gridColumn:"1/-1",display:"flex",alignItems:"center",gap:8}}>
+                <input type="checkbox" id="interno_chk" checked={form.interno} onChange={e=>fv("interno",e.target.checked)} style={{width:16,height:16,cursor:"pointer"}}/>
+                <label htmlFor="interno_chk" style={{fontSize:13,fontWeight:600,color:"#374151",cursor:"pointer"}}>🔒 Entrega interna (oculta no portal do cliente)</label>
+              </div>
+            </div>
+
+            <div style={{display:"flex",gap:10,marginTop:20}}>
+              <Btn onClick={salvar} disabled={saving||!form.cliente_id||!form.titulo||!form.data_prevista}>{saving?"Salvando...":"Salvar"}</Btn>
+              <Btn variant="ghost" onClick={()=>setModal(null)}>Cancelar</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirm&&<ConfirmModal msg="Excluir esta entrega?" onConfirm={()=>excluir(confirm)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
+// ── APP ROOT ──────────────────────────────────────────────────────────────────
+export default function App() {
+  const [loggedIn,setLoggedIn]=useState(false);
+  const [checandoSessao,setChecandoSessao]=useState(true);
+  const [menuOpen,setMenuOpen]=useState(false);
+  const [perfil,setPerfil]=useState("operacional");
+  const [nomeUser,setNomeUser]=useState("");
+  const [clienteId,setClienteId]=useState(null);
+  const [page,setPage]=useState("hoje");
+
+  // Data state
+  const [clients,setClients]=useState([]);
+  const [cobr,setCobr]=useState([]);
+  const [tasks,setTasks]=useState([]);
+  const [despesas,setDespesas]=useState([]);
+  const [equipe,setEquipe]=useState([]);
+  const [prospeccao,setProspeccao]=useState([]);
+  const [gravacoes,setGravacoes]=useState([]);
+  const [loadingData,setLoadingData]=useState(true);
+
+  // Seed se tabela vazia
+const seedIfEmpty = async (table, seed, setter) => {
+  try {
+    const {data, error} = await supabase.from(table).select("*");
+    if(error) { console.error("Erro ao carregar", table, error); return; }
+    if(data?.length === 0) {
+      const {data:ins, error:e2} = await supabase.from(table).insert(seed).select();
+      if(e2) console.error("Erro ao inserir seed", table, e2);
+      if(ins) setter(ins);
+    } else {
+      setter(data);
+    }
+  } catch(e) {
+    console.error("seedIfEmpty error", table, e);
+  }
+};
+
+useEffect(()=>{
+  supabase.auth.getSession().then(({data:{session}})=>{
+    if(session){
+      supabase.from("usuarios").select("perfil,nome,cliente_id").eq("id",session.user.id).single().then(({data:u})=>{
+        setPerfil(u?.perfil||"operacional");
+        setNomeUser(u?.nome||session.user.email||"");
+        setClienteId(u?.cliente_id||null);
+        setLoggedIn(true);
+        setChecandoSessao(false);
+      });
+    } else {
+      setChecandoSessao(false);
+    }
+  });
+},[]);
+
+// ── NOTIFICAÇÕES PUSH ────────────────────────────────────────────────────────
+useEffect(()=>{
+  if(!loggedIn||perfil==="cliente") return;
+  if(!("serviceWorker" in navigator)||!("PushManager" in window)) return;
+
+  const registrarPush = async () => {
+    try {
+      // Registra o service worker
+      const reg = await navigator.serviceWorker.register("/sw-push.js");
+
+      // Solicita permissão
+      const perm = await Notification.requestPermission();
+      if(perm!=="granted") return;
+
+      // Verifica se já tem subscription ativa
+      let sub = await reg.pushManager.getSubscription();
+      if(!sub){
+        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY||"";
+        if(!vapidPublicKey) return;
+        const conv = (base64:string)=>{
+          const bin=atob(base64.replace(/-/g,"+").replace(/_/g,"/"));
+          return Uint8Array.from(bin,c=>c.charCodeAt(0));
+        };
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly:true,
+          applicationServerKey:conv(vapidPublicKey),
+        });
+      }
+
+      // Salva a subscription no Supabase para o servidor usar
+      await supabase.from("push_subscriptions").upsert({
+        user_id:(await supabase.auth.getUser()).data.user?.id,
+        subscription:JSON.stringify(sub),
+        updated_at:new Date().toISOString(),
+      },{onConflict:"user_id"});
+
+    } catch(e){ console.warn("Push não disponível:",e); }
+  };
+
+  registrarPush();
+},[loggedIn,perfil]);
+useEffect(()=>{
+    if(!loggedIn) return;
+const load = async () => {
+  setLoadingData(true);
+  try {
+    const {data:c} = await supabase.from("clientes").select("*");
+    if(c) setClients(c);
+    const {data:cb} = await supabase.from("cobrancas").select("*");
+    if(cb) setCobr(cb);
+    const {data:t} = await supabase.from("tarefas").select("*");
+    if(t) setTasks(t);
+    const {data:d} = await supabase.from("despesas").select("*");
+    if(d) setDespesas(d);
+    const {data:e} = await supabase.from("colaboradores").select("*");
+    if(e) setEquipe(e);
+    const {data:pr} = await supabase.from("prospeccao").select("*");
+    if(pr) setProspeccao(pr);
+    const {data:gr} = await supabase.from("gravacoes").select("*");
+    if(gr) setGravacoes(gr);
+  } catch(err) {
+    console.error("Erro ao carregar dados:", err);
+  } finally {
+    setLoadingData(false);
+  }
+};
+load();
+  },[loggedIn]);
+
+  if(checandoSessao) return <div style={{minHeight:"100vh",background:"#1F2F46",display:"flex",alignItems:"center",justifyContent:"center"}}><img src="https://i.postimg.cc/jdB530mK/mkt.png" alt="MarketForge" style={{height:60,objectFit:"contain",animation:"pulse 1.5s ease-in-out infinite"}} onError={e=>{e.target.style.display="none"}}/></div>;
+  if(!loggedIn) return <LoginPage onLogin={(p,n,cid)=>{setLoggedIn(true);setPerfil(p);setNomeUser(n);setClienteId(cid||null);}}/>;
+
+  // Portal do cliente — layout completamente separado
+  if(perfil==="cliente") return <PortalClientePage nomeUser={nomeUser} clienteId={clienteId} onLogout={()=>{supabase.auth.signOut();setLoggedIn(false);setPerfil("operacional");setNomeUser("");setClienteId(null);}}/>;
+
+  const cobrPend = cobr.filter(c=>c.status==="pendente"||c.status==="atrasado").length;
+
+  const pages = {
+    hoje:<HojePage setPage={setPage} clients={clients} cobr={cobr} tasks={tasks} gravacoes={gravacoes} perfil={perfil} nomeUser={nomeUser}/>,
+    dashboard:<DashboardPage clients={clients} cobr={cobr} despesas={despesas} gravacoes={gravacoes}/>,
+    prospeccao:<ProspeccaoPage prospeccao={prospeccao} setProspeccao={setProspeccao} equipe={equipe} loading={loadingData}/>,
+    clientes:<ClientesPage clients={clients} setClients={setClients} loading={loadingData}/>,
+    financeiro:<FinanceiroPage clients={clients} cobr={cobr} despesas={despesas}/>,
+    cobr:<CobrancasPage cobr={cobr} setCobr={setCobr} clients={clients} loading={loadingData}/>,
+    despesas:<DespesasPage despesas={despesas} setDespesas={setDespesas} loading={loadingData}/>,
+    tarefas:<TarefasPage tasks={tasks} setTasks={setTasks} clients={clients} equipe={equipe} loading={loadingData}/>,
+    calendario:<CalendarioPage/>,
+    gravacoes:<GravacoesPage gravacoes={gravacoes} setGravacoes={setGravacoes} clients={clients} equipe={equipe} loading={loadingData}/>,
+    agenda:<AgendaPage clients={clients} equipe={equipe}/>,
+    equipe:<EquipePage equipe={equipe} setEquipe={setEquipe} tasks={tasks} loading={loadingData}/>,
+    trafego:<TráfegoPage/>,
+    relatorios:<RelatoriosTrafegoPage clients={clients}/>,
+    planejamento:<PlanejamentoPage clients={clients}/>,
+    entregas:<EntregasPage clients={clients}/>,
+    mensagens:<MensagensPage/>,
+    usuarios:<UsuariosPage clients={clients} perfil={perfil}/>,
+  };
+
+  return (
+    <div style={{fontFamily:"'Sora','Segoe UI',sans-serif",background:"#EEF3F8",minHeight:"100vh"}}>
+      <Sidebar page={page} setPage={setPage} perfil={perfil} open={menuOpen} setOpen={setMenuOpen} onLogout={()=>{supabase.auth.signOut();setLoggedIn(false);setPerfil("operacional");setClients([]);setCobr([]);setTasks([]);setDespesas([]);setEquipe([]);setProspeccao([]);setGravacoes([]);}} cobrPend={cobrPend}/>
+      <Topbar page={page} nomeUser={nomeUser} perfil={perfil} onMenuClick={()=>setMenuOpen(true)}/>
+      <main style={{marginLeft:typeof window!=="undefined"&&window.innerWidth<768?0:230,paddingTop:62}}>
+        <div style={{padding:"28px 30px",minHeight:"calc(100vh - 62px)"}}>
+          {pages[page]}
+        </div>
+      </main>
+    </div>
+  );
+}
