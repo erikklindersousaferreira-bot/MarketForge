@@ -401,9 +401,9 @@ const LoginPage = ({onLogin}) => {
 };
 
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
-const NAV_ADMIN=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"gravacoes",label:"Gravações",icon:IC.video},{id:"agenda",label:"Agenda",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"relatorios",label:"Relatórios",icon:IC.report},{id:"mensagens",label:"Modelos",icon:IC.msg},{id:"usuarios",label:"Usuários",icon:IC.lock}];
+const NAV_ADMIN=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"dashboard",label:"Dashboard",icon:IC.chart},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"clientes",label:"Clientes",icon:IC.users},{id:"financeiro",label:"Financeiro",icon:IC.money},{id:"cobr",label:"Cobranças",icon:IC.list},{id:"despesas",label:"Despesas",icon:IC.money},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"gravacoes",label:"Gravações",icon:IC.video},{id:"agenda",label:"Agenda",icon:IC.cal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"relatorios",label:"Relatórios",icon:IC.report},{id:"planejamento",label:"Planejamento",icon:IC.report},{id:"mensagens",label:"Modelos",icon:IC.msg},{id:"usuarios",label:"Usuários",icon:IC.lock}];
 const NAV_OP=[{id:"hoje",label:"Hoje",icon:IC.sun},{id:"prospeccao",label:"Prospecção",icon:IC.target},{id:"tarefas",label:"Tarefas",icon:IC.check},{id:"calendario",label:"Calendário",icon:IC.cal},{id:"gravacoes",label:"Gravações",icon:IC.video},{id:"agenda",label:"Agenda",icon:IC.cal},{id:"trafego",label:"Tráfego",icon:IC.signal},{id:"equipe",label:"Equipe",icon:IC.user},{id:"mensagens",label:"Modelos",icon:IC.msg}];
-const LABELS={hoje:"Hoje",dashboard:"Dashboard",prospeccao:"Prospecção CRM",clientes:"Clientes",financeiro:"Financeiro",cobr:"Cobranças",despesas:"Despesas",tarefas:"Tarefas",calendario:"Calendário Estratégico",gravacoes:"Agenda de Gravações",agenda:"Agenda Recorrente",equipe:"Equipe",trafego:"Saldo de Tráfego",relatorios:"Relatórios de Tráfego Pago",mensagens:"Modelos de Mensagem",usuarios:"Usuários e Acessos"};
+const LABELS={hoje:"Hoje",dashboard:"Dashboard",prospeccao:"Prospecção CRM",clientes:"Clientes",financeiro:"Financeiro",cobr:"Cobranças",despesas:"Despesas",tarefas:"Tarefas",calendario:"Calendário Estratégico",gravacoes:"Agenda de Gravações",agenda:"Agenda Recorrente",equipe:"Equipe",trafego:"Saldo de Tráfego",relatorios:"Relatórios de Tráfego Pago",planejamento:"Planejamento de Marketing",mensagens:"Modelos de Mensagem",usuarios:"Usuários e Acessos"};
 
 const Sidebar=({page,setPage,onLogout,cobrPend,perfil,open,setOpen})=>{
 const NAV = perfil==="admin" ? NAV_ADMIN : NAV_OP;
@@ -2420,6 +2420,242 @@ const UsuariosPage=({clients,perfil:perfilAtual})=>{
   );
 };
 
+// ── PLANEJAMENTO ─────────────────────────────────────────────────────────────
+const TIPOS_BLOCO = [
+  {value:"capa",label:"🎨 Capa"},
+  {value:"objetivo",label:"🎯 Objetivo"},
+  {value:"lista",label:"📋 Lista numerada"},
+  {value:"cronograma",label:"📅 Cronograma"},
+  {value:"destaque_data",label:"📌 Destaque de data"},
+  {value:"duas_colunas",label:"⬛⬛ Duas colunas"},
+  {value:"resumo",label:"📊 Resumo da estratégia"},
+];
+
+const BlocoEditor = ({bloco,onChange,onRemove,onMoveUp,onMoveDown,isFirst,isLast}) => {
+  const f = (k,v) => onChange({...bloco,[k]:v});
+  const s = {marginBottom:6,width:"100%",padding:"8px 10px",borderRadius:7,border:"1.5px solid #DDE5EF",fontSize:13,fontFamily:"inherit",background:"#FAFBFD",boxSizing:"border-box"};
+  const ta = {resize:"vertical",minHeight:80};
+
+  return (
+    <div style={{background:"#F8FAFC",border:"1.5px solid #DDE5EF",borderRadius:12,padding:16,marginBottom:12,position:"relative"}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+        <select value={bloco.tipo} onChange={e=>f("tipo",e.target.value)} style={{...s,marginBottom:0,flex:1}}>
+          {TIPOS_BLOCO.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}
+        </select>
+        <div style={{display:"flex",gap:4}}>
+          <button onClick={onMoveUp} disabled={isFirst} style={{padding:"4px 8px",border:"1px solid #DDE5EF",borderRadius:6,background:"#fff",cursor:isFirst?"not-allowed":"pointer",opacity:isFirst?0.4:1,fontSize:12}}>↑</button>
+          <button onClick={onMoveDown} disabled={isLast} style={{padding:"4px 8px",border:"1px solid #DDE5EF",borderRadius:6,background:"#fff",cursor:isLast?"not-allowed":"pointer",opacity:isLast?0.4:1,fontSize:12}}>↓</button>
+          <button onClick={onRemove} style={{padding:"4px 8px",border:"1px solid #FECACA",borderRadius:6,background:"#FEF2F2",cursor:"pointer",color:"#EF4444",fontSize:12}}>✕</button>
+        </div>
+      </div>
+
+      {bloco.tipo==="capa"&&<>
+        <input style={s} placeholder="Título da capa" value={bloco.titulo||""} onChange={e=>f("titulo",e.target.value)}/>
+        <input style={s} placeholder="Subtítulo / mês de referência" value={bloco.subtitulo||""} onChange={e=>f("subtitulo",e.target.value)}/>
+        <input style={s} placeholder="URL do logo do cliente (opcional)" value={bloco.logo_url||""} onChange={e=>f("logo_url",e.target.value)}/>
+      </>}
+
+      {bloco.tipo==="objetivo"&&<>
+        <input style={s} placeholder="Título" value={bloco.titulo||""} onChange={e=>f("titulo",e.target.value)}/>
+        <textarea style={{...s,...ta}} placeholder="Descrição do objetivo" value={bloco.texto||""} onChange={e=>f("texto",e.target.value)}/>
+      </>}
+
+      {bloco.tipo==="lista"&&<>
+        <input style={s} placeholder="Título da lista" value={bloco.titulo||""} onChange={e=>f("titulo",e.target.value)}/>
+        <textarea style={{...s,...ta}} placeholder={"Um item por linha"} value={(bloco.itens||[]).join("\n")} onChange={e=>f("itens",e.target.value.split("\n"))}/>
+      </>}
+
+      {bloco.tipo==="cronograma"&&<>
+        <input style={s} placeholder="Título (ex: Cronograma de postagens)" value={bloco.titulo||""} onChange={e=>f("titulo",e.target.value)}/>
+        <div style={{fontSize:11,color:"#64748B",marginBottom:6,fontWeight:600}}>Itens do cronograma (um por linha: DATA | TÍTULO | DESCRIÇÃO)</div>
+        <textarea style={{...s,...ta,minHeight:120}} placeholder={"01/11 | Lançamento de campanha | Post + stories\n05/11 | Reels educativo | Vídeo sobre produto"}
+          value={(bloco.itens||[]).map(it=>typeof it==="object"?`${it.data||""} | ${it.titulo||""} | ${it.desc||""}`:it).join("\n")}
+          onChange={e=>f("itens",e.target.value.split("\n").map(l=>{const p=l.split("|").map(x=>x.trim());return p.length>=2?{data:p[0]||"",titulo:p[1]||"",desc:p[2]||""}:l;}))}/>
+      </>}
+
+      {bloco.tipo==="destaque_data"&&<>
+        <input style={s} placeholder="Data (ex: 15/11/2026)" value={bloco.data||""} onChange={e=>f("data",e.target.value)}/>
+        <input style={s} placeholder="Evento / título" value={bloco.titulo||""} onChange={e=>f("titulo",e.target.value)}/>
+        <input style={s} placeholder="Descrição (opcional)" value={bloco.desc||""} onChange={e=>f("desc",e.target.value)}/>
+      </>}
+
+      {bloco.tipo==="duas_colunas"&&<>
+        <input style={s} placeholder="Título (opcional)" value={bloco.titulo||""} onChange={e=>f("titulo",e.target.value)}/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <textarea style={{...s,...ta}} placeholder="Coluna esquerda" value={bloco.col_esq||""} onChange={e=>f("col_esq",e.target.value)}/>
+          <textarea style={{...s,...ta}} placeholder="Coluna direita" value={bloco.col_dir||""} onChange={e=>f("col_dir",e.target.value)}/>
+        </div>
+      </>}
+
+      {bloco.tipo==="resumo"&&<>
+        <input style={s} placeholder="Título do resumo" value={bloco.titulo||""} onChange={e=>f("titulo",e.target.value)}/>
+        <textarea style={{...s,...ta}} placeholder="Texto do resumo estratégico" value={bloco.texto||""} onChange={e=>f("texto",e.target.value)}/>
+      </>}
+    </div>
+  );
+};
+
+const PlanejamentoPage = ({clients}) => {
+  const [lista,setLista]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [editando,setEditando]=useState(null); // planejamento sendo editado
+  const [saving,setSaving]=useState(false);
+  const [gerandoPdf,setGerandoPdf]=useState(null); // id do plano gerando PDF
+  const [confirm,setConfirm]=useState(null);
+
+  const BLANK = {cliente_id:"",titulo:"",mes_ref:"",status:"rascunho",blocos:[]};
+  const [form,setForm]=useState(BLANK);
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  const load = async()=>{
+    setLoading(true);
+    const {data}=await supabase.from("planejamentos").select("*").order("created_at",{ascending:false});
+    if(data) setLista(data);
+    setLoading(false);
+  };
+  useEffect(()=>{load();},[]);
+
+  const abrirNovo=()=>{setForm(BLANK);setEditando("novo");};
+  const abrirEditar=(pl)=>{setForm({cliente_id:pl.cliente_id,titulo:pl.titulo,mes_ref:pl.mes_ref||"",status:pl.status,blocos:pl.blocos||[]});setEditando(pl.id);};
+
+  const addBloco=()=>f("blocos",[...form.blocos,{tipo:"objetivo",titulo:"",texto:""}]);
+  const updateBloco=(i,b)=>f("blocos",form.blocos.map((x,j)=>j===i?b:x));
+  const removeBloco=(i)=>f("blocos",form.blocos.filter((_,j)=>j!==i));
+  const moveBloco=(i,dir)=>{
+    const arr=[...form.blocos];
+    const ni=i+dir;
+    if(ni<0||ni>=arr.length) return;
+    [arr[i],arr[ni]]=[arr[ni],arr[i]];
+    f("blocos",arr);
+  };
+
+  const salvar=async()=>{
+    if(!form.cliente_id||!form.titulo){return;}
+    setSaving(true);
+    const payload={cliente_id:form.cliente_id,titulo:form.titulo,mes_ref:form.mes_ref,status:form.status,blocos:form.blocos,updated_at:new Date().toISOString()};
+    if(editando==="novo"){
+      const {data,error}=await supabase.from("planejamentos").insert([payload]).select().single();
+      if(!error&&data) setLista(p=>[data,...p]);
+    } else {
+      const {data,error}=await supabase.from("planejamentos").update(payload).eq("id",editando).select().single();
+      if(!error&&data) setLista(p=>p.map(x=>x.id===editando?data:x));
+    }
+    setSaving(false);
+    setEditando(null);
+  };
+
+  const excluir=async(id)=>{
+    await supabase.from("planejamentos").delete().eq("id",id);
+    setLista(p=>p.filter(x=>x.id!==id));
+    setConfirm(null);
+  };
+
+  const gerarPdf=async(pl)=>{
+    setGerandoPdf(pl.id);
+    try {
+      const cli=clients.find(c=>String(c.id)===String(pl.cliente_id));
+      const res=await fetch("/api/gerar-pdf-planejamento",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({planejamentoId:pl.id,titulo:pl.titulo,mesRef:pl.mes_ref,clienteNome:cli?.name||"",clienteLogoUrl:cli?.logo_url||"",blocos:pl.blocos||[]})});
+      const json=await res.json();
+      if(json.pdfUrl){
+        await supabase.from("planejamentos").update({pdf_url:json.pdfUrl}).eq("id",pl.id);
+        setLista(p=>p.map(x=>x.id===pl.id?{...x,pdf_url:json.pdfUrl}:x));
+        window.open(json.pdfUrl,"_blank");
+      } else {
+        console.error("Erro ao gerar PDF:",json.error);
+      }
+    } catch(e){ console.error(e); }
+    setGerandoPdf(null);
+  };
+
+  const STATUS_COR={rascunho:["#FEF9C3","#854D0E","Rascunho"],publicado:["#DCFCE7","#166534","Publicado"]};
+
+  if(loading) return <Loading/>;
+
+  // ── EDITOR ──
+  if(editando!==null) return (
+    <div style={{maxWidth:780,margin:"0 auto"}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:24}}>
+        <Btn variant="ghost" onClick={()=>setEditando(null)}>← Voltar</Btn>
+        <h2 style={{margin:0,fontSize:18,fontWeight:800,color:"#111827"}}>{editando==="novo"?"Novo Planejamento":"Editar Planejamento"}</h2>
+      </div>
+      <Card style={{marginBottom:20}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <FSel label="Cliente" value={form.cliente_id} onChange={v=>f("cliente_id",v)}
+            options={[{value:"",label:"Selecione o cliente..."},...clients.map(c=>({value:c.id,label:c.name}))]}/>
+          <FInput label="Mês de referência" value={form.mes_ref} onChange={v=>f("mes_ref",v)} placeholder="ex: Novembro de 2026"/>
+        </div>
+        <FInput label="Título do planejamento" value={form.titulo} onChange={v=>f("titulo",v)} placeholder="ex: Plano de Marketing — Novembro 2026"/>
+        <FSel label="Status" value={form.status} onChange={v=>f("status",v)}
+          options={[{value:"rascunho",label:"Rascunho"},{value:"publicado",label:"Publicado (visível ao cliente)"}]}/>
+      </Card>
+
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+        <div style={{fontSize:15,fontWeight:800,color:"#111827"}}>Blocos de conteúdo</div>
+        <Btn size="sm" onClick={addBloco}>+ Adicionar bloco</Btn>
+      </div>
+
+      {form.blocos.length===0&&(
+        <div style={{background:"#F8FAFC",border:"2px dashed #DDE5EF",borderRadius:12,padding:"32px 20px",textAlign:"center",color:"#94A3B8",marginBottom:16}}>
+          Nenhum bloco ainda. Clique em "+ Adicionar bloco" para começar.
+        </div>
+      )}
+
+      {form.blocos.map((b,i)=>(
+        <BlocoEditor key={i} bloco={b} onChange={nb=>updateBloco(i,nb)} onRemove={()=>removeBloco(i)}
+          onMoveUp={()=>moveBloco(i,-1)} onMoveDown={()=>moveBloco(i,1)} isFirst={i===0} isLast={i===form.blocos.length-1}/>
+      ))}
+
+      <div style={{display:"flex",gap:10,marginTop:20}}>
+        <Btn onClick={salvar} disabled={saving||!form.cliente_id||!form.titulo}>{saving?"Salvando...":"Salvar planejamento"}</Btn>
+        <Btn variant="ghost" onClick={()=>setEditando(null)}>Cancelar</Btn>
+      </div>
+    </div>
+  );
+
+  // ── LISTA ──
+  return (
+    <div>
+      <ST action={<Btn onClick={abrirNovo}>+ Novo planejamento</Btn>}>Planejamentos</ST>
+
+      {lista.length===0&&(
+        <Card style={{textAlign:"center",color:"#94A3B8",padding:40}}>
+          Nenhum planejamento criado ainda.
+        </Card>
+      )}
+
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        {lista.map(pl=>{
+          const cli=clients.find(c=>String(c.id)===String(pl.cliente_id));
+          const [sbg,scor,slabel]=STATUS_COR[pl.status]||["#F3F4F6","#6B7280",pl.status];
+          return (
+            <Card key={pl.id} style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+              <ClientLogo url={cli?.logo_url} name={cli?.name||"?"} size={44}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:800,fontSize:15,color:"#111827"}}>{pl.titulo}</div>
+                <div style={{fontSize:12,color:"#64748B",marginTop:2}}>
+                  {cli?.name||"Cliente não encontrado"}{pl.mes_ref?` · ${pl.mes_ref}`:""}
+                  {" · "}{(pl.blocos||[]).length} bloco{(pl.blocos||[]).length!==1?"s":""}
+                </div>
+              </div>
+              <span style={{background:sbg,color:scor,fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:20}}>{slabel}</span>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {pl.pdf_url&&<Btn size="sm" variant="ghost" onClick={()=>window.open(pl.pdf_url,"_blank")}>👁 PDF</Btn>}
+                <Btn size="sm" variant={gerandoPdf===pl.id?"ghost":"secondary"} disabled={gerandoPdf===pl.id} onClick={()=>gerarPdf(pl)}>
+                  {gerandoPdf===pl.id?"Gerando...":"🖨 Gerar PDF"}
+                </Btn>
+                <Btn size="sm" variant="ghost" onClick={()=>abrirEditar(pl)}>{IC.edit} Editar</Btn>
+                <Btn size="sm" variant="danger" onClick={()=>setConfirm(pl.id)}>{IC.trash}</Btn>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {confirm&&<ConfirmModal msg="Excluir este planejamento?" onConfirm={()=>excluir(confirm)} onCancel={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
 // ── APP ROOT ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [loggedIn,setLoggedIn]=useState(false);
@@ -2523,6 +2759,7 @@ load();
     equipe:<EquipePage equipe={equipe} setEquipe={setEquipe} tasks={tasks} loading={loadingData}/>,
     trafego:<TráfegoPage/>,
     relatorios:<RelatoriosTrafegoPage clients={clients}/>,
+    planejamento:<PlanejamentoPage clients={clients}/>,
     mensagens:<MensagensPage/>,
     usuarios:<UsuariosPage clients={clients} perfil={perfil}/>,
   };
