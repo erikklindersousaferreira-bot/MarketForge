@@ -218,12 +218,13 @@ body {
   font-weight: 600;
   white-space: nowrap;
 }
-.mf-badge-verde   { background: var(--mf-verde-bg);    color: var(--mf-verde);    }
-.mf-badge-amarelo { background: var(--mf-amarelo-bg);  color: var(--mf-amarelo);  }
-.mf-badge-vermelho{ background: var(--mf-vermelho-bg); color: var(--mf-vermelho); }
-.mf-badge-azul    { background: var(--mf-azul-bg);     color: var(--mf-azul);     }
-.mf-badge-roxo    { background: var(--mf-roxo-bg);     color: var(--mf-roxo);     }
-.mf-badge-cinza   { background: var(--mf-fundo);       color: var(--mf-texto-sec);}
+.mf-badge-verde    { background: var(--mf-verde-bg);    color: var(--mf-verde);    }
+.mf-badge-amarelo  { background: var(--mf-amarelo-bg);  color: var(--mf-amarelo);  }
+.mf-badge-vermelho { background: var(--mf-vermelho-bg); color: var(--mf-vermelho); }
+.mf-badge-azul     { background: var(--mf-azul-bg);     color: var(--mf-azul);     }
+.mf-badge-roxo     { background: var(--mf-roxo-bg);     color: var(--mf-roxo);     }
+.mf-badge-cinza    { background: var(--mf-fundo);       color: var(--mf-texto-sec);}
+.mf-badge-laranja  { background: var(--mf-laranja-light); color: var(--mf-laranja); }
 
 /* Tabelas */
 .mf-table {
