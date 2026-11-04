@@ -1,12 +1,10 @@
 "use client";
 
-// app/login/page.tsx
+// app/(auth)/login/page.tsx
 import { useState } from "react";
 import { createBrowserClient } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const router = useRouter();
   const supabase = createBrowserClient();
 
   const [email, setEmail] = useState("");
@@ -20,44 +18,36 @@ export default function LoginPage() {
     setCarregando(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password: senha,
       });
 
-      if (error) {
+      if (error || !data.user) {
         setErro("E-mail ou senha incorretos. Tente novamente.");
+        setCarregando(false);
         return;
       }
 
-      // Verificar papel e primeiro acesso
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: usuario } = await supabase
+        .from("usuarios")
+        .select("papel, primeiro_acesso")
+        .eq("id", data.user.id)
+        .single();
 
-      if (user) {
-        const { data: usuario } = await supabase
-          .from("usuarios")
-          .select("papel, primeiro_acesso")
-          .eq("id", user.id)
-          .single();
-
-        if (usuario?.primeiro_acesso) {
-          router.push("/redefinir-senha");
-          return;
-        }
-
-        if (usuario?.papel === "cliente") {
-          router.push("/portal");
-          return;
-        }
+      if (usuario?.primeiro_acesso) {
+        window.location.href = "/redefinir-senha";
+        return;
       }
 
-      router.push("/painel");
-      router.refresh();
+      if (usuario?.papel === "cliente") {
+        window.location.href = "/portal";
+        return;
+      }
+
+      window.location.href = "/painel";
     } catch {
       setErro("Ocorreu um erro. Tente novamente.");
-    } finally {
       setCarregando(false);
     }
   }
