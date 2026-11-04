@@ -1,19 +1,29 @@
-﻿'use client'
+'use client'
 
+// app/(dashboard)/mensagens/page.tsx — Chat interno e com clientes
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase } from "@/lib/supabase";
+import { supabase } from '@/lib/supabase'
 import {
   Search,
   Send,
   MessageCircle,
   Plus,
-  User,
   CheckCheck,
   Clock,
+  ArrowLeft,
+  AlertCircle,
 } from 'lucide-react'
-import type { Conversa, Mensagem, Cliente, Usuario } from '@/lib/types'
+import type { Conversa, Mensagem, Cliente } from '@/lib/types'
 
 // ─── Tipos locais ─────────────────────────────────────────────────────────────
+
+type MsgResumo = {
+  id: string
+  conteudo: string
+  criado_em: string
+  lida_por: string[] | null
+  autor_id: string
+}
 
 type ConversaComExtra = Conversa & {
   mensagens_nao_lidas: number
@@ -36,7 +46,7 @@ function formatHora(d: string) {
 }
 
 function inicialNome(nome: string) {
-  return nome.split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase()
+  return nome.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase() || '?'
 }
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
@@ -44,6 +54,7 @@ function inicialNome(nome: string) {
 function Avatar({ nome, url, size = 36 }: { nome: string; url?: string | null; size?: number }) {
   if (url) {
     return (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={url}
         alt={nome}
@@ -85,8 +96,8 @@ function ModalNovaConversa({
   }
 
   return (
-    <div className="mf-overlay">
-      <div className="mf-modal max-w-sm w-full">
+    <div className="mf-overlay" onClick={e => e.target === e.currentTarget && onFechar()}>
+      <div className="mf-modal" style={{ maxWidth: 400, padding: '1.5rem' }}>
         <h2 className="text-lg font-bold text-gray-800 mb-4">Nova conversa</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -102,6 +113,9 @@ function ModalNovaConversa({
                 <option key={c.id} value={c.id}>{c.nome}</option>
               ))}
             </select>
+            {clientes.length === 0 && (
+              <p className="text-xs text-gray-400 mt-1">Nenhum cliente ativo cadastrado.</p>
+            )}
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" className="mf-btn-secondary" onClick={onFechar}>
@@ -136,6 +150,7 @@ function ItemConversa({
       className={`w-full text-left flex items-center gap-3 px-3 py-3 rounded-xl transition-colors ${
         ativa ? 'bg-[#FF6A00]/10' : 'hover:bg-gray-100'
       }`}
+      style={{ border: 'none', cursor: 'pointer', background: ativa ? undefined : 'transparent' }}
     >
       <Avatar nome={nome} size={40} />
       <div className="flex-1 min-w-0">
@@ -166,28 +181,18 @@ function ItemConversa({
 
 // ─── Bolha de mensagem ────────────────────────────────────────────────────────
 
-function BolhaMensagem({
-  mensagem,
-  minha,
-}: {
-  mensagem: Mensagem
-  minha: boolean
-}) {
+function BolhaMensagem({ mensagem, minha }: { mensagem: Mensagem; minha: boolean }) {
   return (
     <div className={`flex items-end gap-2 ${minha ? 'flex-row-reverse' : 'flex-row'}`}>
       {!minha && (
-        <Avatar
-          nome={mensagem.autor?.nome ?? '?'}
-          url={mensagem.autor?.avatar_url}
-          size={28}
-        />
+        <Avatar nome={mensagem.autor?.nome ?? '?'} url={mensagem.autor?.avatar_url} size={28} />
       )}
       <div className={`max-w-[70%] ${minha ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
         {!minha && mensagem.autor && (
           <span className="text-xs text-gray-400 ml-1">{mensagem.autor.nome}</span>
         )}
         <div
-          className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
+          className={`px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
             minha
               ? 'bg-[#FF6A00] text-white rounded-br-sm'
               : 'bg-white border border-[#E9E9EC] text-gray-800 rounded-bl-sm'
@@ -210,51 +215,64 @@ function PainelChat({
   conversa,
   usuarioId,
   onAtualizar,
+  onVoltar,
 }: {
   conversa: Conversa
   usuarioId: string
   onAtualizar: () => void
+  onVoltar: () => void
 }) {
   const [mensagens, setMensagens] = useState<Mensagem[]>([])
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [carregando, setCarregando] = useState(true)
+  const [erro, setErro] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
+  const qtdAnterior = useRef(0)
   const nome = conversa.cliente?.nome ?? conversa.nome ?? 'Conversa'
 
   const carregarMensagens = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('mensagens')
       .select('*, autor:usuarios(id,nome,avatar_url)')
       .eq('conversa_id', conversa.id)
       .order('criado_em', { ascending: true })
 
-    setMensagens((data as Mensagem[]) ?? [])
     setCarregando(false)
 
-    // Marcar como lida
-    if (data && data.length > 0) {
-      const naoLidas = (data as Mensagem[]).filter(m => !m.lida_por.includes(usuarioId))
-      for (const m of naoLidas) {
-        await supabase
-          .from('mensagens')
-          .update({ lida_por: [...m.lida_por, usuarioId] })
-          .eq('id', m.id)
-      }
-      if (naoLidas.length > 0) onAtualizar()
+    if (error) {
+      setErro('Não foi possível carregar as mensagens.')
+      console.error('[mensagens] erro ao carregar:', error)
+      return
     }
-  }, [supabase, conversa.id, usuarioId, onAtualizar])
+    setErro('')
+
+    const lista = (data as Mensagem[]) ?? []
+    setMensagens(lista)
+
+    // Marcar como lidas
+    const naoLidas = lista.filter(m => !(m.lida_por ?? []).includes(usuarioId))
+    for (const m of naoLidas) {
+      await supabase
+        .from('mensagens')
+        .update({ lida_por: [...(m.lida_por ?? []), usuarioId] })
+        .eq('id', m.id)
+    }
+    if (naoLidas.length > 0) onAtualizar()
+  }, [conversa.id, usuarioId, onAtualizar])
 
   useEffect(() => {
     carregarMensagens()
-
-    // Polling a cada 5s
     const intervalo = setInterval(carregarMensagens, 5000)
     return () => clearInterval(intervalo)
   }, [carregarMensagens])
 
+  // Rolar para o fim só quando chegar mensagem nova
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (mensagens.length !== qtdAnterior.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      qtdAnterior.current = mensagens.length
+    }
   }, [mensagens])
 
   async function enviarMensagem() {
@@ -263,7 +281,7 @@ function PainelChat({
     setEnviando(true)
     setTexto('')
 
-    await supabase.from('mensagens').insert({
+    const { error } = await supabase.from('mensagens').insert({
       conversa_id: conversa.id,
       autor_id: usuarioId,
       conteudo,
@@ -271,8 +289,16 @@ function PainelChat({
       lida_por: [usuarioId],
     })
 
-    await carregarMensagens()
-    onAtualizar()
+    if (error) {
+      setErro('Não foi possível enviar a mensagem.')
+      setTexto(conteudo)
+      console.error('[mensagens] erro ao enviar:', error)
+    } else {
+      // Atualiza a data da conversa para ela subir na lista
+      await supabase.from('conversas').update({ nome: conversa.nome }).eq('id', conversa.id)
+      await carregarMensagens()
+      onAtualizar()
+    }
     setEnviando(false)
   }
 
@@ -284,12 +310,20 @@ function PainelChat({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E9E9EC] bg-white">
+        <button
+          onClick={onVoltar}
+          className="md:hidden p-1 -ml-1 text-gray-500"
+          style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+          aria-label="Voltar para conversas"
+        >
+          <ArrowLeft size={18} />
+        </button>
         <Avatar nome={nome} size={36} />
-        <div>
-          <p className="font-semibold text-gray-800 text-sm">{nome}</p>
+        <div className="min-w-0">
+          <p className="font-semibold text-gray-800 text-sm truncate">{nome}</p>
           <p className="text-xs text-gray-400">
             {conversa.tipo === 'cliente' ? 'Canal do cliente' : 'Conversa interna'}
           </p>
@@ -297,28 +331,30 @@ function PainelChat({
       </div>
 
       {/* Mensagens */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-[#F7F7F8]">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 bg-[#F7F7F8]">
         {carregando ? (
           <div className="flex justify-center py-8">
             <div className="mf-spinner" />
           </div>
         ) : mensagens.length === 0 ? (
           <div className="mf-empty">
-            <div className="mf-empty-icon"><MessageCircle size={28} /></div>
+            <div className="flex justify-center mb-2 text-gray-300"><MessageCircle size={28} /></div>
             <div className="mf-empty-title">Nenhuma mensagem ainda</div>
-            <p className="text-sm text-gray-400 mt-1">Seja o primeiro a enviar!</p>
+            <p className="text-sm text-gray-400 mt-1">Envie a primeira mensagem!</p>
           </div>
         ) : (
           mensagens.map(m => (
-            <BolhaMensagem
-              key={m.id}
-              mensagem={m}
-              minha={m.autor_id === usuarioId}
-            />
+            <BolhaMensagem key={m.id} mensagem={m} minha={m.autor_id === usuarioId} />
           ))
         )}
         <div ref={bottomRef} />
       </div>
+
+      {erro && (
+        <div className="px-4 py-2 text-xs text-red-600 bg-red-50 border-t border-red-100 flex items-center gap-1.5">
+          <AlertCircle size={13} /> {erro}
+        </div>
+      )}
 
       {/* Input */}
       <div className="px-4 py-3 border-t border-[#E9E9EC] bg-white">
@@ -335,7 +371,9 @@ function PainelChat({
           <button
             onClick={enviarMensagem}
             disabled={!texto.trim() || enviando}
-            className="mf-btn-primary px-3 py-2.5 self-end shrink-0 disabled:opacity-40"
+            className="mf-btn-primary self-end shrink-0"
+            style={{ padding: '0.625rem 0.75rem' }}
+            aria-label="Enviar"
           >
             {enviando ? <Clock size={16} className="animate-spin" /> : <Send size={16} />}
           </button>
@@ -355,26 +393,40 @@ export default function MensagensPage() {
   const [busca, setBusca] = useState('')
   const [modalNova, setModalNova] = useState(false)
   const [carregando, setCarregando] = useState(true)
+  const [erro, setErro] = useState('')
 
   const carregarConversas = useCallback(async () => {
-    const { data } = await supabase
-      .from('conversas')
-      .select(`
-        *,
-        cliente:clientes(id, nome),
-        mensagens(id, conteudo, criado_em, lida_por, autor_id)
-      `)
-      .order('atualizado_em', { ascending: false })
+    if (!usuarioId) return
 
-    if (!data) return
+    const select = `
+      *,
+      cliente:clientes(id, nome),
+      mensagens(id, conteudo, criado_em, lida_por, autor_id)
+    `
 
-    const uid = usuarioId || (await supabase.auth.getUser()).data.user?.id || ''
+    // Tenta ordenar por atualizado_em; se a coluna não existir, usa criado_em
+    let resp = await supabase.from('conversas').select(select).order('atualizado_em', { ascending: false })
+    if (resp.error) {
+      console.warn('[mensagens] fallback para criado_em:', resp.error.message)
+      resp = await supabase.from('conversas').select(select).order('criado_em', { ascending: false })
+    }
 
-    const comExtra: ConversaComExtra[] = (data as (Conversa & {
-      mensagens: Array<{ id: string; conteudo: string; criado_em: string; lida_por: string[]; autor_id: string }>
-    })[]).map(c => {
-      const msgs = c.mensagens ?? []
-      const naoLidas = msgs.filter(m => !m.lida_por.includes(uid) && m.autor_id !== uid).length
+    setCarregando(false)
+
+    if (resp.error) {
+      console.error('[mensagens] erro ao carregar conversas:', resp.error)
+      setErro('Não foi possível carregar as conversas. Verifique se a etapa 8 do banco foi aplicada.')
+      return
+    }
+    setErro('')
+
+    const lista = (resp.data ?? []) as (Conversa & { mensagens: MsgResumo[] | null })[]
+
+    const comExtra: ConversaComExtra[] = lista.map(c => {
+      const msgs = [...(c.mensagens ?? [])]
+      const naoLidas = msgs.filter(
+        m => !(m.lida_por ?? []).includes(usuarioId) && m.autor_id !== usuarioId
+      ).length
       const ultima = msgs.sort((a, b) => b.criado_em.localeCompare(a.criado_em))[0]
       return {
         ...c,
@@ -384,14 +436,23 @@ export default function MensagensPage() {
       }
     })
 
+    // Conversa com mensagem mais recente primeiro
+    comExtra.sort((a, b) =>
+      (b.ultima_mensagem_em ?? b.criado_em ?? '').localeCompare(a.ultima_mensagem_em ?? a.criado_em ?? '')
+    )
+
     setConversas(comExtra)
-    setCarregando(false)
-  }, [supabase, usuarioId])
+  }, [usuarioId])
 
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (user) setUsuarioId(user.id)
+      if (!user) {
+        setCarregando(false)
+        setErro('Sessão expirada. Faça login novamente.')
+        return
+      }
+      setUsuarioId(user.id)
 
       const { data: clis } = await supabase
         .from('clientes')
@@ -402,14 +463,13 @@ export default function MensagensPage() {
       setClientes((clis as Cliente[]) ?? [])
     }
     init()
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
-    if (usuarioId) carregarConversas()
-  }, [usuarioId, carregarConversas])
+    carregarConversas()
+  }, [carregarConversas])
 
   async function criarConversa(clienteId: string) {
-    // Verifica se já existe
     const existente = conversas.find(c => c.cliente_id === clienteId)
     if (existente) {
       setConversaSelecionada(existente)
@@ -428,7 +488,10 @@ export default function MensagensPage() {
       .select('*, cliente:clientes(id, nome)')
       .single()
 
-    if (!error && data) {
+    if (error) {
+      console.error('[mensagens] erro ao criar conversa:', error)
+      setErro('Não foi possível criar a conversa.')
+    } else if (data) {
       await carregarConversas()
       setConversaSelecionada(data as Conversa)
     }
@@ -441,48 +504,64 @@ export default function MensagensPage() {
   })
 
   return (
-    <div className="flex h-[calc(100vh-64px)] overflow-hidden">
-      {/* Sidebar de conversas */}
-      <div className="w-72 border-r border-[#E9E9EC] flex flex-col bg-white shrink-0">
-        {/* Header sidebar */}
+    <div
+      className="flex overflow-hidden bg-white border border-[#E9E9EC] rounded-2xl"
+      style={{ height: 'calc(100vh - 60px - 3rem)', minHeight: 420 }}
+    >
+      {/* Lista de conversas */}
+      <div
+        className={`w-full md:w-72 border-r border-[#E9E9EC] flex-col bg-white shrink-0 min-h-0 ${
+          conversaSelecionada ? 'hidden md:flex' : 'flex'
+        }`}
+      >
         <div className="p-4 border-b border-[#E9E9EC]">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-gray-800">Mensagens</h2>
+            <h2 className="font-bold text-gray-800 m-0 text-base">Conversas</h2>
             <button
               onClick={() => setModalNova(true)}
               className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-[#FF6A00] transition-colors"
+              style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}
               title="Nova conversa"
+              aria-label="Nova conversa"
             >
               <Plus size={18} />
             </button>
           </div>
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search
+              size={14}
+              className="absolute top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+              style={{ left: 12 }}
+            />
             <input
-              className="mf-input pl-8 py-2 text-sm"
-              placeholder="Buscar..."
+              className="mf-input text-sm"
+              style={{ paddingLeft: 34 }}
+              placeholder="Buscar conversa..."
               value={busca}
               onChange={e => setBusca(e.target.value)}
             />
           </div>
         </div>
 
-        {/* Lista */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-0.5">
           {carregando ? (
             <div className="flex justify-center py-6">
               <div className="mf-spinner" />
             </div>
+          ) : erro ? (
+            <div className="m-2 p-3 rounded-lg bg-red-50 border border-red-100 text-xs text-red-600 flex gap-1.5">
+              <AlertCircle size={14} className="shrink-0 mt-px" />
+              <span>{erro}</span>
+            </div>
           ) : conversasFiltradas.length === 0 ? (
             <div className="text-center py-8">
               <MessageCircle size={28} className="text-gray-200 mx-auto mb-2" />
-              <p className="text-sm text-gray-400">
-                {busca ? 'Sem resultados' : 'Nenhuma conversa'}
-              </p>
+              <p className="text-sm text-gray-400">{busca ? 'Sem resultados' : 'Nenhuma conversa'}</p>
               {!busca && (
                 <button
                   onClick={() => setModalNova(true)}
                   className="mt-2 text-sm text-[#FF6A00] hover:underline"
+                  style={{ border: 'none', background: 'none', cursor: 'pointer' }}
                 >
                   Criar primeira conversa
                 </button>
@@ -502,13 +581,14 @@ export default function MensagensPage() {
       </div>
 
       {/* Área de chat */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {conversaSelecionada ? (
+      <div className={`flex-1 flex-col overflow-hidden min-h-0 ${conversaSelecionada ? 'flex' : 'hidden md:flex'}`}>
+        {conversaSelecionada && usuarioId ? (
           <PainelChat
             key={conversaSelecionada.id}
             conversa={conversaSelecionada}
             usuarioId={usuarioId}
             onAtualizar={carregarConversas}
+            onVoltar={() => setConversaSelecionada(null)}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center bg-[#F7F7F8]">
@@ -523,7 +603,6 @@ export default function MensagensPage() {
         )}
       </div>
 
-      {/* Modal nova conversa */}
       {modalNova && (
         <ModalNovaConversa
           clientes={clientes}

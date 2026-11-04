@@ -8,14 +8,24 @@ export const metadata: Metadata = {
   },
   description: "Plataforma de gestão para agências de marketing",
   manifest: "/manifest.json",
+  applicationName: "MarketForge",
   icons: {
-    icon: "/favicon.ico",
-    apple: "/icon.png",
+    icon: [
+      { url: "/favicon.ico?v=2", sizes: "any" },
+      { url: "/favicon-32.png?v=2", type: "image/png", sizes: "32x32" },
+      { url: "/icon.png?v=2", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-icon.png?v=2", sizes: "180x180" }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "MarketForge",
+    statusBarStyle: "black-translucent",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#FF6A00",
+  themeColor: "#121212",
   width: "device-width",
   initialScale: 1,
 };

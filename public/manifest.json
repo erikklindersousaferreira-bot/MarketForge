@@ -1,21 +1,16 @@
 {
   "name": "MarketForge",
   "short_name": "MarketForge",
-  "description": "Gestão de agência de marketing",
-  "start_url": "/",
+  "description": "Gestão da agência MarketForge",
+  "lang": "pt-BR",
+  "start_url": "/painel",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#1F2F46",
-  "theme_color": "#FF6200",
+  "background_color": "#121212",
+  "theme_color": "#121212",
   "icons": [
-    {
-      "src": "/icon.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/icon.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
+    { "src": "/icon-192.png?v=2", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png?v=2", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png?v=2", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

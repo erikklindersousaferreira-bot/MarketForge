@@ -187,59 +187,29 @@ export function Sidebar({ usuario, collapsed, onToggleCollapse }: SidebarProps) 
         {!collapsed && (
           <Link
             href="/painel"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.625rem",
-              textDecoration: "none",
-            }}
+            style={{ display: "flex", alignItems: "center", textDecoration: "none" }}
+            aria-label="MarketForge — ir para o Painel"
           >
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                background: "#FF6A00",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white" />
-              </svg>
-            </div>
-            <span
-              style={{
-                fontSize: "1rem",
-                fontWeight: 800,
-                color: "white",
-                letterSpacing: "-0.02em",
-                whiteSpace: "nowrap",
-              }}
-            >
-              MarketForge
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-branca.png"
+              alt="MarketForge"
+              className="mf-logo-img"
+              style={{ width: 150 }}
+            />
           </Link>
         )}
 
         {collapsed && (
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: "#FF6A00",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white" />
-            </svg>
-          </div>
+          <Link href="/painel" aria-label="MarketForge — ir para o Painel">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-icone.png"
+              alt="MarketForge"
+              className="mf-logo-img"
+              style={{ width: 36, height: 36, borderRadius: 9 }}
+            />
+          </Link>
         )}
 
         {!collapsed && (

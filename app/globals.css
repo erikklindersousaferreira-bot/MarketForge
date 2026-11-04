@@ -91,6 +91,14 @@ body {
 }
 
 /* ============================================================
+   IMPORTANTE (Tailwind v4): tudo abaixo fica em @layer components.
+   Assim as utilities do Tailwind (pl-9, py-2, w-full...) usadas nas
+   páginas conseguem sobrescrever as classes .mf-* — antes o padding
+   do .mf-input anulava o pl-9 e o ícone ficava por cima do texto.
+   ============================================================ */
+@layer components {
+
+/* ============================================================
    Utilitários de cor (uso inline via className)
    ============================================================ */
 .text-mf-laranja   { color: var(--mf-laranja); }
@@ -577,3 +585,13 @@ body {
   from { transform: translateX(-100%); }
   to   { transform: translateX(0); }
 }
+
+/* Logo */
+.mf-logo-img {
+  display: block;
+  height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+} /* fim @layer components */

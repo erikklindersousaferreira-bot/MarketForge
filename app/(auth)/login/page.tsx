@@ -64,45 +64,13 @@ export default function LoginPage() {
       <div style={{ width: "100%", maxWidth: "400px" }}>
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.625rem",
-              marginBottom: "0.5rem",
-            }}
-          >
-            <div
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                background: "#FF6A00",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"
-                  fill="white"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-            <span
-              style={{
-                fontSize: "1.5rem",
-                fontWeight: 800,
-                color: "#181818",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              MarketForge
-            </span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-escura.png"
+            alt="MarketForge"
+            className="mf-logo-img"
+            style={{ width: 220, margin: "0 auto 0.75rem" }}
+          />
           <p style={{ fontSize: "0.875rem", color: "#71717A", margin: 0 }}>
             Faça login para continuar
           </p>
