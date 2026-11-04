@@ -42,43 +42,40 @@ export interface Cliente {
   responsavel?: Pick<Usuario, "id" | "nome" | "email">;
 }
 
+// ── Planejamento de Conteúdo ──────────────────────────────────
 export interface Planejamento {
   id: string;
   cliente_id: string;
-  titulo: string;
-  texto_bruto: string | null;
-  conteudo_ia: Record<string, unknown> | null;
-  status: "rascunho" | "processando" | "ativo" | "arquivado";
-  visivel_cliente: boolean;
-  criado_por: string | null;
+  mes_referencia: string;         // ISO date, ex: "2024-11-01"
+  objetivo: string | null;
+  publico_alvo: string | null;
+  tom_voz: string | null;
+  observacoes: string | null;
+  status: "ativo" | "arquivado";
   criado_em: string;
   atualizado_em: string;
   // Joins
   cliente?: Pick<Cliente, "id" | "nome">;
-  autor?: Pick<Usuario, "id" | "nome">;
+  conteudos?: Conteudo[];
 }
 
 export interface Conteudo {
   id: string;
-  cliente_id: string;
-  planejamento_id: string | null;
+  planejamento_id: string;
   titulo: string;
-  descricao: string | null;
-  tipo: "post" | "reels" | "stories" | "feed" | "trafego" | "email" | "outro";
-  status: "pendente" | "em_producao" | "em_revisao" | "aprovado" | "publicado" | "cancelado";
-  data_prevista: string | null;
+  plataforma: string;             // Instagram, Facebook, TikTok, YouTube, LinkedIn, WhatsApp, Site, Outro
+  formato: string;                // Feed, Stories, Reels, Carrossel, Vídeo, Blog, E-mail, Outro
+  status: "rascunho" | "aprovado" | "agendado" | "publicado" | "cancelado";
   data_publicacao: string | null;
-  responsavel_id: string | null;
-  arquivo_url: string | null;
+  legenda: string | null;
+  hashtags: string | null;
+  responsavel: string | null;
   observacoes: string | null;
-  visivel_cliente: boolean;
   criado_em: string;
   atualizado_em: string;
-  // Joins
-  cliente?: Pick<Cliente, "id" | "nome">;
-  responsavel?: Pick<Usuario, "id" | "nome">;
 }
 
+// ── Financeiro ────────────────────────────────────────────────
 export interface Assinatura {
   id: string;
   cliente_id: string;
@@ -102,6 +99,8 @@ export interface Cobranca {
   competencia: string;
   status: "pendente" | "pago" | "atrasado" | "cancelado";
   data_pagamento: string | null;
+  recorrente: boolean;
+  tipo: "mensalidade" | "projeto" | "avulso" | "outros";
   observacoes: string | null;
   criado_em: string;
   atualizado_em: string;
@@ -139,6 +138,7 @@ export interface ParcelaDespesa {
   criado_em: string;
 }
 
+// ── Tarefas ───────────────────────────────────────────────────
 export interface Tarefa {
   id: string;
   titulo: string;
@@ -171,6 +171,7 @@ export interface PontuacaoEquipe {
   tarefa?: Pick<Tarefa, "id" | "titulo">;
 }
 
+// ── Prospecção ────────────────────────────────────────────────
 export interface Lead {
   id: string;
   nome: string;
@@ -203,6 +204,7 @@ export interface HistoricoLead {
   usuario?: Pick<Usuario, "id" | "nome"> | null;
 }
 
+// ── Agenda ────────────────────────────────────────────────────
 export interface EventoAgenda {
   id: string;
   titulo: string;
@@ -227,6 +229,7 @@ export interface EventoAgenda {
   responsavel?: Pick<Usuario, "id" | "nome"> | null;
 }
 
+// ── Mensagens ─────────────────────────────────────────────────
 export interface Conversa {
   id: string;
   tipo: "direto" | "grupo" | "cliente";
@@ -261,6 +264,7 @@ export interface Mensagem {
   autor?: Pick<Usuario, "id" | "nome" | "avatar_url">;
 }
 
+// ── Notificações ──────────────────────────────────────────────
 export interface Notificacao {
   id: string;
   usuario_id: string;
