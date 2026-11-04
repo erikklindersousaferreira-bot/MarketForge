@@ -9,22 +9,17 @@ export default function LoginPage() {
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
-  const [debug, setDebug] = useState("");
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setErro("");
-    setDebug("1. Iniciando login...");
     setCarregando(true);
 
     try {
-      setDebug("2. Chamando signInWithPassword...");
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password: senha,
       });
-
-      setDebug(`3. Auth: data.user=${data?.user?.id ?? "null"}, error=${error?.message ?? "nenhum"}`);
 
       if (error || !data.user) {
         setErro("E-mail ou senha incorretos. Tente novamente.");
@@ -32,33 +27,24 @@ export default function LoginPage() {
         return;
       }
 
-      setDebug(`4. Autenticado! Buscando usuário id=${data.user.id}...`);
-
-      const { data: usuario, error: errUsuario } = await supabase
+      const { data: usuario } = await supabase
         .from("usuarios")
         .select("papel, primeiro_acesso")
         .eq("id", data.user.id)
         .single();
 
-      setDebug(`5. usuarios query: papel=${usuario?.papel ?? "null"}, primeiro_acesso=${usuario?.primeiro_acesso ?? "null"}, error=${errUsuario?.message ?? "nenhum"}`);
-
       if (usuario?.primeiro_acesso) {
-        setDebug("6. Redirecionando para /redefinir-senha");
         window.location.href = "/redefinir-senha";
         return;
       }
 
       if (usuario?.papel === "cliente") {
-        setDebug("6. Redirecionando para /portal");
         window.location.href = "/portal";
         return;
       }
 
-      setDebug("6. Redirecionando para /painel");
       window.location.href = "/painel";
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setDebug(`ERRO: ${msg}`);
+    } catch {
       setErro("Ocorreu um erro. Tente novamente.");
       setCarregando(false);
     }
@@ -166,25 +152,6 @@ export default function LoginPage() {
                 autoComplete="current-password"
               />
             </div>
-
-            {/* Debug temporário */}
-            {debug && (
-              <div
-                style={{
-                  background: "#F0F9FF",
-                  border: "1px solid #BAE6FD",
-                  borderRadius: 8,
-                  padding: "0.75rem 1rem",
-                  color: "#0369A1",
-                  fontSize: "0.75rem",
-                  marginBottom: "1rem",
-                  fontFamily: "monospace",
-                  wordBreak: "break-all",
-                }}
-              >
-                {debug}
-              </div>
-            )}
 
             {/* Mensagem de erro */}
             {erro && (
