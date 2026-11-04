@@ -33,8 +33,11 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Rotas públicas — não precisa de login
-  const publicPaths = ["/login", "/redefinir-senha"];
-  const isPublic = publicPaths.some((p) => pathname.startsWith(p));
+  const isPublic =
+    pathname === "/login" ||
+    pathname.startsWith("/login/") ||
+    pathname === "/redefinir-senha" ||
+    pathname.startsWith("/redefinir-senha/");
 
   if (!user && !isPublic) {
     return NextResponse.redirect(new URL("/login", request.url));
