@@ -1,9 +1,8 @@
-// lib/supabase.ts — Cliente Supabase para o browser (Client Components)
+﻿// lib/supabase.ts – Cliente Supabase para o browser (Client Components)
 import { createBrowserClient as createSSRBrowserClient } from "@supabase/ssr";
-import type { Database } from "./types";
 
 export function createBrowserClient() {
-  return createSSRBrowserClient<Database>(
+  return createSSRBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
