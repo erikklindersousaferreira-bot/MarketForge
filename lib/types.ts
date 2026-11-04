@@ -176,29 +176,29 @@ export interface Lead {
   id: string;
   nome: string;
   empresa: string | null;
-  email: string | null;
-  telefone: string | null;
   segmento: string | null;
+  telefone: string | null;
+  email: string | null;
   origem: string | null;
+  estagio: "novo" | "contato" | "proposta" | "negociacao" | "ganho" | "perdido";
   valor_estimado: number | null;
-  estagio: "novo" | "contato" | "proposta" | "negociacao" | "fechado" | "perdido";
   responsavel_id: string | null;
+  criado_por: string | null;
   observacoes: string | null;
-  ordem: number;
+  motivo_perda: string | null;
+  data_fechamento: string | null;
   criado_em: string;
   atualizado_em: string;
   // Joins
   responsavel?: Pick<Usuario, "id" | "nome"> | null;
 }
 
-export interface HistoricoLead {
+export interface InteracaoLead {
   id: string;
   lead_id: string;
   usuario_id: string | null;
-  tipo: "nota" | "ligacao" | "email" | "reuniao" | "mudanca_estagio" | "outro";
+  tipo: "nota" | "ligacao" | "email" | "whatsapp" | "reuniao" | "proposta";
   descricao: string;
-  estagio_anterior: string | null;
-  estagio_novo: string | null;
   criado_em: string;
   // Joins
   usuario?: Pick<Usuario, "id" | "nome"> | null;
@@ -322,7 +322,7 @@ export type Database = {
       tarefas: { Row: Tarefa; Insert: Omit<Tarefa, "id" | "criado_em" | "atualizado_em">; Update: Partial<Omit<Tarefa, "id">>; };
       pontuacao_equipe: { Row: PontuacaoEquipe; Insert: Omit<PontuacaoEquipe, "id" | "criado_em">; Update: Partial<Omit<PontuacaoEquipe, "id">>; };
       leads: { Row: Lead; Insert: Omit<Lead, "id" | "criado_em" | "atualizado_em">; Update: Partial<Omit<Lead, "id">>; };
-      historico_leads: { Row: HistoricoLead; Insert: Omit<HistoricoLead, "id" | "criado_em">; Update: Partial<Omit<HistoricoLead, "id">>; };
+      interacoes_lead: { Row: InteracaoLead; Insert: Omit<InteracaoLead, "id" | "criado_em">; Update: Partial<Omit<InteracaoLead, "id">>; };
       eventos_agenda: { Row: EventoAgenda; Insert: Omit<EventoAgenda, "id" | "criado_em" | "atualizado_em">; Update: Partial<Omit<EventoAgenda, "id">>; };
       conversas: { Row: Conversa; Insert: Omit<Conversa, "id" | "criado_em">; Update: Partial<Omit<Conversa, "id">>; };
       participantes_conversa: { Row: ParticipanteConversa; Insert: Omit<ParticipanteConversa, "id" | "criado_em">; Update: Partial<Omit<ParticipanteConversa, "id">>; };
