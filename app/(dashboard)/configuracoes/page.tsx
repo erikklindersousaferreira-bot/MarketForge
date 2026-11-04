@@ -185,7 +185,6 @@ function Secao({
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function ConfiguracoesPage() {
-  const supabase = createBrowserClient()
   const [config, setConfig] = useState<ConfigSistema>(CONFIG_PADRAO)
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)

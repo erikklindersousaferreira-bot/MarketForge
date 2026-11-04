@@ -279,7 +279,6 @@ function ClientesAlerta({ lista }: { lista: ClienteAlerta[] }) {
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const supabase = createBrowserClient()
   const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [kpis, setKpis] = useState<KPIs | null>(null)
   const [grafico, setGrafico] = useState<CobrancaMes[]>([])

@@ -113,7 +113,6 @@ function ItemNotificacao({
 // ─── Push Notifications ───────────────────────────────────────────────────────
 
 function SecaoPush({ usuarioId }: { usuarioId: string }) {
-  const supabase = createBrowserClient()
   const [status, setStatus] = useState<'desconhecido' | 'suportado' | 'nao_suportado' | 'ativo' | 'negado'>('desconhecido')
   const [salvando, setSalvando] = useState(false)
 
@@ -194,7 +193,6 @@ function SecaoPush({ usuarioId }: { usuarioId: string }) {
 type Filtro = 'todas' | 'nao_lidas' | 'info' | 'alerta' | 'tarefa' | 'financeiro'
 
 export default function NotificacoesPage() {
-  const supabase = createBrowserClient()
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([])
   const [filtro, setFiltro] = useState<Filtro>('todas')
   const [carregando, setCarregando] = useState(true)

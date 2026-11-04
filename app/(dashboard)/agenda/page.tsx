@@ -152,7 +152,6 @@ function ModalEvento({
   onClose: () => void
   onSalvo: () => void
 }) {
-  const supabase = createBrowserClient()
   const [form, setForm] = useState<FormState>(FORM_VAZIO)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
@@ -822,7 +821,6 @@ function PainelDia({
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function AgendaPage() {
-  const supabase = createBrowserClient()
 
   const [visao, setVisao] = useState<'semana' | 'mes'>('semana')
   const [refDate, setRefDate] = useState(new Date())

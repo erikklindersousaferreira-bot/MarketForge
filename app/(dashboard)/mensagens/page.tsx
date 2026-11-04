@@ -215,7 +215,6 @@ function PainelChat({
   usuarioId: string
   onAtualizar: () => void
 }) {
-  const supabase = createBrowserClient()
   const [mensagens, setMensagens] = useState<Mensagem[]>([])
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -349,7 +348,6 @@ function PainelChat({
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function MensagensPage() {
-  const supabase = createBrowserClient()
   const [conversas, setConversas] = useState<ConversaComExtra[]>([])
   const [conversaSelecionada, setConversaSelecionada] = useState<Conversa | null>(null)
   const [clientes, setClientes] = useState<Cliente[]>([])

@@ -371,7 +371,6 @@ function AbaAgenda({ eventos }: { eventos: EventoAgenda[] }) {
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function PortalClientePage() {
-  const supabase = createBrowserClient()
   const [dados, setDados] = useState<DadosPortal>({
     cliente: null, cobrancas: [], tarefas: [], conteudos: [], eventos: [],
   })

@@ -123,7 +123,6 @@ function ModalLead({
   onClose: () => void
   onSalvo: (id: string) => void
 }) {
-  const supabase = createBrowserClient()
   const [form, setForm] = useState<FormLead>(FORM_VAZIO)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
@@ -693,7 +692,6 @@ function StatsBar({ leads }: { leads: Lead[] }) {
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function ProspeccaoPage() {
-  const supabase = createBrowserClient()
 
   const [leads, setLeads] = useState<Lead[]>([])
   const [responsaveis, setResponsaveis] = useState<Usuario[]>([])

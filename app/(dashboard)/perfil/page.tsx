@@ -133,7 +133,6 @@ function RegrasSenha({ senha }: { senha: string }) {
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function PerfilPage() {
-  const supabase = createBrowserClient()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [nome, setNome] = useState('')
