@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createBrowserClient } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import type { Usuario, Cliente } from "@/lib/types";
 
 // ── Ícones ───────────────────────────────────────────────────
@@ -189,7 +189,6 @@ interface ModalEditarProps {
 }
 
 function ModalEditarUsuario({ usuario, clientes, onClose, onSave }: ModalEditarProps) {
-  const supabase = createBrowserClient();
   const [form, setForm] = useState({
     nome:       usuario.nome,
     papel:      usuario.papel as Papel,
@@ -296,7 +295,6 @@ function ModalEditarUsuario({ usuario, clientes, onClose, onSave }: ModalEditarP
 
 // ── Página principal ─────────────────────────────────────────
 export default function UsuariosPage() {
-  const supabase = createBrowserClient();
 
   const [usuarios,    setUsuarios]    = useState<Usuario[]>([]);
   const [clientes,    setClientes]    = useState<Pick<Cliente, "id" | "nome">[]>([]);

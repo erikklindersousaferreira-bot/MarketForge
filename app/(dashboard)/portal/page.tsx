@@ -1,7 +1,7 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createBrowserClient } from '@/lib/supabase'
+import { supabase } from "@/lib/supabase";
 import {
   FileText,
   DollarSign,

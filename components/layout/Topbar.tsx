@@ -3,7 +3,7 @@
 // components/layout/Topbar.tsx
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { createBrowserClient } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import type { Notificacao, Usuario } from "@/lib/types";
 
 interface TopbarProps {
@@ -64,7 +64,6 @@ function getNotificacaoColor(tipo: Notificacao["tipo"]) {
 }
 
 export function Topbar({ usuario, titulo, onMenuMobile }: TopbarProps) {
-  const supabase = createBrowserClient();
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
   const [painelAberto, setPainelAberto] = useState(false);
   const painelRef = useRef<HTMLDivElement>(null);

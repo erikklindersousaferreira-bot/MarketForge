@@ -2,11 +2,9 @@
 
 // app/(auth)/login/page.tsx
 import { useState } from "react";
-import { createBrowserClient } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
-  const supabase = createBrowserClient();
-
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");

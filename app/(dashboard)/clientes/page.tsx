@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createBrowserClient } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import type { Cliente, Usuario } from "@/lib/types";
 
 // ── Ícones ───────────────────────────────────────────────────
@@ -58,7 +58,6 @@ interface ModalProps {
 }
 
 function ModalCliente({ cliente, responsaveis, onClose, onSave }: ModalProps) {
-  const supabase = createBrowserClient();
   const isEdicao = !!cliente?.id;
 
   const [form, setForm] = useState({
@@ -189,7 +188,6 @@ function ModalCliente({ cliente, responsaveis, onClose, onSave }: ModalProps) {
 
 // ── Página ────────────────────────────────────────────────────
 export default function ClientesPage() {
-  const supabase = createBrowserClient();
 
   const [clientes,      setClientes]      = useState<Cliente[]>([]);
   const [responsaveis,  setResponsaveis]  = useState<Pick<Usuario, "id" | "nome">[]>([]);

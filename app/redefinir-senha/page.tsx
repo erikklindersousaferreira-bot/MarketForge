@@ -2,12 +2,11 @@
 
 // app/redefinir-senha/page.tsx — Troca de senha no primeiro acesso
 import { useState } from "react";
-import { createBrowserClient } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
 export default function RedefinirSenhaPage() {
   const router = useRouter();
-  const supabase = createBrowserClient();
 
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");

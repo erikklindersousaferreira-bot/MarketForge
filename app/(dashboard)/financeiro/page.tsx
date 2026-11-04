@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createBrowserClient } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import type { Cobranca, Despesa, Cliente } from "@/lib/types";
 
 // ── Ícones ───────────────────────────────────────────────────
@@ -95,7 +95,6 @@ interface ModalCobrancaProps {
 }
 
 function ModalCobranca({ cobranca, clientes, onClose, onSave }: ModalCobrancaProps) {
-  const supabase = createBrowserClient();
   const isEdicao = !!cobranca?.id;
 
   const [form, setForm] = useState({
@@ -242,7 +241,6 @@ interface ModalDespesaProps {
 }
 
 function ModalDespesa({ despesa, onClose, onSave }: ModalDespesaProps) {
-  const supabase = createBrowserClient();
   const isEdicao = !!despesa?.id;
 
   const [form, setForm] = useState({
@@ -382,7 +380,6 @@ function ModalDespesa({ despesa, onClose, onSave }: ModalDespesaProps) {
 
 // ── Aba Cobranças ─────────────────────────────────────────────
 function AbaCobrancas({ clientes }: { clientes: Pick<Cliente, "id" | "nome">[] }) {
-  const supabase = createBrowserClient();
 
   const [cobrancas,   setCobrancas]   = useState<Cobranca[]>([]);
   const [carregando,  setCarregando]  = useState(true);
@@ -587,7 +584,6 @@ function AbaCobrancas({ clientes }: { clientes: Pick<Cliente, "id" | "nome">[] }
 
 // ── Aba Despesas ──────────────────────────────────────────────
 function AbaDespesas() {
-  const supabase = createBrowserClient();
 
   const [despesas,    setDespesas]    = useState<Despesa[]>([]);
   const [carregando,  setCarregando]  = useState(true);
@@ -803,7 +799,6 @@ function AbaDespesas() {
 
 // ── Página principal ─────────────────────────────────────────
 export default function FinanceiroPage() {
-  const supabase = createBrowserClient();
   const [aba,     setAba]     = useState<"cobrancas" | "despesas">("cobrancas");
   const [clientes, setClientes] = useState<Pick<Cliente, "id" | "nome">[]>([]);
 

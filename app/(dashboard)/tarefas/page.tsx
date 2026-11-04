@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createBrowserClient } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import type { Tarefa, Cliente, Usuario } from "@/lib/types";
 
 // ── Ícones ───────────────────────────────────────────────────
@@ -86,7 +86,6 @@ interface ModalTarefaProps {
 }
 
 function ModalTarefa({ tarefa, clientes, responsaveis, onClose, onSave }: ModalTarefaProps) {
-  const supabase = createBrowserClient();
   const isEdicao = !!tarefa?.id;
 
   const [form, setForm] = useState({
@@ -579,7 +578,6 @@ function AbaPontuacao({ tarefas, responsaveis }: AbaPontuacaoProps) {
 
 // ── Página principal ──────────────────────────────────────────
 export default function TarefasPage() {
-  const supabase = createBrowserClient();
 
   type TarefaCompleta = Tarefa & { cliente?: { nome: string } | null; responsavel?: { nome: string } | null };
 

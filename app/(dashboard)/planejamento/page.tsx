@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { createBrowserClient } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import type { Planejamento, Conteudo, Cliente } from "@/lib/types";
 
 // ── Ícones ───────────────────────────────────────────────────
@@ -62,7 +62,6 @@ interface ModalConteudoProps {
 }
 
 function ModalConteudo({ conteudo, planejamentoId, onClose, onSave }: ModalConteudoProps) {
-  const supabase = createBrowserClient();
   const isEdicao = !!conteudo?.id;
 
   const [form, setForm] = useState({
@@ -201,7 +200,6 @@ interface ModalPlanejamentoProps {
 }
 
 function ModalNovoPlanejamento({ clientes, onClose, onSave }: ModalPlanejamentoProps) {
-  const supabase = createBrowserClient();
   const [form, setForm] = useState({
     cliente_id: "",
     mes_referencia: new Date().toISOString().slice(0, 7), // YYYY-MM
@@ -316,7 +314,6 @@ interface PainelIAProps {
 }
 
 function PainelIA({ planejamento, onConteudosCriados }: PainelIAProps) {
-  const supabase = createBrowserClient();
   const [prompt,    setPrompt]    = useState("");
   const [resposta,  setResposta]  = useState("");
   const [gerando,   setGerando]   = useState(false);
@@ -495,7 +492,6 @@ interface CardPlanejamentoProps {
 }
 
 function CardPlanejamento({ plan, onRefresh }: CardPlanejamentoProps) {
-  const supabase = createBrowserClient();
   const [expandido,     setExpandido]     = useState(false);
   const [mostrarIA,     setMostrarIA]     = useState(false);
   const [modalConteudo, setModalConteudo] = useState(false);
@@ -677,7 +673,6 @@ function CardPlanejamento({ plan, onRefresh }: CardPlanejamentoProps) {
 
 // ── Página principal ─────────────────────────────────────────
 export default function PlanejamentoPage() {
-  const supabase = createBrowserClient();
 
   const [planejamentos, setPlanejamentos] = useState<(Planejamento & { cliente?: { nome: string }; conteudos?: Conteudo[] })[]>([]);
   const [clientes,      setClientes]      = useState<Pick<Cliente, "id" | "nome">[]>([]);

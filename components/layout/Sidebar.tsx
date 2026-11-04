@@ -3,8 +3,7 @@
 // components/layout/Sidebar.tsx
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
-import { createBrowserClient } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import type { Usuario } from "@/lib/types";
 
 interface NavItem {
@@ -152,7 +151,6 @@ interface SidebarProps {
 export function Sidebar({ usuario, collapsed, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createBrowserClient();
 
   async function handleLogout() {
     await supabase.auth.signOut();
