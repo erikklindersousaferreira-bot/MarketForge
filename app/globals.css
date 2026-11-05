@@ -716,6 +716,32 @@ body {
   }
 }
 
+/* Tarefas no celular: colunas deslizando, filtros e contadores em linha */
+@media (max-width: 768px) {
+  .tarefas-kanban {
+    display: flex !important;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    margin: 0 -0.875rem;
+    padding: 0 0.875rem 1rem;
+    gap: 0.75rem !important;
+    scrollbar-width: none;
+  }
+  .tarefas-kanban::-webkit-scrollbar { display: none; }
+  .tarefas-coluna { flex: 0 0 85%; scroll-snap-align: center; }
+  .tarefas-filtros, .tarefas-stats {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    margin-left: -0.875rem; margin-right: -0.875rem;
+    padding: 0 0.875rem 0.25rem;
+    scrollbar-width: none;
+  }
+  .tarefas-filtros::-webkit-scrollbar, .tarefas-stats::-webkit-scrollbar { display: none; }
+  .tarefas-filtros > *, .tarefas-stats > * { flex-shrink: 0 !important; }
+  .tarefas-filtros > input { max-width: none !important; width: 160px !important; flex: 0 0 160px !important; }
+  .tarefas-filtros > div:last-child { margin-left: 0 !important; }
+}
+
 @keyframes mf-sobe { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes mf-fade { from { opacity: 0; } to { opacity: 1; } }
 

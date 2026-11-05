@@ -27,6 +27,113 @@ function IconMail() {
   return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>;
 }
 
+function IconKey() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>;
+}
+function IconTrash() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>;
+}
+function IconCopy() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
+}
+
+// ── Modal: senha temporária gerada ───────────────────────────
+type SenhaGerada = { nome: string | null; email: string | null; senha: string };
+
+function ModalSenhaGerada({ dados, onClose }: { dados: SenhaGerada; onClose: () => void }) {
+  const [copiado, setCopiado] = useState(false);
+  const site = typeof window !== "undefined" ? window.location.origin : "";
+  const texto =
+    `Olá${dados.nome ? ", " + dados.nome.split(" ")[0] : ""}! Seu acesso ao sistema da MarketForge:\n\n` +
+    `🔗 ${site}/login\n📧 ${dados.email ?? ""}\n🔑 Senha temporária: ${dados.senha}\n\n` +
+    `No primeiro acesso o sistema vai pedir para você criar a sua própria senha.`;
+
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch { /* navegador sem permissão */ }
+  }
+
+  return (
+    <div className="mf-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="mf-modal" style={{ maxWidth: 440 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1.25rem 1.5rem", borderBottom: "1px solid var(--mf-borda)" }}>
+          <h2 style={{ margin: 0, fontSize: "1.0625rem", fontWeight: 700 }}>Senha temporária gerada</h2>
+          <button onClick={onClose} aria-label="Fechar" style={{ padding: "0.25rem", border: "none", background: "none", color: "var(--mf-texto-sec)", cursor: "pointer" }}><IconX /></button>
+        </div>
+        <div style={{ padding: "1.5rem" }}>
+          <p style={{ fontSize: "0.875rem", color: "var(--mf-texto-sec)", margin: "0 0 1rem" }}>
+            Envie para <strong style={{ color: "var(--mf-texto)" }}>{dados.nome || dados.email}</strong>. Ela só aparece agora — se perder, é só gerar outra.
+          </p>
+          <div style={{ background: "var(--mf-fundo)", border: "1px dashed var(--mf-borda)", borderRadius: 12, padding: "1rem", textAlign: "center", marginBottom: "0.75rem" }}>
+            <div style={{ fontSize: "0.6875rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--mf-texto-desab)", marginBottom: 4 }}>Senha</div>
+            <div style={{ fontFamily: "ui-monospace, monospace", fontSize: "1.375rem", fontWeight: 800, letterSpacing: "0.04em", color: "var(--mf-texto)", userSelect: "all" }}>{dados.senha}</div>
+            <div style={{ fontSize: "0.8125rem", color: "var(--mf-texto-sec)", marginTop: 6 }}>{dados.email}</div>
+          </div>
+          <div style={{ background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 8, padding: "0.75rem", fontSize: "0.8125rem", color: "#92400E", marginBottom: "1.25rem" }}>
+            🔒 No primeiro acesso a pessoa é obrigada a criar uma senha nova.
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <button type="button" className="mf-btn-secondary" onClick={copiar} style={{ flex: 1, justifyContent: "center", display: "flex", alignItems: "center", gap: 6 }}>
+              <IconCopy /> {copiado ? "Copiado!" : "Copiar mensagem"}
+            </button>
+            <a
+              className="mf-btn-primary"
+              href={`https://wa.me/?text=${encodeURIComponent(texto)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ flex: 1, justifyContent: "center", display: "flex", alignItems: "center", gap: 6, textDecoration: "none", background: "#25D366" }}
+            >
+              Enviar no WhatsApp
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Modal: confirmar exclusão ────────────────────────────────
+function ModalExcluirUsuario({ usuario, onClose, onExcluido }: { usuario: Usuario; onClose: () => void; onExcluido: () => void }) {
+  const [excluindo, setExcluindo] = useState(false);
+  const [erro, setErro] = useState("");
+
+  async function excluir() {
+    setExcluindo(true); setErro("");
+    const res = await fetch("/api/usuarios/excluir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usuario_id: usuario.id }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setErro(data.error ?? "Erro ao excluir."); setExcluindo(false); return; }
+    onExcluido();
+  }
+
+  return (
+    <div className="mf-overlay" onClick={e => e.target === e.currentTarget && !excluindo && onClose()}>
+      <div className="mf-modal" style={{ maxWidth: 420, padding: "1.5rem" }}>
+        <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.0625rem", fontWeight: 700 }}>Excluir usuário?</h2>
+        <p style={{ fontSize: "0.875rem", color: "var(--mf-texto-sec)", margin: "0 0 1rem" }}>
+          <strong style={{ color: "var(--mf-texto)" }}>{usuario.nome || usuario.email}</strong> perde o acesso na hora e o cadastro é apagado.
+          Tarefas e eventos dele continuam no sistema, só ficam sem responsável. <strong>Isso não pode ser desfeito.</strong>
+        </p>
+        {erro && (
+          <div style={{ background: "var(--mf-vermelho-bg)", color: "var(--mf-vermelho)", borderRadius: 8, padding: "0.625rem 0.875rem", fontSize: "0.8125rem", marginBottom: "1rem" }}>{erro}</div>
+        )}
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+          <button className="mf-btn-secondary" onClick={onClose} disabled={excluindo}>Cancelar</button>
+          <button className="mf-btn-primary" onClick={excluir} disabled={excluindo} style={{ background: "var(--mf-vermelho)" }}>
+            {excluindo ? "Excluindo..." : "Excluir"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Papel badge ──────────────────────────────────────────────
 type Papel = "admin" | "equipe" | "cliente";
 
@@ -69,6 +176,7 @@ function ModalNovoUsuario({ clientes, onClose, onSave }: ModalNovoProps) {
   const [salvando,  setSalvando]  = useState(false);
   const [erro,      setErro]      = useState("");
   const [sucesso,   setSucesso]   = useState("");
+  const [gerada,    setGerada]    = useState<SenhaGerada | null>(null);
 
   function set(campo: string, valor: string) {
     setForm(prev => ({ ...prev, [campo]: valor }));
@@ -100,13 +208,17 @@ function ModalNovoUsuario({ clientes, onClose, onSave }: ModalNovoProps) {
       return;
     }
 
-    if (data.aviso) {
-      setSucesso(data.aviso);
-    } else {
-      setSucesso("Usuário criado! Um link de acesso foi enviado para o e-mail informado.");
-    }
     setSalvando(false);
+    if (data.senha_temporaria) {
+      setGerada({ nome: data.nome ?? form.nome, email: data.email ?? form.email, senha: data.senha_temporaria });
+      return;
+    }
+    setSucesso(data.aviso ?? "Usuário criado!");
     setTimeout(() => { onSave(); onClose(); }, 2500);
+  }
+
+  if (gerada) {
+    return <ModalSenhaGerada dados={gerada} onClose={() => { onSave(); onClose(); }} />;
   }
 
   return (
@@ -128,7 +240,7 @@ function ModalNovoUsuario({ clientes, onClose, onSave }: ModalNovoProps) {
           ) : (
             <>
               <div style={{ background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 8, padding: "0.875rem", fontSize: "0.8125rem", color: "#92400E", marginBottom: "1.25rem" }}>
-                🔒 O usuário receberá um link por e-mail para definir sua senha no primeiro acesso.
+                🔒 Vamos gerar uma senha temporária para você enviar. No primeiro acesso a pessoa cria a própria senha.
               </div>
 
               <div style={{ marginBottom: "0.875rem" }}>
@@ -304,6 +416,11 @@ export default function UsuariosPage() {
   const [modalNovo,   setModalNovo]   = useState(false);
   const [editando,    setEditando]    = useState<Usuario | null>(null);
   const [papelAtual,  setPapelAtual]  = useState<Papel | null>(null);
+  const [meuId,       setMeuId]       = useState<string>("");
+  const [excluindo,   setExcluindo]   = useState<Usuario | null>(null);
+  const [senhaGerada, setSenhaGerada] = useState<SenhaGerada | null>(null);
+  const [gerandoId,   setGerandoId]   = useState<string>("");
+  const [avisoErro,   setAvisoErro]   = useState("");
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -323,11 +440,27 @@ export default function UsuariosPage() {
     // Papel do usuário logado
     supabase.auth.getUser().then(async ({ data }) => {
       if (data.user) {
+        setMeuId(data.user.id);
         const { data: u } = await supabase.from("usuarios").select("papel").eq("id", data.user.id).single();
         if (u) setPapelAtual(u.papel as Papel);
       }
     });
   }, [carregar, supabase]);
+
+  async function gerarSenha(u: Usuario) {
+    if (!confirm(`Gerar uma nova senha temporária para ${u.nome || u.email}? A senha atual deixa de funcionar.`)) return;
+    setGerandoId(u.id); setAvisoErro("");
+    const res = await fetch("/api/usuarios/senha-temporaria", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usuario_id: u.id }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setGerandoId("");
+    if (!res.ok) { setAvisoErro(data.error ?? "Erro ao gerar senha."); return; }
+    setSenhaGerada({ nome: data.nome ?? u.nome, email: data.email ?? u.email, senha: data.senha_temporaria });
+    carregar();
+  }
 
   async function handleToggleAtivo(u: Usuario) {
     await supabase.from("usuarios").update({ ativo: !u.ativo }).eq("id", u.id);
@@ -402,6 +535,13 @@ export default function UsuariosPage() {
         </div>
       </div>
 
+      {avisoErro && (
+        <div style={{ background: "var(--mf-vermelho-bg)", color: "var(--mf-vermelho)", borderRadius: 8, padding: "0.75rem 1rem", fontSize: "0.875rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", gap: "0.75rem" }}>
+          <span>{avisoErro}</span>
+          <button onClick={() => setAvisoErro("")} style={{ border: "none", background: "none", color: "inherit", cursor: "pointer" }} aria-label="Fechar aviso"><IconX /></button>
+        </div>
+      )}
+
       {/* Tabela */}
       <div className="mf-card" style={{ padding: 0, overflow: "hidden" }}>
         {carregando ? (
@@ -433,7 +573,7 @@ export default function UsuariosPage() {
                   <th>Papel</th>
                   <th>Vinculado a</th>
                   <th>Status</th>
-                  {isAdmin && <th style={{ width: 100, textAlign: "center" }}>Ações</th>}
+                  {isAdmin && <th style={{ width: 150, textAlign: "center" }}>Ações</th>}
                 </tr>
               </thead>
               <tbody>
@@ -470,12 +610,29 @@ export default function UsuariosPage() {
                             <IconEdit />
                           </button>
                           <button
-                            style={{ padding: "0.375rem", border: "none", background: "none", color: u.ativo ? "var(--mf-vermelho)" : "var(--mf-verde)", cursor: "pointer", borderRadius: 4 }}
+                            style={{ padding: "0.375rem", border: "none", background: "none", color: "var(--mf-texto-sec)", cursor: gerandoId ? "wait" : "pointer", borderRadius: 4, opacity: gerandoId === u.id ? 0.4 : 1 }}
+                            onClick={() => gerarSenha(u)}
+                            disabled={!!gerandoId}
+                            title="Gerar senha temporária"
+                          >
+                            <IconKey />
+                          </button>
+                          <button
+                            style={{ padding: "0.375rem", border: "none", background: "none", color: u.ativo ? "#CA8A04" : "var(--mf-verde)", cursor: "pointer", borderRadius: 4 }}
                             onClick={() => handleToggleAtivo(u)}
                             title={u.ativo ? "Desativar" : "Reativar"}
                           >
                             {u.ativo ? <IconUserX /> : <IconUserCheck />}
                           </button>
+                          {u.id !== meuId && (
+                            <button
+                              style={{ padding: "0.375rem", border: "none", background: "none", color: "var(--mf-vermelho)", cursor: "pointer", borderRadius: 4 }}
+                              onClick={() => setExcluindo(u)}
+                              title="Excluir usuário"
+                            >
+                              <IconTrash />
+                            </button>
+                          )}
                         </div>
                       </td>
                     )}
@@ -503,6 +660,18 @@ export default function UsuariosPage() {
           onClose={() => setEditando(null)}
           onSave={() => { setEditando(null); carregar(); }}
         />
+      )}
+
+      {excluindo && (
+        <ModalExcluirUsuario
+          usuario={excluindo}
+          onClose={() => setExcluindo(null)}
+          onExcluido={() => { setExcluindo(null); carregar(); }}
+        />
+      )}
+
+      {senhaGerada && (
+        <ModalSenhaGerada dados={senhaGerada} onClose={() => setSenhaGerada(null)} />
       )}
     </div>
   );

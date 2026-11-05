@@ -37,9 +37,21 @@ function IconChevronRight() {
 }
 
 // ── Helpers ──────────────────────────────────────────────────
+/** Data (YYYY-MM-DD) no fuso local, aceitando data pura ou data com hora */
+function soData(iso: string | null | undefined): string {
+  if (!iso) return "";
+  if (!iso.includes("T")) return iso.slice(0, 10);
+  const dt = new Date(iso);
+  if (isNaN(dt.getTime())) return iso.slice(0, 10);
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  return `${dt.getFullYear()}-${mm}-${dd}`;
+}
+
 function dataFmt(iso: string | null | undefined) {
-  if (!iso) return "—";
-  const [y, m, d] = iso.split("-");
+  const d0 = soData(iso);
+  if (!d0) return "—";
+  const [y, m, d] = d0.split("-");
   return `${d}/${m}/${y}`;
 }
 
@@ -47,10 +59,24 @@ function hoje() {
   return new Date().toISOString().split("T")[0];
 }
 
+const DIAS_CONCLUIDA_VISIVEL = 7;
+
+function dataConclusao(t: Tarefa): string {
+  return t.concluida_em ?? t.atualizado_em ?? t.criado_em ?? "";
+}
+
+/** Concluída/cancelada há mais de 7 dias → fica escondida por padrão */
+function isAntiga(t: Tarefa): boolean {
+  if (!["concluida", "cancelada"].includes(t.status)) return false;
+  const d = dataConclusao(t);
+  if (!d) return true;
+  return Date.now() - new Date(d).getTime() > DIAS_CONCLUIDA_VISIVEL * 24 * 60 * 60 * 1000;
+}
+
 function isAtrasada(tarefa: Tarefa) {
   if (!tarefa.prazo) return false;
   if (["concluida", "cancelada"].includes(tarefa.status)) return false;
-  return tarefa.prazo < hoje();
+  return soData(tarefa.prazo) < hoje();
 }
 
 // ── Badges ───────────────────────────────────────────────────
@@ -95,7 +121,7 @@ function ModalTarefa({ tarefa, clientes, responsaveis, onClose, onSave }: ModalT
     responsavel_id: tarefa?.responsavel_id ?? "",
     status:        tarefa?.status        ?? "pendente",
     prioridade:    tarefa?.prioridade    ?? "media",
-    prazo:         tarefa?.prazo         ?? "",
+    prazo:         soData(tarefa?.prazo),
   });
   const [salvando, setSalvando] = useState(false);
   const [erro,     setErro]     = useState("");
@@ -116,7 +142,8 @@ function ModalTarefa({ tarefa, clientes, responsaveis, onClose, onSave }: ModalT
       responsavel_id: form.responsavel_id   || null,
       status:         form.status,
       prioridade:     form.prioridade,
-      prazo:          form.prazo            || null,
+      // 18h de Marabá: evita a data "voltar um dia" por causa do fuso
+      prazo:          form.prazo ? `${form.prazo}T18:00:00-03:00` : null,
     };
 
     const { error } = isEdicao
@@ -304,15 +331,25 @@ interface ViewKanbanProps {
   onAtualizarStatus: (id: string, status: string) => void;
 }
 
+const LIMITE_CONCLUIDAS = 5;
+
 function ViewKanban({ tarefas, onEditar, onDeletar, onAtualizarStatus }: ViewKanbanProps) {
   const statusList = COLUNAS_KANBAN.map(c => c.key);
+  const [verTodasConcluidas, setVerTodasConcluidas] = useState(false);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem", overflowX: "auto" }}>
+    <div className="tarefas-kanban" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem", overflowX: "auto" }}>
       {COLUNAS_KANBAN.map(coluna => {
-        const items = tarefas.filter(t => t.status === coluna.key);
+        const todos = tarefas.filter(t => t.status === coluna.key);
+        // Concluídas: as mais recentes primeiro, e só algumas por vez
+        const ordenados = coluna.key === "concluida"
+          ? [...todos].sort((a, b) => dataConclusao(b).localeCompare(dataConclusao(a)))
+          : todos;
+        const limitar = coluna.key === "concluida" && !verTodasConcluidas && ordenados.length > LIMITE_CONCLUIDAS;
+        const items = limitar ? ordenados.slice(0, LIMITE_CONCLUIDAS) : ordenados;
+        const escondidos = ordenados.length - items.length;
         return (
-          <div key={coluna.key} style={{ minWidth: 220 }}>
+          <div key={coluna.key} className="tarefas-coluna" style={{ minWidth: 220 }}>
             {/* Cabeçalho da coluna */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem", padding: "0.5rem 0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -323,7 +360,7 @@ function ViewKanban({ tarefas, onEditar, onDeletar, onAtualizarStatus }: ViewKan
                 minWidth: 22, height: 22, borderRadius: 999, background: "var(--mf-fundo)",
                 border: "1px solid var(--mf-borda)", display: "flex", alignItems: "center",
                 justifyContent: "center", fontSize: "0.75rem", fontWeight: 700, color: "var(--mf-texto-sec)"
-              }}>{items.length}</span>
+              }}>{todos.length}</span>
             </div>
 
             {/* Cards */}
@@ -342,6 +379,14 @@ function ViewKanban({ tarefas, onEditar, onDeletar, onAtualizarStatus }: ViewKan
                   onMoverStatus={novoStatus => onAtualizarStatus(t.id, novoStatus)}
                 />
               ))}
+              {coluna.key === "concluida" && (escondidos > 0 || verTodasConcluidas) && ordenados.length > LIMITE_CONCLUIDAS && (
+                <button
+                  onClick={() => setVerTodasConcluidas(v => !v)}
+                  style={{ padding: "0.625rem", border: "1px dashed var(--mf-borda)", borderRadius: 10, background: "white", color: "var(--mf-texto-sec)", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer" }}
+                >
+                  {verTodasConcluidas ? "Mostrar menos" : `Ver mais ${escondidos} concluída${escondidos !== 1 ? "s" : ""}`}
+                </button>
+              )}
             </div>
           </div>
         );
@@ -598,6 +643,7 @@ export default function TarefasPage() {
   const [filtroResp,    setFiltroResp]    = useState("");
   const [filtroStatus,  setFiltroStatus]  = useState("");
   const [filtroPrio,    setFiltroPrio]    = useState("");
+  const [mostrarAntigas, setMostrarAntigas] = useState(false);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -639,8 +685,12 @@ export default function TarefasPage() {
     if (filtroResp    && t.responsavel_id !== filtroResp)    return false;
     if (filtroStatus  && t.status         !== filtroStatus)  return false;
     if (filtroPrio    && t.prioridade     !== filtroPrio)    return false;
+    // Concluídas antigas somem, a não ser que peça para ver
+    if (!mostrarAntigas && !filtroBusca && isAntiga(t)) return false;
     return true;
   });
+
+  const qtdAntigas = tarefas.filter(isAntiga).length;
 
   const contPorStatus = {
     pendente:     tarefas.filter(t => t.status === "pendente").length,
@@ -694,7 +744,7 @@ export default function TarefasPage() {
       {aba === "tarefas" && (
         <>
           {/* Stats */}
-          <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1.25rem", flexWrap: "wrap" }}>
+          <div className="tarefas-stats" style={{ display: "flex", gap: "0.75rem", marginBottom: "1.25rem", flexWrap: "wrap" }}>
             {[
               { label: "Pendentes",     valor: contPorStatus.pendente,     cor: "#6B7280" },
               { label: "Em andamento",  valor: contPorStatus.em_andamento,  cor: "#3B82F6" },
@@ -709,8 +759,24 @@ export default function TarefasPage() {
             ))}
           </div>
 
+          {qtdAntigas > 0 && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap", background: "var(--mf-fundo)", border: "1px solid var(--mf-borda)", borderRadius: 10, padding: "0.5rem 0.875rem", marginBottom: "1rem", fontSize: "0.8125rem", color: "var(--mf-texto-sec)" }}>
+              <span>
+                {mostrarAntigas
+                  ? `Mostrando também ${qtdAntigas} tarefa${qtdAntigas !== 1 ? "s" : ""} concluída${qtdAntigas !== 1 ? "s" : ""} há mais de ${DIAS_CONCLUIDA_VISIVEL} dias.`
+                  : `${qtdAntigas} tarefa${qtdAntigas !== 1 ? "s" : ""} concluída${qtdAntigas !== 1 ? "s" : ""} há mais de ${DIAS_CONCLUIDA_VISIVEL} dias ${qtdAntigas !== 1 ? "estão arquivadas" : "está arquivada"}.`}
+              </span>
+              <button
+                onClick={() => setMostrarAntigas(v => !v)}
+                style={{ border: "none", background: "none", color: "var(--mf-laranja)", fontWeight: 700, cursor: "pointer", fontSize: "0.8125rem", padding: 0 }}
+              >
+                {mostrarAntigas ? "Esconder antigas" : "Ver antigas"}
+              </button>
+            </div>
+          )}
+
           {/* Filtros e switch de view */}
-          <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem", flexWrap: "wrap", alignItems: "center" }}>
+          <div className="tarefas-filtros" style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem", flexWrap: "wrap", alignItems: "center" }}>
             <input type="text" className="mf-input" placeholder="Buscar..." value={filtroBusca} onChange={e => setFiltroBusca(e.target.value)} style={{ flex: "1 1 160px", maxWidth: 220 }} />
             <select className="mf-input" style={{ width: "auto" }} value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)}>
               <option value="">Todos clientes</option>

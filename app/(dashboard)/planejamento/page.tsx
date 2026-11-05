@@ -497,6 +497,9 @@ function CardPlanejamento({ plan, onRefresh }: CardPlanejamentoProps) {
   const [modalConteudo, setModalConteudo] = useState(false);
   const [editandoCont,  setEditandoCont]  = useState<Partial<Conteudo> | null>(null);
   const [deletandoCont, setDeletandoCont] = useState<string | null>(null);
+  const [confirmarExcluir, setConfirmarExcluir] = useState(false);
+  const [excluindoPlan,    setExcluindoPlan]    = useState(false);
+  const [erroExcluir,      setErroExcluir]      = useState("");
 
   const conteudos = plan.conteudos ?? [];
   const clienteNome = (plan.cliente as unknown as { nome: string } | null)?.nome ?? "—";
@@ -511,6 +514,27 @@ function CardPlanejamento({ plan, onRefresh }: CardPlanejamentoProps) {
     aprovado:   conteudos.filter(c => c.status === "aprovado").length,
     rascunho:   conteudos.filter(c => c.status === "rascunho").length,
   };
+
+  async function handleExcluirPlanejamento() {
+    setExcluindoPlan(true);
+    setErroExcluir("");
+    // Os conteúdos do planejamento vão junto
+    const { error: errCont } = await supabase.from("conteudos").delete().eq("planejamento_id", plan.id);
+    if (!errCont) {
+      const { error } = await supabase.from("planejamentos").delete().eq("id", plan.id);
+      if (!error) {
+        setConfirmarExcluir(false);
+        setExcluindoPlan(false);
+        onRefresh();
+        return;
+      }
+      console.error("[planejamento] erro ao excluir:", error);
+    } else {
+      console.error("[planejamento] erro ao excluir conteúdos:", errCont);
+    }
+    setErroExcluir("Não foi possível excluir. Tente novamente.");
+    setExcluindoPlan(false);
+  }
 
   async function handleDeleteConteudo(id: string) {
     await supabase.from("conteudos").delete().eq("id", id);
@@ -572,6 +596,13 @@ function CardPlanejamento({ plan, onRefresh }: CardPlanejamentoProps) {
               style={{ fontSize: "0.8125rem", padding: "0.375rem 0.75rem", display: "flex", alignItems: "center", gap: "0.375rem", borderColor: mostrarIA ? "var(--mf-laranja)" : undefined, color: mostrarIA ? "var(--mf-laranja)" : undefined }}
             >
               <IconSpark /> {mostrarIA ? "Fechar IA" : "Assistente IA"}
+            </button>
+            <button
+              className="mf-btn-secondary"
+              onClick={() => setConfirmarExcluir(true)}
+              style={{ fontSize: "0.8125rem", padding: "0.375rem 0.75rem", display: "flex", alignItems: "center", gap: "0.375rem", color: "var(--mf-vermelho)", marginLeft: "auto" }}
+            >
+              <IconTrash /> Excluir planejamento
             </button>
           </div>
 
@@ -663,6 +694,27 @@ function CardPlanejamento({ plan, onRefresh }: CardPlanejamentoProps) {
                 <button className="mf-btn-secondary" onClick={() => setDeletandoCont(null)}>Cancelar</button>
                 <button className="mf-btn-primary" style={{ background: "var(--mf-vermelho)" }} onClick={() => handleDeleteConteudo(deletandoCont)}>Excluir</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {confirmarExcluir && (
+        <div className="mf-overlay" onClick={e => e.target === e.currentTarget && !excluindoPlan && setConfirmarExcluir(false)}>
+          <div className="mf-modal" style={{ maxWidth: 420, padding: "1.5rem" }}>
+            <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.0625rem", fontWeight: 700 }}>Excluir planejamento?</h2>
+            <p style={{ fontSize: "0.875rem", color: "var(--mf-texto-sec)", margin: "0 0 1rem" }}>
+              O planejamento de <strong style={{ color: "var(--mf-texto)" }}>{clienteNome} · {mesLabel}</strong>
+              {conteudos.length > 0 ? ` e os ${conteudos.length} conteúdo${conteudos.length !== 1 ? "s" : ""} dele` : ""} serão apagados.
+              {" "}<strong>Isso não pode ser desfeito.</strong>
+            </p>
+            {erroExcluir && (
+              <div style={{ background: "var(--mf-vermelho-bg)", color: "var(--mf-vermelho)", borderRadius: 8, padding: "0.625rem 0.875rem", fontSize: "0.8125rem", marginBottom: "1rem" }}>{erroExcluir}</div>
+            )}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+              <button className="mf-btn-secondary" onClick={() => setConfirmarExcluir(false)} disabled={excluindoPlan}>Cancelar</button>
+              <button className="mf-btn-primary" onClick={handleExcluirPlanejamento} disabled={excluindoPlan} style={{ background: "var(--mf-vermelho)" }}>
+                {excluindoPlan ? "Excluindo..." : "Excluir"}
+              </button>
             </div>
           </div>
         </div>

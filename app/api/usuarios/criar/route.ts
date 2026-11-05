@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, createServerClient } from "@/lib/supabase-server";
+import { gerarSenhaTemporaria } from "@/lib/admin-api";
 
 export async function POST(req: NextRequest) {
   // 1. Verificar se quem chama é admin autenticado
@@ -44,9 +45,11 @@ export async function POST(req: NextRequest) {
 
   // 3. Criar usuário via Admin Client (service role)
   const admin = createAdminClient();
+  const senhaTemporaria = gerarSenhaTemporaria();
 
   const { data: authData, error: createError } = await admin.auth.admin.createUser({
     email: email.trim().toLowerCase(),
+    password: senhaTemporaria,    // senha temporária — troca obrigatória no 1º acesso
     email_confirm: true,          // confirma e-mail automaticamente
     user_metadata: {
       nome: nome.trim(),
@@ -89,24 +92,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Erro ao registrar usuário. Tente novamente." }, { status: 500 });
   }
 
-  // 5. Enviar convite por e-mail (magic link / senha temporária)
-  const { error: inviteError } = await admin.auth.admin.generateLink({
-    type: "magiclink",
+  // 5. Devolve a senha temporária para o admin repassar (ela só aparece agora)
+  return NextResponse.json({
+    success: true,
+    usuario_id: novoUserId,
+    senha_temporaria: senhaTemporaria,
     email: email.trim().toLowerCase(),
-    options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/redefinir-senha`,
-    },
+    nome: nome.trim(),
   });
-
-  if (inviteError) {
-    // Não bloquear — usuário foi criado, mas aviso no retorno
-    console.warn("[criar-usuario] Aviso: falha ao gerar link de convite:", inviteError.message);
-    return NextResponse.json({
-      success: true,
-      usuario_id: novoUserId,
-      aviso: "Usuário criado, mas o e-mail de convite não pôde ser enviado. Envie o link de acesso manualmente.",
-    });
-  }
-
-  return NextResponse.json({ success: true, usuario_id: novoUserId });
 }
