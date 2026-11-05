@@ -71,7 +71,13 @@ export type EstruturaPlanejamento = {
     plataforma?: string;
     formato?: string;
     legenda?: string;
+    objetivo?: string;
+    gancho?: string;
+    conceito?: string;
   }[];
+
+  /** Observações do "diretor de marketing" só para a agência (o cliente não vê) */
+  notas_internas?: string[];
 };
 
 export type StatusAprovacao = "rascunho" | "enviado" | "aprovado" | "ajuste";

@@ -1,8 +1,7 @@
 import { NextRequest } from "next/server";
 import { createServerClient, createAdminClient } from "@/lib/supabase-server";
 import OpenAI from "openai";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { obterSkill, obterChaveOpenAI } from "@/lib/ia-skill";
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,11 +36,21 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "Instrução obrigatória." }, { status: 400 });
     }
 
-    // ── Prompt do sistema ─────────────────────────────────────
-    const systemPrompt = `Você é um especialista em marketing de conteúdo digital para pequenas e médias empresas brasileiras.
-Sua função é ajudar a planejar e criar conteúdo para redes sociais, sites e outras plataformas.
+    // ── Skill + chave ─────────────────────────────────────────
+    const [skill, key] = await Promise.all([obterSkill(), obterChaveOpenAI()]);
+    if (!key) {
+      return Response.json({ error: "Chave da OpenAI não configurada. Cole a chave em Configurações → Inteligência Artificial." }, { status: 400 });
+    }
+    const openai = new OpenAI({ apiKey: key });
 
-Sempre responda em português do Brasil de forma clara, prática e criativa.
+    // ── Prompt do sistema ─────────────────────────────────────
+    const systemPrompt = `${skill}
+
+---
+
+# TAREFA ATUAL — ASSISTENTE DE PLANEJAMENTO
+Você está dentro do sistema da MarketForge, agência de Marabá (PA), ajudando a equipe no planejamento de um cliente.
+Responda em português do Brasil, em texto simples (sem tabelas largas), pronto para ler no celular.
 Quando sugerir posts ou conteúdos, forneça:
 - Título ou tema do conteúdo
 - Plataforma sugerida (Instagram, Facebook, TikTok, etc.)
@@ -66,8 +75,8 @@ ${instrucao}`;
         { role: "user",   content: userMessage },
       ],
       stream: true,
-      max_tokens: 2000,
-      temperature: 0.8,
+      max_tokens: 3000,
+      temperature: 0.7,
     });
 
     const encoder = new TextEncoder();

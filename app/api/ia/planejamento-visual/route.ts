@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createServerClient, createAdminClient } from "@/lib/supabase-server";
 import type { EstruturaPlanejamento } from "@/lib/planejamento-tipos";
+import { obterSkill, obterChaveOpenAI } from "@/lib/ia-skill";
 
 export const maxDuration = 60;
 
@@ -44,11 +45,17 @@ const ESQUEMA = `{
     "frase_final": "...",
     "subfrase": "..."
   },
-  "conteudos": [{ "titulo": "Vídeo do Pagode", "data": "AAAA-MM-DD ou null", "plataforma": "Instagram", "formato": "Reels", "legenda": "sugestão curta opcional" }]
+  "conteudos": [{ "titulo": "Vídeo do Pagode", "data": "AAAA-MM-DD ou null", "plataforma": "Instagram", "formato": "Reels",
+                  "objetivo": "atração | confiança | desejo | conversão | retenção — e por quê", "gancho": "primeiros segundos",
+                  "conceito": "ideia criativa e orientação de gravação", "legenda": "sugestão curta opcional" }],
+  "notas_internas": ["observações SÓ PARA A AGÊNCIA (o cliente não vê): pontos fracos do plano, informações que faltam, riscos e sugestões melhores"]
 }`;
 
-const SISTEMA = `Você é o estrategista da MarketForge, agência de marketing de Marabá (PA).
-Transforme o texto do planejamento mensal de um cliente em um JSON para uma apresentação visual que o CLIENTE vai ler no celular.
+const TAREFA = `# TAREFA ATUAL — PLANEJAMENTO VISUAL DO MÊS
+Você trabalha na MarketForge, agência de marketing de Marabá (PA).
+O texto abaixo foi escrito/ditado pela agência explicando o planejamento mensal de um cliente.
+Transforme-o em um JSON para uma apresentação visual que o CLIENTE vai ler no celular.
+Aplique a skill acima para organizar e fortalecer a estratégia, mas respeite as decisões da agência que estão no texto.
 
 Regras:
 - Responda SOMENTE com um objeto JSON válido, seguindo este formato (todas as chaves são opcionais; inclua só as seções que fazem sentido para o texto):
@@ -60,14 +67,10 @@ ${ESQUEMA}
 - Datas nos campos de exibição ("quando", "data") no formato DD/MM.
 - "conteudos": um item para cada vídeo/post com data definida (formato AAAA-MM-DD, usando o ano e o mês do planejamento). Itens recorrentes ou sem data: data null. Não liste stories diários um por um.
 - "resumo.cards": de 3 a 6 cards; marque "destaque": true nos que têm data específica.
-- "resumo.depende_cliente": o que o cliente precisa confirmar ou entregar.`;
-
-async function chaveOpenAI(): Promise<string | null> {
-  if (process.env.OPENAI_API_KEY) return process.env.OPENAI_API_KEY;
-  const admin = createAdminClient();
-  const { data } = await admin.from("configuracoes").select("openai_key").limit(1).maybeSingle();
-  return (data as { openai_key?: string | null } | null)?.openai_key || null;
-}
+- "resumo.depende_cliente": o que o cliente precisa confirmar ou entregar.
+- Cada item de "conteudos" deve ter função estratégica clara (campo "objetivo"), um gancho e um conceito de gravação. Nada de conteúdo genérico.
+- "notas_internas": 2 a 6 observações diretas para a agência, como um diretor de marketing faria: o que está fraco, o que falta saber, riscos, e alternativas melhores. Se o plano estiver bom, diga o que reforçar. Não repita o texto.
+- Como não dá para fazer perguntas aqui, coloque as dúvidas importantes em "notas_internas" (para a agência) ou em "depende_cliente" (para o cliente).`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -106,7 +109,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Gere o planejamento primeiro, depois peça ajustes." }, { status: 400 });
     }
 
-    const key = await chaveOpenAI();
+    const [key, skill] = await Promise.all([obterChaveOpenAI(), obterSkill()]);
     if (!key) {
       return NextResponse.json({ error: "Chave da OpenAI não configurada. Cole a chave em Configurações → Inteligência Artificial." }, { status: 400 });
     }
@@ -119,7 +122,7 @@ export async function POST(req: NextRequest) {
       plan.tom_voz ? `Tom de voz: ${plan.tom_voz}` : "",
     ].filter(Boolean).join("\n");
 
-    const mensagens: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [{ role: "system", content: SISTEMA }];
+    const mensagens: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [{ role: "system", content: `${skill}\n\n---\n\n${TAREFA}` }];
     if (ajuste) {
       mensagens.push({
         role: "user",
@@ -131,11 +134,11 @@ export async function POST(req: NextRequest) {
 
     const openai = new OpenAI({ apiKey: key });
     const resp = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      model: process.env.OPENAI_MODEL || "gpt-4o",
       messages: mensagens,
       response_format: { type: "json_object" },
       temperature: 0.4,
-      max_tokens: 4000,
+      max_tokens: 6000,
     });
 
     let estrutura: EstruturaPlanejamento;

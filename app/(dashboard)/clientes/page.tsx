@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { UploadLogo } from "@/components/ui/UploadLogo";
 import { supabase } from "@/lib/supabase";
 import type { Cliente, Usuario } from "@/lib/types";
 
@@ -70,6 +71,7 @@ function ModalCliente({ cliente, responsaveis, onClose, onSave }: ModalProps) {
     responsavel_id: cliente?.responsavel_id ?? "",
     observacoes: cliente?.observacoes ?? "",
   });
+  const [logoUrl, setLogoUrl] = useState<string | null>(cliente?.logo_url ?? null);
   const [salvando, setSalvando]   = useState(false);
   const [erro, setErro]           = useState("");
 
@@ -91,17 +93,19 @@ function ModalCliente({ cliente, responsaveis, onClose, onSave }: ModalProps) {
       status:         form.status as Cliente["status"],
       responsavel_id: form.responsavel_id  || null,
       observacoes:    form.observacoes.trim() || null,
+      logo_url:       logoUrl,
     };
 
     const { error } = isEdicao
       ? await supabase.from("clientes").update(payload).eq("id", cliente!.id!)
       : await supabase.from("clientes").insert(payload);
 
-    if (error) { setErro("Erro ao salvar. Tente novamente."); setSalvando(false); return; }
+    if (error) { console.error("[clientes] salvar:", error); setErro(`Erro ao salvar: ${error.message}`); setSalvando(false); return; }
     onSave();
   }
 
-  const InputField = ({ label, campo, type = "text", placeholder = "" }: { label: string; campo: string; type?: string; placeholder?: string }) => (
+  // Função (e não componente) para o campo não perder o foco a cada letra digitada
+  const campoTexto = (label: string, campo: string, type = "text", placeholder = "") => (
     <div style={{ marginBottom: "0.875rem" }}>
       <label className="mf-label">{label}</label>
       <input
@@ -127,14 +131,16 @@ function ModalCliente({ cliente, responsaveis, onClose, onSave }: ModalProps) {
         </div>
 
         <form onSubmit={handleSalvar} style={{ padding: "1.5rem" }}>
+          <UploadLogo valor={logoUrl} nome={form.nome} onChange={setLogoUrl} />
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 1rem" }}>
             <div style={{ gridColumn: "1 / -1" }}>
-              <InputField label="Nome *" campo="nome" placeholder="Nome do cliente ou empresa" />
+              {campoTexto("Nome *", "nome", "text", "Nome do cliente ou empresa")}
             </div>
-            <InputField label="E-mail" campo="email" type="email" placeholder="email@cliente.com" />
-            <InputField label="Telefone" campo="telefone" type="tel" placeholder="(91) 99999-9999" />
-            <InputField label="CNPJ / CPF" campo="cnpj_cpf" placeholder="00.000.000/0001-00" />
-            <InputField label="Segmento" campo="segmento" placeholder="Ex: Restaurante, Moda..." />
+            {campoTexto("E-mail", "email", "email", "email@cliente.com")}
+            {campoTexto("Telefone", "telefone", "tel", "(91) 99999-9999")}
+            {campoTexto("CNPJ / CPF", "cnpj_cpf", "text", "00.000.000/0001-00")}
+            {campoTexto("Segmento", "segmento", "text", "Ex: Restaurante, Moda...")}
           </div>
 
           <div style={{ marginBottom: "0.875rem" }}>

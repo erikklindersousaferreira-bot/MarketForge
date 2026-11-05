@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { ResumoMes } from "@/components/financeiro/ResumoMes";
 import { supabase } from "@/lib/supabase";
 import type { Cobranca, Despesa, Cliente } from "@/lib/types";
 
@@ -799,7 +800,7 @@ function AbaDespesas() {
 
 // ── Página principal ─────────────────────────────────────────
 export default function FinanceiroPage() {
-  const [aba,     setAba]     = useState<"cobrancas" | "despesas">("cobrancas");
+  const [aba,     setAba]     = useState<"resumo" | "cobrancas" | "despesas">("resumo");
   const [clientes, setClientes] = useState<Pick<Cliente, "id" | "nome">[]>([]);
 
   useEffect(() => {
@@ -808,6 +809,7 @@ export default function FinanceiroPage() {
   }, [supabase]);
 
   const abas = [
+    { key: "resumo",    label: "Lucro do mês", icon: <IconTrend /> },
     { key: "cobrancas", label: "Cobranças",  icon: <IconDollar /> },
     { key: "despesas",  label: "Despesas",   icon: <IconWallet /> },
   ] as const;
@@ -823,7 +825,7 @@ export default function FinanceiroPage() {
       </div>
 
       {/* Abas */}
-      <div style={{ display: "flex", gap: "0.25rem", background: "white", borderRadius: 10, padding: "0.25rem", border: "1px solid var(--mf-borda)", marginBottom: "1.5rem", width: "fit-content", boxShadow: "var(--shadow-sm)" }}>
+      <div className="mf-scroll-x" style={{ display: "flex", gap: "0.25rem", background: "white", borderRadius: 10, padding: "0.25rem", border: "1px solid var(--mf-borda)", marginBottom: "1.5rem", width: "fit-content", maxWidth: "100%", boxShadow: "var(--shadow-sm)" }}>
         {abas.map(a => (
           <button
             key={a.key}
@@ -844,6 +846,7 @@ export default function FinanceiroPage() {
       </div>
 
       {/* Conteúdo */}
+      {aba === "resumo"    && <ResumoMes />}
       {aba === "cobrancas" && <AbaCobrancas clientes={clientes} />}
       {aba === "despesas"  && <AbaDespesas />}
     </div>

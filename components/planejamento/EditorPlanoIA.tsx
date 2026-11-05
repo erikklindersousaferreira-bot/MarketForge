@@ -81,6 +81,11 @@ export function EditorPlanoIA({ plan, clienteNome, clienteLogo, onRefresh }: Pro
         status: "rascunho",
         data_publicacao: c.data && /^\d{4}-\d{2}-\d{2}$/.test(c.data) ? c.data : null,
         legenda: c.legenda?.trim() || null,
+        observacoes: [
+          c.objetivo ? `🎯 Objetivo: ${c.objetivo}` : "",
+          c.gancho ? `🪝 Gancho: ${c.gancho}` : "",
+          c.conceito ? `🎬 Conceito: ${c.conceito}` : "",
+        ].filter(Boolean).join("\n") || null,
         gerado_ia: true,
       }));
     if (novos.length) {
@@ -170,6 +175,14 @@ export function EditorPlanoIA({ plan, clienteNome, clienteLogo, onRefresh }: Pro
       {/* Prévia */}
       {estrutura && (
         <>
+          {!!estrutura.notas_internas?.length && (
+            <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 12, padding: "0.875rem 1rem", marginBottom: "1rem" }}>
+              <div style={{ fontWeight: 700, fontSize: "0.8125rem", color: "#92400E", marginBottom: 6 }}>💡 Observações do diretor de marketing <span style={{ fontWeight: 500 }}>(só você vê)</span></div>
+              <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.8125rem", color: "#78350F", lineHeight: 1.5 }}>
+                {estrutura.notas_internas.map((n, i) => <li key={i}>{n}</li>)}
+              </ul>
+            </div>
+          )}
           <div style={{ maxWidth: 520, margin: "0 auto", maxHeight: 640, overflowY: "auto", borderRadius: 20, boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}>
             <PlanoVisual estrutura={estrutura} clienteNome={clienteNome} clienteLogo={clienteLogo} mesLabel={mesLabel} />
           </div>

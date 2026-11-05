@@ -32,6 +32,7 @@ interface ConfigSistema {
   cidade: string
   site: string
   openai_key: string
+  ia_skill?: string | null
   vapid_public_key: string
   vapid_private_key: string
   notif_cobranca_dias: number
@@ -47,6 +48,7 @@ const CONFIG_PADRAO: ConfigSistema = {
   cidade: '',
   site: '',
   openai_key: '',
+  ia_skill: '',
   vapid_public_key: '',
   vapid_private_key: '',
   notif_cobranca_dias: 3,
@@ -354,6 +356,31 @@ export default function ConfiguracoesPage() {
             platform.openai.com
           </a>
           .
+        </div>
+
+        <div>
+          <label className="mf-label">Instruções da IA (skill)</label>
+          <textarea
+            className="mf-input"
+            rows={10}
+            value={config.ia_skill ?? ''}
+            onChange={e => set('ia_skill', e.target.value)}
+            placeholder="Em branco = usa a skill padrão “Diretor de Marketing Estratégico” (já ativa). Cole aqui outra skill para substituir."
+            style={{ resize: 'vertical', fontFamily: 'ui-monospace, monospace', fontSize: 13, lineHeight: 1.5 }}
+          />
+          <div className="flex items-center justify-between gap-2 mt-1 flex-wrap">
+            <span className="text-xs" style={{ color: 'var(--mf-texto-sec)' }}>
+              {config.ia_skill?.trim()
+                ? `Skill personalizada ativa (${config.ia_skill.trim().length.toLocaleString('pt-BR')} caracteres).`
+                : 'Usando a skill padrão: Diretor de Marketing Estratégico.'}
+              {' '}Vale para o planejamento visual e o Assistente IA.
+            </span>
+            {!!config.ia_skill?.trim() && (
+              <button type="button" onClick={() => set('ia_skill', '')} className="text-xs font-semibold" style={{ color: 'var(--mf-laranja)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                Voltar para a skill padrão
+              </button>
+            )}
+          </div>
         </div>
       </Secao>
 
