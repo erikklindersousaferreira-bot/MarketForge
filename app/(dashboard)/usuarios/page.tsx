@@ -36,7 +36,7 @@ function PapelBadge({ papel }: { papel: Papel }) {
     equipe:   { label: "Equipe",   cls: "mf-badge mf-badge-azul"    },
     cliente:  { label: "Cliente",  cls: "mf-badge mf-badge-roxo"    },
   };
-  const { label, cls } = map[papel];
+  const { label, cls } = map[papel] ?? { label: papel ? String(papel) : "Sem papel", cls: "mf-badge mf-badge-cinza" };
   return <span className={cls}>{label}</span>;
 }
 
@@ -45,7 +45,7 @@ function UsuarioAvatar({ nome, foto }: { nome: string; foto?: string | null }) {
   if (foto) {
     return <img src={foto} alt={nome} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />;
   }
-  const initials = nome.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase();
+  const initials = (nome || "?").split(" ").filter(Boolean).slice(0, 2).map(n => n[0]).join("").toUpperCase() || "?";
   return (
     <div style={{
       width: 36, height: 36, borderRadius: "50%", background: "#FF6A00", color: "white",
@@ -190,8 +190,8 @@ interface ModalEditarProps {
 
 function ModalEditarUsuario({ usuario, clientes, onClose, onSave }: ModalEditarProps) {
   const [form, setForm] = useState({
-    nome:       usuario.nome,
-    papel:      usuario.papel as Papel,
+    nome:       usuario.nome ?? "",
+    papel:      (["admin", "equipe", "cliente"].includes(usuario.papel) ? usuario.papel : "equipe") as Papel,
     cliente_id: usuario.cliente_id ?? "",
     ativo:      usuario.ativo,
   });
@@ -307,10 +307,11 @@ export default function UsuariosPage() {
 
   const carregar = useCallback(async () => {
     setCarregando(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("usuarios")
       .select("*, cliente:cliente_id(id, nome)")
       .order("nome");
+    if (error) console.error("[usuarios] erro ao carregar:", error);
     if (data) setUsuarios(data as Usuario[]);
     setCarregando(false);
   }, [supabase]);
@@ -335,8 +336,8 @@ export default function UsuariosPage() {
 
   const filtrados = usuarios.filter(u => {
     const matchBusca = !busca
-      || u.nome.toLowerCase().includes(busca.toLowerCase())
-      || u.email.toLowerCase().includes(busca.toLowerCase());
+      || (u.nome ?? "").toLowerCase().includes(busca.toLowerCase())
+      || (u.email ?? "").toLowerCase().includes(busca.toLowerCase());
     const matchPapel = filtroPapel === "todos" || u.papel === filtroPapel;
     return matchBusca && matchPapel;
   });
@@ -440,16 +441,16 @@ export default function UsuariosPage() {
                   <tr key={u.id} style={{ opacity: u.ativo ? 1 : 0.55 }}>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                        <UsuarioAvatar nome={u.nome} foto={u.foto_url} />
+                        <UsuarioAvatar nome={u.nome || u.email || "?"} foto={u.avatar_url} />
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>{u.nome}</div>
+                          <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>{u.nome || u.email || "Sem nome"}</div>
                           {u.primeiro_acesso && (
                             <div style={{ fontSize: "0.75rem", color: "#CA8A04", fontWeight: 500 }}>⏳ Aguardando primeiro acesso</div>
                           )}
                         </div>
                       </div>
                     </td>
-                    <td style={{ fontSize: "0.875rem", color: "var(--mf-texto-sec)" }}>{u.email}</td>
+                    <td style={{ fontSize: "0.875rem", color: "var(--mf-texto-sec)" }}>{u.email || "—"}</td>
                     <td><PapelBadge papel={u.papel as Papel} /></td>
                     <td style={{ fontSize: "0.875rem", color: "var(--mf-texto-sec)" }}>
                       {(u.cliente as unknown as { nome: string } | null)?.nome ?? "—"}
