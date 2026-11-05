@@ -3,11 +3,8 @@
 // app/redefinir-senha/page.tsx — Troca de senha no primeiro acesso
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
 
 export default function RedefinirSenhaPage() {
-  const router = useRouter();
-
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
   const [erro, setErro] = useState("");
@@ -33,33 +30,25 @@ export default function RedefinirSenhaPage() {
       const { error } = await supabase.auth.updateUser({ password: novaSenha });
 
       if (error) {
-        setErro("Erro ao redefinir senha. Tente novamente.");
+        setErro(
+          /different|same/i.test(error.message)
+            ? "A nova senha precisa ser diferente da senha temporária."
+            : "Erro ao redefinir senha. Tente novamente."
+        );
         return;
       }
 
-      // Marcar primeiro_acesso como false
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        await supabase
-          .from("usuarios")
-          .update({ primeiro_acesso: false })
-          .eq("id", user.id);
-
-        const { data: usuario } = await supabase
-          .from("usuarios")
-          .select("papel")
-          .eq("id", user.id)
-          .single();
-
-        if (usuario?.papel === "cliente") {
-          router.push("/portal");
-        } else {
-          router.push("/painel");
-        }
+      // Marca o primeiro acesso como concluído (no servidor)
+      const res = await fetch("/api/conta/primeiro-acesso", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErro(data.error ?? "Não foi possível concluir. Tente novamente.");
+        return;
       }
+
+      // Recarrega a página inteira para o servidor ler a sessão nova
+      window.location.href = data.destino ?? "/painel";
+      return;
     } catch {
       setErro("Ocorreu um erro. Tente novamente.");
     } finally {
