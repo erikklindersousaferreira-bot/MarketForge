@@ -86,6 +86,7 @@ const COR_TIPO: Record<string, string> = {
   reuniao: '#3B82F6',
   tarefa: '#F59E0B',
   entrega: '#10B981',
+  gravacao: '#FF6A00',
   outro: '#8B5CF6',
 }
 
@@ -93,6 +94,7 @@ const LABEL_TIPO: Record<string, string> = {
   reuniao: 'Reunião',
   tarefa: 'Tarefa',
   entrega: 'Entrega',
+  gravacao: 'Gravação',
   outro: 'Outro',
 }
 
@@ -273,6 +275,7 @@ function ModalEvento({
               <option value="reuniao">Reunião</option>
               <option value="tarefa">Tarefa</option>
               <option value="entrega">Entrega</option>
+              <option value="gravacao">Gravação</option>
               <option value="outro">Outro</option>
             </select>
           </div>

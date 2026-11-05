@@ -338,6 +338,11 @@ WHERE h.texto IS NOT NULL
 -- ============================================================
 ALTER TABLE public.eventos_agenda ADD COLUMN IF NOT EXISTS ocorrencia_antiga_id uuid UNIQUE;
 
+-- Tipos aceitos na Agenda: inclui "gravacao" (o banco só aceitava reuniao/tarefa/entrega/outro)
+ALTER TABLE public.eventos_agenda DROP CONSTRAINT IF EXISTS eventos_agenda_tipo_check;
+ALTER TABLE public.eventos_agenda ADD CONSTRAINT eventos_agenda_tipo_check
+  CHECK (tipo IN ('reuniao', 'tarefa', 'entrega', 'gravacao', 'outro'));
+
 INSERT INTO public.eventos_agenda (titulo, descricao, tipo, cliente_id, data_inicio, data_fim,
                                    dia_todo, local, recorrente, cor, ocorrencia_antiga_id)
 SELECT
@@ -346,7 +351,6 @@ SELECT
   CASE WHEN ar.tipo ILIKE '%grav%' OR ar.tipo ILIKE '%video%' OR ar.tipo ILIKE '%vídeo%' OR ar.tipo ILIKE '%foto%' THEN 'gravacao'
        WHEN ar.tipo ILIKE '%reuni%' THEN 'reuniao'
        WHEN ar.tipo ILIKE '%entreg%' THEN 'entrega'
-       WHEN ar.tipo ILIKE '%liga%' THEN 'ligacao'
        ELSE 'outro' END,
   ar.cliente_id,
   o.data_hora,
