@@ -23,22 +23,28 @@ export async function POST(req: NextRequest) {
 
   const senha = gerarSenhaTemporaria();
 
-  const { error: erroAuth } = await admin.auth.admin.updateUserById(usuario_id, {
+  let { error: erroAuth } = await admin.auth.admin.updateUserById(usuario_id, {
     password: senha,
     email_confirm: true,
   });
 
+  // Usuário do sistema antigo sem login: cria o login com o MESMO id
+  if (erroAuth && /not found|não encontrado|User not allowed/i.test(erroAuth.message)) {
+    if (!usuario.email) {
+      return NextResponse.json({ error: "Este usuário está sem e-mail. Edite e coloque um e-mail antes de gerar a senha." }, { status: 400 });
+    }
+    const criado = await admin.auth.admin.createUser({
+      id: usuario_id,
+      email: usuario.email.trim().toLowerCase(),
+      password: senha,
+      email_confirm: true,
+    });
+    erroAuth = criado.error;
+  }
+
   if (erroAuth) {
     console.error("[senha-temporaria] erro no Auth:", erroAuth.message);
-    const semLogin = /not found|não encontrado|User not allowed/i.test(erroAuth.message);
-    return NextResponse.json(
-      {
-        error: semLogin
-          ? "Este usuário veio do sistema antigo e não tem login. Exclua e crie de novo pelo botão “Novo usuário”."
-          : "Não foi possível gerar a senha. Tente novamente.",
-      },
-      { status: semLogin ? 409 : 500 }
-    );
+    return NextResponse.json({ error: `Não foi possível gerar a senha: ${erroAuth.message}` }, { status: 500 });
   }
 
   // Obriga a troca de senha no próximo login

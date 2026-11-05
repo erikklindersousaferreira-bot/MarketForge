@@ -46,9 +46,27 @@ export async function POST(req: NextRequest) {
   // 3. Criar usuário via Admin Client (service role)
   const admin = createAdminClient();
   const senhaTemporaria = gerarSenhaTemporaria();
+  const emailNorm = email.trim().toLowerCase();
+
+  // Cadastro antigo (do sistema anterior) com o mesmo e-mail e sem login:
+  // reaproveita o mesmo ID para não duplicar e manter os vínculos.
+  const { data: existente } = await admin
+    .from("usuarios")
+    .select("id")
+    .ilike("email", emailNorm)
+    .limit(1)
+    .maybeSingle();
+  const idExistente = (existente as { id?: string } | null)?.id;
+  if (idExistente) {
+    const { data: jaTemLogin } = await admin.auth.admin.getUserById(idExistente);
+    if (jaTemLogin?.user) {
+      return NextResponse.json({ error: "Este e-mail já está cadastrado. Use o botão 🔑 do usuário para gerar uma senha temporária." }, { status: 409 });
+    }
+  }
 
   const { data: authData, error: createError } = await admin.auth.admin.createUser({
-    email: email.trim().toLowerCase(),
+    ...(idExistente ? { id: idExistente } : {}),
+    email: emailNorm,
     password: senhaTemporaria,    // senha temporária — troca obrigatória no 1º acesso
     email_confirm: true,          // confirma e-mail automaticamente
     user_metadata: {
@@ -64,7 +82,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Este e-mail já está cadastrado no sistema." }, { status: 409 });
     }
     console.error("[criar-usuario] Erro Supabase Auth:", createError);
-    return NextResponse.json({ error: "Erro ao criar usuário. Tente novamente." }, { status: 500 });
+    return NextResponse.json({ error: `Erro ao criar login: ${createError.message}` }, { status: 500 });
   }
 
   const novoUserId = authData.user?.id;
@@ -72,24 +90,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Falha ao obter ID do usuário criado." }, { status: 500 });
   }
 
-  // 4. Inserir na tabela usuarios (o trigger pode já ter feito isso, mas garantimos)
-  const { error: dbError } = await supabase
+  // 4. Gravar na tabela usuarios (service role, já verificamos que quem chama é admin)
+  const { error: dbError } = await admin
     .from("usuarios")
     .upsert({
       id:           novoUserId,
       nome:         nome.trim(),
-      email:        email.trim().toLowerCase(),
+      email:        emailNorm,
       papel,
+      perfil:       papel,               // coluna do sistema antigo
       cliente_id:   cliente_id ?? null,
       ativo:        true,
       primeiro_acesso: true,
-    }, { onConflict: "id" });
+    } as never, { onConflict: "id" });
 
   if (dbError) {
     console.error("[criar-usuario] Erro ao inserir em usuarios:", dbError);
-    // Tentar desfazer criação no Auth
+    // Desfaz o login criado agora (nunca apaga um cadastro antigo reaproveitado)
     await admin.auth.admin.deleteUser(novoUserId);
-    return NextResponse.json({ error: "Erro ao registrar usuário. Tente novamente." }, { status: 500 });
+    return NextResponse.json({ error: `Erro ao registrar usuário: ${dbError.message}` }, { status: 500 });
   }
 
   // 5. Devolve a senha temporária para o admin repassar (ela só aparece agora)
