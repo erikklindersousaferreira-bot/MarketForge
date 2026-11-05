@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { UserRound, CalendarDays, Trophy, ListChecks } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Tarefa, Cliente, Usuario } from "@/lib/types";
@@ -291,10 +292,10 @@ function CardTarefa({ tarefa, onEditar, onDeletar, onMoverStatus, statusList }: 
       {/* Footer */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--mf-texto-sec)" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "0.125rem" }}>
-          {respNome && <span>👤 {respNome}</span>}
+          {respNome && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><UserRound size={12} /> {respNome}</span>}
           {tarefa.prazo && (
             <span style={{ color: atrasada ? "var(--mf-vermelho)" : "inherit" }}>
-              📅 {dataFmt(tarefa.prazo)}{atrasada ? " · Atrasada" : ""}
+              <CalendarDays size={12} style={{ display: "inline", verticalAlign: "-2px", marginRight: 4 }} />{dataFmt(tarefa.prazo)}{atrasada ? " · Atrasada" : ""}
             </span>
           )}
         </div>
@@ -551,7 +552,7 @@ function AbaPontuacao({ tarefas, responsaveis }: AbaPontuacaoProps) {
       {ranking.length === 0 ? (
         <div className="mf-card">
           <div className="mf-empty">
-            <div className="mf-empty-icon">🏆</div>
+            <div className="mf-empty-icon"><Trophy size={40} strokeWidth={1.5} /></div>
             <div className="mf-empty-title">Sem dados de equipe ainda</div>
             <p style={{ fontSize: "0.875rem", color: "var(--mf-texto-sec)", margin: "0.25rem 0 0" }}>
               Atribua tarefas à equipe para ver a pontuação.
@@ -824,7 +825,7 @@ export default function TarefasPage() {
           ) : filtradas.length === 0 && tarefas.length === 0 ? (
             <div className="mf-card">
               <div className="mf-empty">
-                <div className="mf-empty-icon">✅</div>
+                <div className="mf-empty-icon"><ListChecks size={40} strokeWidth={1.5} /></div>
                 <div className="mf-empty-title">Nenhuma tarefa ainda</div>
                 <p style={{ fontSize: "0.875rem", color: "var(--mf-texto-sec)", margin: "0.25rem 0 1rem" }}>Crie a primeira tarefa para a equipe.</p>
                 <button className="mf-btn-primary" onClick={() => { setEditando(null); setModalAberto(true); }} style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem" }}>

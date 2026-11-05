@@ -1,7 +1,9 @@
 ﻿"use client";
 
+import { CalendarRange } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { EditorPlanoIA, type PlanoParaEditor } from "@/components/planejamento/EditorPlanoIA";
+import { EditorPlanoIA, enviarPlanoAoCliente, type PlanoParaEditor } from "@/components/planejamento/EditorPlanoIA";
+import type { EstruturaPlanejamento } from "@/lib/planejamento-tipos";
 import { STATUS_APROVACAO, type StatusAprovacao } from "@/lib/planejamento-tipos";
 import { supabase } from "@/lib/supabase";
 import type { Planejamento, Conteudo, Cliente } from "@/lib/types";
@@ -500,6 +502,7 @@ function CardPlanejamento({ plan, onRefresh }: CardPlanejamentoProps) {
   const [editandoCont,  setEditandoCont]  = useState<Partial<Conteudo> | null>(null);
   const [deletandoCont, setDeletandoCont] = useState<string | null>(null);
   const [confirmarExcluir, setConfirmarExcluir] = useState(false);
+  const [enviandoRapido,   setEnviandoRapido]   = useState(false);
   const [excluindoPlan,    setExcluindoPlan]    = useState(false);
   const [erroExcluir,      setErroExcluir]      = useState("");
 
@@ -518,6 +521,19 @@ function CardPlanejamento({ plan, onRefresh }: CardPlanejamentoProps) {
     aprovado:   conteudos.filter(c => c.status === "aprovado").length,
     rascunho:   conteudos.filter(c => c.status === "rascunho").length,
   };
+
+  const podeEnviar = !!plan.estrutura && (plan.status_aprovacao === "rascunho" || plan.status_aprovacao === "ajuste" || !plan.status_aprovacao);
+
+  async function envioRapido(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!plan.estrutura) return;
+    if (!confirm(`Enviar o planejamento de ${mesLabel} para ${clienteNome}? Os vídeos/posts com data vão para Conteúdos.`)) return;
+    setEnviandoRapido(true);
+    const r = await enviarPlanoAoCliente(plan.id, plan.estrutura as EstruturaPlanejamento);
+    setEnviandoRapido(false);
+    if (!r.ok) { alert(r.erro); return; }
+    onRefresh();
+  }
 
   async function handleExcluirPlanejamento() {
     setExcluindoPlan(true);
@@ -575,7 +591,20 @@ function CardPlanejamento({ plan, onRefresh }: CardPlanejamentoProps) {
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexShrink: 0 }}>
           {/* Contadores */}
           <div style={{ display: "flex", gap: "0.5rem", fontSize: "0.75rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
-            {(plan.estrutura || plan.status_aprovacao !== "rascunho") && <span className={statusAprov.cls}>{statusAprov.label}</span>}
+            {podeEnviar ? (
+              <button
+                className="mf-btn-primary"
+                onClick={envioRapido}
+                disabled={enviandoRapido}
+                style={{ fontSize: "0.75rem", padding: "0.3rem 0.75rem", minHeight: 0, borderRadius: 999 }}
+                title="Aprovar e enviar para o cliente ver no portal"
+              >
+                {enviandoRapido ? "Enviando..." : plan.status_aprovacao === "ajuste" ? "Reenviar ao cliente" : "Enviar ao cliente"}
+              </button>
+            ) : (plan.estrutura || (plan.status_aprovacao && plan.status_aprovacao !== "rascunho")) ? (
+              <span className={statusAprov.cls}>{statusAprov.label}</span>
+            ) : null}
+            {plan.status_aprovacao === "ajuste" && <span className={statusAprov.cls}>{statusAprov.label}</span>}
             <span className="mf-badge mf-badge-verde">{contagem.publicado} pub.</span>
             <span className="mf-badge mf-badge-azul">{contagem.aprovado} aprov.</span>
             <span className="mf-badge mf-badge-cinza">{contagem.rascunho} rascunho</span>
@@ -807,7 +836,7 @@ export default function PlanejamentoPage() {
       ) : filtrados.length === 0 ? (
         <div className="mf-card">
           <div className="mf-empty">
-            <div className="mf-empty-icon">📅</div>
+            <div className="mf-empty-icon"><CalendarRange size={40} strokeWidth={1.5} /></div>
             <div className="mf-empty-title">{busca || filtroCliente ? "Nenhum planejamento encontrado" : "Nenhum planejamento ainda"}</div>
             <p style={{ fontSize: "0.875rem", margin: "0.25rem 0 1rem", color: "var(--mf-texto-sec)" }}>
               {busca || filtroCliente ? "Tente ajustar os filtros." : "Crie o primeiro planejamento de conteúdo."}

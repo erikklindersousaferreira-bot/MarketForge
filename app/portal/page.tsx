@@ -4,6 +4,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { CalendarRange, ListChecks, Clapperboard, CreditCard, Eye, MessageCircle, Inbox, CheckCircle2, PencilLine, ChevronRight, CalendarClock, Video, LogOut } from "lucide-react";
 import { PlanoVisual } from "@/components/planejamento/PlanoVisual";
 import { mesPorExtenso, type EstruturaPlanejamento, type StatusAprovacao } from "@/lib/planejamento-tipos";
 
@@ -79,54 +80,29 @@ function PortalConteudo() {
 
   const carregar = useCallback(async () => {
     setErro("");
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { router.push("/login"); return; }
-
-    const { data: eu } = await supabase.from("usuarios").select("nome, papel, cliente_id").eq("id", user.id).single();
-    const me = eu as { nome: string | null; papel: string; cliente_id: string | null } | null;
-    setNomeUsuario(me?.nome ?? "");
-
-    const ehEquipe = me?.papel === "admin" || me?.papel === "equipe";
-    const clienteId = ehEquipe ? clienteParam : me?.cliente_id;
-    setPreview(ehEquipe);
-
-    if (!clienteId) {
+    const qs = new URLSearchParams();
+    if (clienteParam) qs.set("cliente", clienteParam);
+    const res = await fetch(`/api/portal/dados?${qs.toString()}`, { cache: "no-store" });
+    if (res.status === 401) { router.push("/login"); return; }
+    const d = await res.json().catch(() => ({}));
+    setPreview(!!d.preview);
+    setNomeUsuario(d.usuarioNome ?? "");
+    if (!res.ok || d.error) {
+      setErro(d.error ?? "Não foi possível carregar. Tente de novo.");
       setCarregando(false);
-      setErro(ehEquipe ? "Abra a pré-visualização a partir de um planejamento." : "Seu acesso ainda não foi ligado a uma empresa. Fale com a MarketForge.");
       return;
     }
-
-    const hoje = new Date();
-    const limite = new Date(hoje); limite.setDate(hoje.getDate() + 30);
-
-    const statusVisiveis = ehEquipe ? ["rascunho", "enviado", "aprovado", "ajuste"] : ["enviado", "aprovado", "ajuste"];
-    const [rCli, rPlan, rTar, rEv, rCob] = await Promise.all([
-      supabase.from("clientes").select("id, nome, logo_url, cor_primaria").eq("id", clienteId).single(),
-      supabase.from("planejamentos")
-        .select("id, mes_referencia, estrutura, status_aprovacao, comentario_cliente, aprovado_cliente_em")
-        .eq("cliente_id", clienteId).in("status_aprovacao", statusVisiveis).not("estrutura", "is", null)
-        .order("mes_referencia", { ascending: false }).limit(12),
-      supabase.from("tarefas").select("id, titulo, status, prazo, prioridade, concluida_em, tipo")
-        .eq("cliente_id", clienteId).neq("status", "cancelada").order("prazo", { ascending: true, nullsFirst: false }).limit(200),
-      supabase.from("eventos_agenda").select("id, titulo, tipo, data_inicio, local")
-        .eq("cliente_id", clienteId).gte("data_inicio", new Date(hoje.toDateString()).toISOString()).lte("data_inicio", limite.toISOString())
-        .order("data_inicio").limit(30),
-      supabase.from("cobrancas").select("id, descricao, valor, vencimento, status")
-        .eq("cliente_id", clienteId).in("status", ["pendente", "atrasado"]).order("vencimento").limit(12),
-    ]);
-
-    if (rCli.data) setCliente(rCli.data as Cliente);
-    const lista = (rPlan.data ?? []) as Plano[];
+    setCliente((d.cliente ?? null) as Cliente | null);
+    const lista = (d.planos ?? []) as Plano[];
     setPlanos(lista);
     setPlanoId((atual) => {
       if (planoParam && lista.some((p) => p.id === planoParam)) return planoParam;
       if (atual && lista.some((p) => p.id === atual)) return atual;
       return lista[0]?.id ?? "";
     });
-    setTarefas((rTar.data ?? []) as Tarefa[]);
-    setEventos((rEv.data ?? []) as Evento[]);
-    setCobrancas((rCob.data ?? []) as Cobranca[]);
-    if (rPlan.error) console.error("[portal] planejamentos:", rPlan.error.message);
+    setTarefas((d.tarefas ?? []) as Tarefa[]);
+    setEventos((d.eventos ?? []) as Evento[]);
+    setCobrancas((d.cobrancas ?? []) as Cobranca[]);
     setCarregando(false);
   }, [clienteParam, planoParam, router]);
 
@@ -184,7 +160,7 @@ function PortalConteudo() {
       <style>{CSS}</style>
 
       {preview && (
-        <div className="portal-preview">👁 Pré-visualização — é assim que o cliente vê. Os botões de aprovação ficam desativados para você.</div>
+        <div className="portal-preview"><Eye size={14} style={{ display: "inline", verticalAlign: "-2px", marginRight: 6 }} />Pré-visualização — é assim que o cliente vê. Os botões de aprovação ficam desativados para você.</div>
       )}
 
       {/* Topo */}
@@ -197,11 +173,11 @@ function PortalConteudo() {
               : iniciais(cliente?.nome ?? "")}
           </span>
           <div style={{ minWidth: 0 }}>
-            <div className="portal-ola">{preview ? "Portal do cliente" : `Olá${nomeUsuario ? ", " + nomeUsuario.split(" ")[0] : ""} 👋`}</div>
+            <div className="portal-ola">{preview ? "Portal do cliente" : `Olá${nomeUsuario ? ", " + nomeUsuario.split(" ")[0] : ""}`}</div>
             <div className="portal-empresa">{cliente?.nome ?? "—"}</div>
           </div>
         </div>
-        {!preview && <button className="portal-sair" onClick={sair}>Sair</button>}
+        {!preview && <button className="portal-sair" onClick={sair}><LogOut size={14} />Sair</button>}
       </header>
 
       <main className="portal-main">
@@ -225,18 +201,18 @@ function PortalConteudo() {
               <button className="portal-semana-resumo" onClick={() => setAba("semana")}>
                 <span className="portal-semana-num">{abertasSemana}</span>
                 <span style={{ flex: 1, textAlign: "left" }}>
-                  <strong>{abertasSemana > 0 ? `entrega${abertasSemana !== 1 ? "s" : ""} em andamento esta semana` : "Tudo entregue esta semana ✅"}</strong>
+                  <strong>{abertasSemana > 0 ? `entrega${abertasSemana !== 1 ? "s" : ""} em andamento esta semana` : "Tudo entregue esta semana"}</strong>
                   <span>Toque para ver o que está sendo feito</span>
                 </span>
-                <span style={{ color: LARANJA, fontSize: 20 }}>›</span>
+                <ChevronRight size={20} color={LARANJA} />
               </button>
             )}
 
             {plano?.status_aprovacao === "aprovado" && (
-              <div className="portal-aviso verde">✅ Você aprovou este planejamento{plano.aprovado_cliente_em ? ` em ${new Date(plano.aprovado_cliente_em).toLocaleDateString("pt-BR")}` : ""}.</div>
+              <div className="portal-aviso verde"><CheckCircle2 size={16} />Você aprovou este planejamento{plano.aprovado_cliente_em ? ` em ${new Date(plano.aprovado_cliente_em).toLocaleDateString("pt-BR")}` : ""}.</div>
             )}
             {plano?.status_aprovacao === "ajuste" && (
-              <div className="portal-aviso amarelo">✏️ Você pediu um ajuste: “{plano.comentario_cliente}”. A equipe vai atualizar e te enviar de novo.</div>
+              <div className="portal-aviso amarelo"><PencilLine size={16} />Você pediu um ajuste: “{plano.comentario_cliente}”. A equipe vai atualizar e te enviar de novo.</div>
             )}
             {plano?.status_aprovacao === "rascunho" && preview && (
               <div className="portal-aviso amarelo">Rascunho — o cliente só vê depois que você enviar.</div>
@@ -251,7 +227,7 @@ function PortalConteudo() {
               />
             ) : (
               <div className="portal-card portal-vazio">
-                <div style={{ fontSize: 34 }}>🗓️</div>
+                <CalendarRange size={40} strokeWidth={1.5} color={LARANJA} />
                 <strong>O planejamento do mês está sendo preparado</strong>
                 <span>Assim que a MarketForge enviar, ele aparece aqui para você aprovar.</span>
               </div>
@@ -266,7 +242,7 @@ function PortalConteudo() {
             <h2 className="portal-h2">Esta semana</h2>
             <p className="portal-sub">O que a equipe está produzindo e quando vai ser entregue.</p>
             {semana.length === 0 ? (
-              <div className="portal-card portal-vazio"><div style={{ fontSize: 30 }}>📭</div><strong>Nenhuma entrega marcada para esta semana</strong></div>
+              <div className="portal-card portal-vazio"><Inbox size={36} strokeWidth={1.5} color="#71717A" /><strong>Nenhuma entrega marcada para esta semana</strong></div>
             ) : (
               <div className="portal-lista">
                 {semana.map((t) => {
@@ -312,7 +288,7 @@ function PortalConteudo() {
             <h2 className="portal-h2">Agenda</h2>
             <p className="portal-sub">Gravações e compromissos dos próximos 30 dias.</p>
             {eventos.length === 0 ? (
-              <div className="portal-card portal-vazio"><div style={{ fontSize: 30 }}>🎬</div><strong>Nada agendado nos próximos dias</strong></div>
+              <div className="portal-card portal-vazio"><Clapperboard size={36} strokeWidth={1.5} color="#71717A" /><strong>Nada agendado nos próximos dias</strong></div>
             ) : (
               <div className="portal-lista">
                 {eventos.map((ev) => {
@@ -324,7 +300,7 @@ function PortalConteudo() {
                         <strong>{String(d.getDate()).padStart(2, "0")}</strong>
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="portal-tarefa-titulo">{ev.tipo === "gravacao" ? "🎬 " : ""}{ev.titulo}</div>
+                        <div className="portal-tarefa-titulo" style={{ display: "flex", alignItems: "center", gap: 6 }}>{ev.tipo === "gravacao" ? <Video size={15} color={LARANJA} /> : <CalendarClock size={15} color="#60A5FA" />}<span>{ev.titulo}</span></div>
                         <div className="portal-tarefa-meta">
                           {d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}{ev.local ? ` · ${ev.local}` : ""}
                         </div>
@@ -343,7 +319,7 @@ function PortalConteudo() {
             <h2 className="portal-h2">Financeiro</h2>
             <p className="portal-sub">Cobranças em aberto.</p>
             {cobrancas.length === 0 ? (
-              <div className="portal-card portal-vazio"><div style={{ fontSize: 30 }}>✅</div><strong>Tudo em dia por aqui</strong></div>
+              <div className="portal-card portal-vazio"><CheckCircle2 size={36} strokeWidth={1.5} color="#3DDC84" /><strong>Tudo em dia por aqui</strong></div>
             ) : (
               <div className="portal-lista">
                 {cobrancas.map((c) => (
@@ -363,7 +339,7 @@ function PortalConteudo() {
         )}
 
         <a className="portal-whats" href={`https://wa.me/${WHATSAPP_AGENCIA}?text=${encodeURIComponent(`Olá! Sou da ${cliente?.nome ?? "empresa"} e queria falar sobre o planejamento.`)}`} target="_blank" rel="noopener noreferrer">
-          💬 Falar com a MarketForge no WhatsApp
+          <MessageCircle size={18} style={{ display: "inline", verticalAlign: "-4px", marginRight: 8 }} />Falar com a MarketForge no WhatsApp
         </a>
       </main>
 
@@ -384,13 +360,13 @@ function PortalConteudo() {
       {/* Abas inferiores */}
       <nav className="portal-nav">
         {([
-          ["plano", "Planejamento", "🗓️", 0],
-          ["semana", "Semana", "✅", abertasSemana],
-          ["agenda", "Agenda", "🎬", 0],
-          ["financeiro", "Financeiro", "💳", cobrancas.filter((c) => c.status === "atrasado").length],
-        ] as [Aba, string, string, number][]).map(([k, label, ic, badge]) => (
+          ["plano", "Planejamento", CalendarRange, 0],
+          ["semana", "Semana", ListChecks, abertasSemana],
+          ["agenda", "Agenda", Clapperboard, 0],
+          ["financeiro", "Financeiro", CreditCard, cobrancas.filter((c) => c.status === "atrasado").length],
+        ] as [Aba, string, typeof CalendarRange, number][]).map(([k, label, Icone, badge]) => (
           <button key={k} className={aba === k ? "on" : ""} onClick={() => { setAba(k); window.scrollTo({ top: 0 }); }}>
-            <span className="portal-nav-ic">{ic}{badge > 0 && <em>{badge}</em>}</span>
+            <span className="portal-nav-ic"><Icone size={22} strokeWidth={aba === k ? 2.4 : 1.8} />{badge > 0 && <em>{badge}</em>}</span>
             {label}
           </button>
         ))}
@@ -440,7 +416,7 @@ const CSS = `
 .portal-avatar img { width:100%; height:100%; object-fit:cover; background:#fff; }
 .portal-ola { font-size:12px; color:#A1A1AA; }
 .portal-empresa { font-size:16px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.portal-sair { background:none; border:1px solid #333; color:#A1A1AA; border-radius:999px; padding:6px 14px; font-size:12px; cursor:pointer; font-family:inherit; }
+.portal-sair { display:inline-flex; align-items:center; gap:6px; background:none; border:1px solid #333; color:#A1A1AA; border-radius:999px; padding:6px 14px; font-size:12px; cursor:pointer; font-family:inherit; }
 .portal-main { max-width:860px; margin:0 auto; padding:16px 12px; }
 .portal-card { background:#161616; border:1px solid #262626; border-radius:16px; padding:14px 16px; }
 .portal-vazio { display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px; padding:36px 20px; color:#E5E5E5; }
@@ -453,7 +429,8 @@ const CSS = `
 .portal-semana-resumo strong { display:block; font-size:13.5px; }
 .portal-semana-resumo span span, .portal-semana-resumo > span:nth-child(2) > span { display:block; font-size:11.5px; color:#A1A1AA; }
 .portal-semana-num { width:42px; height:42px; border-radius:12px; background:${LARANJA}; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; flex-shrink:0; }
-.portal-aviso { border-radius:14px; padding:11px 14px; font-size:13px; margin-bottom:12px; }
+.portal-aviso { border-radius:14px; padding:11px 14px; font-size:13px; margin-bottom:12px; display:flex; align-items:flex-start; gap:8px; }
+.portal-aviso svg { flex-shrink:0; margin-top:1px; }
 .portal-aviso.verde { background:#0E2A19; border:1px solid #1F6E3F; color:#86EFAC; }
 .portal-aviso.amarelo { background:#2A2109; border:1px solid #7A5F1F; color:#FDE68A; }
 .portal-h2 { font-size:22px; font-weight:800; margin:6px 0 2px; letter-spacing:-.01em; }
@@ -481,8 +458,8 @@ const CSS = `
 .portal-nav button { flex:1; background:none; border:none; color:#71717A; font-size:10.5px; font-weight:600; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; cursor:pointer; font-family:inherit; position:relative; }
 .portal-nav button.on { color:#fff; }
 .portal-nav button.on::before { content:""; position:absolute; top:0; width:28px; height:3px; border-radius:0 0 3px 3px; background:${LARANJA}; }
-.portal-nav-ic { font-size:20px; position:relative; filter:grayscale(1); opacity:.7; }
-.portal-nav button.on .portal-nav-ic { filter:none; opacity:1; }
+.portal-nav-ic { position:relative; display:flex; }
+.portal-nav button.on .portal-nav-ic { color:${LARANJA}; }
 .portal-nav-ic em { position:absolute; top:-4px; right:-10px; background:${LARANJA}; color:#fff; font-style:normal; font-size:9.5px; font-weight:800; min-width:16px; height:16px; border-radius:999px; display:flex; align-items:center; justify-content:center; padding:0 4px; }
 .portal-folha-fundo { position:fixed; inset:0; z-index:50; background:rgba(0,0,0,0.6); display:flex; align-items:flex-end; justify-content:center; }
 .portal-folha { width:100%; max-width:560px; background:#161616; border-radius:22px 22px 0 0; padding:10px 18px calc(18px + env(safe-area-inset-bottom)); animation:pf-sobe 240ms cubic-bezier(.2,.9,.3,1); }

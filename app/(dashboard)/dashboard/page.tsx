@@ -454,7 +454,7 @@ export default function DashboardPage() {
       {/* Saudação */}
       <div>
         <h1 className="mf-page-title">
-          {saudacao()}, {usuario?.nome?.split(' ')[0]} 👋
+          {saudacao()}, {usuario?.nome?.split(' ')[0]}
         </h1>
         <p className="mf-page-subtitle">
           Aqui está o resumo de hoje —{' '}

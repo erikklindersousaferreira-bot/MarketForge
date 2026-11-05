@@ -4,6 +4,7 @@
 // Dentro do card de Planejamento: texto do mês → IA monta o visual → ajustes → enviar ao cliente.
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { ClipboardList, Sparkles, PencilLine, Maximize2, Eye, Send, RefreshCw, Lightbulb, CheckCircle2, X } from "lucide-react";
 import { PlanoVisual } from "./PlanoVisual";
 import { STATUS_APROVACAO, mesPorExtenso, type EstruturaPlanejamento, type StatusAprovacao } from "@/lib/planejamento-tipos";
 
@@ -27,6 +28,49 @@ type Props = {
 };
 
 const PLATAFORMAS_OK = ["Instagram", "Facebook", "TikTok", "YouTube", "LinkedIn", "WhatsApp", "Site", "Outro"];
+
+/** Aprova e envia o plano ao cliente: recria os conteúdos com data e marca como "enviado". */
+export async function enviarPlanoAoCliente(
+  planoId: string,
+  estrutura: EstruturaPlanejamento
+): Promise<{ ok: true; qtd: number } | { ok: false; erro: string }> {
+  // Recria os conteúdos gerados pela IA que ainda não andaram (rascunho)
+  await supabase.from("conteudos").delete().eq("planejamento_id", planoId).eq("gerado_ia", true).eq("status", "rascunho");
+
+  const novos = (estrutura.conteudos ?? [])
+    .filter((c) => c.titulo?.trim())
+    .map((c) => ({
+      planejamento_id: planoId,
+      titulo: c.titulo.trim().slice(0, 200),
+      plataforma: PLATAFORMAS_OK.includes(c.plataforma ?? "") ? c.plataforma : "Instagram",
+      formato: c.formato?.trim() || "Reels",
+      status: "rascunho",
+      data_publicacao: c.data && /^\d{4}-\d{2}-\d{2}$/.test(c.data) ? c.data : null,
+      legenda: c.legenda?.trim() || null,
+      observacoes: [
+        c.objetivo ? `Objetivo: ${c.objetivo}` : "",
+        c.gancho ? `Gancho: ${c.gancho}` : "",
+        c.conceito ? `Conceito: ${c.conceito}` : "",
+      ].filter(Boolean).join("\n") || null,
+      gerado_ia: true,
+    }));
+  if (novos.length) {
+    const { error: errC } = await supabase.from("conteudos").insert(novos);
+    if (errC) {
+      console.error("[enviar plano] conteúdos:", errC);
+      return { ok: false, erro: `Não foi possível criar os conteúdos: ${errC.message}` };
+    }
+  }
+
+  const { error } = await supabase.from("planejamentos").update({
+    status_aprovacao: "enviado",
+    enviado_em: new Date().toISOString(),
+    comentario_cliente: null,
+    aprovado_cliente_em: null,
+  }).eq("id", planoId);
+  if (error) return { ok: false, erro: `Não foi possível enviar: ${error.message}` };
+  return { ok: true, qtd: novos.length };
+}
 
 export function EditorPlanoIA({ plan, clienteNome, clienteLogo, onRefresh }: Props) {
   const [texto, setTexto] = useState(plan.texto_base ?? "");
@@ -67,48 +111,11 @@ export function EditorPlanoIA({ plan, clienteNome, clienteLogo, onRefresh }: Pro
     if (!estrutura) return;
     if (!confirm(`Aprovar e enviar o planejamento de ${mesLabel} para ${clienteNome}? Os vídeos/posts com data vão para Conteúdos.`)) return;
     setEnviando(true); setErro(""); setOk("");
-
-    // Recria os conteúdos gerados pela IA que ainda não andaram (rascunho)
-    await supabase.from("conteudos").delete().eq("planejamento_id", plan.id).eq("gerado_ia", true).eq("status", "rascunho");
-
-    const novos = (estrutura.conteudos ?? [])
-      .filter((c) => c.titulo?.trim())
-      .map((c) => ({
-        planejamento_id: plan.id,
-        titulo: c.titulo.trim().slice(0, 200),
-        plataforma: PLATAFORMAS_OK.includes(c.plataforma ?? "") ? c.plataforma : "Instagram",
-        formato: c.formato?.trim() || "Reels",
-        status: "rascunho",
-        data_publicacao: c.data && /^\d{4}-\d{2}-\d{2}$/.test(c.data) ? c.data : null,
-        legenda: c.legenda?.trim() || null,
-        observacoes: [
-          c.objetivo ? `🎯 Objetivo: ${c.objetivo}` : "",
-          c.gancho ? `🪝 Gancho: ${c.gancho}` : "",
-          c.conceito ? `🎬 Conceito: ${c.conceito}` : "",
-        ].filter(Boolean).join("\n") || null,
-        gerado_ia: true,
-      }));
-    if (novos.length) {
-      const { error: errC } = await supabase.from("conteudos").insert(novos);
-      if (errC) {
-        console.error("[enviar plano] conteúdos:", errC);
-        setErro("Não foi possível criar os conteúdos. Rode a etapa 12 do banco e tente de novo.");
-        setEnviando(false);
-        return;
-      }
-    }
-
-    const { error } = await supabase.from("planejamentos").update({
-      status_aprovacao: "enviado",
-      enviado_em: new Date().toISOString(),
-      comentario_cliente: null,
-      aprovado_cliente_em: null,
-    }).eq("id", plan.id);
-
+    const r = await enviarPlanoAoCliente(plan.id, estrutura);
     setEnviando(false);
-    if (error) { setErro("Não foi possível enviar. Tente novamente."); return; }
+    if (!r.ok) { setErro(r.erro); return; }
     setStatus("enviado");
-    setOk(`Enviado! ${novos.length} conteúdo${novos.length !== 1 ? "s" : ""} criado${novos.length !== 1 ? "s" : ""} em Conteúdos. O cliente já vê no portal.`);
+    setOk(`Enviado! ${r.qtd} conteúdo${r.qtd !== 1 ? "s" : ""} criado${r.qtd !== 1 ? "s" : ""} em Conteúdos. O cliente já vê no portal.`);
     onRefresh();
   }
 
@@ -117,7 +124,7 @@ export function EditorPlanoIA({ plan, clienteNome, clienteLogo, onRefresh }: Pro
       {/* Cabeçalho */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: "0.9375rem" }}>📋 Planejamento do mês para o cliente</div>
+          <div style={{ fontWeight: 700, fontSize: "0.9375rem", display: "flex", alignItems: "center", gap: 8 }}><ClipboardList size={17} color="var(--mf-laranja)" />Planejamento do mês para o cliente</div>
           <div style={{ fontSize: "0.75rem", color: "var(--mf-texto-sec)" }}>Escreva ou dite o plano → a IA monta a apresentação → você aprova e envia.</div>
         </div>
         <span className={st.cls}>{st.label}</span>
@@ -131,7 +138,7 @@ export function EditorPlanoIA({ plan, clienteNome, clienteLogo, onRefresh }: Pro
       )}
       {status === "aprovado" && (
         <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 10, padding: "0.625rem 0.875rem", fontSize: "0.8125rem", color: "#166534", marginBottom: "0.75rem" }}>
-          ✅ Aprovado pelo cliente{plan.aprovado_cliente_em ? ` em ${new Date(plan.aprovado_cliente_em).toLocaleDateString("pt-BR")}` : ""}.
+          <CheckCircle2 size={14} style={{ display: "inline", verticalAlign: "-2px", marginRight: 6 }} />Aprovado pelo cliente{plan.aprovado_cliente_em ? ` em ${new Date(plan.aprovado_cliente_em).toLocaleDateString("pt-BR")}` : ""}.
           {plan.comentario_cliente ? ` Comentário: “${plan.comentario_cliente}”` : ""}
         </div>
       )}
@@ -149,8 +156,8 @@ export function EditorPlanoIA({ plan, clienteNome, clienteLogo, onRefresh }: Pro
             style={{ resize: "vertical", lineHeight: 1.5 }}
           />
           <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
-            <button className="mf-btn-primary" onClick={() => chamarIA("gerar")} disabled={!!gerando || texto.trim().length < 30}>
-              {gerando === "gerar" ? "A IA está montando..." : estrutura ? "✨ Gerar de novo" : "✨ Gerar planejamento com IA"}
+            <button className="mf-btn-primary" onClick={() => chamarIA("gerar")} disabled={!!gerando || texto.trim().length < 30} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <Sparkles size={15} />{gerando === "gerar" ? "A IA está montando..." : estrutura ? "Gerar de novo" : "Gerar planejamento com IA"}
             </button>
             {estrutura && (
               <button className="mf-btn-secondary" onClick={() => setMostrarTexto(false)} disabled={!!gerando}>Cancelar</button>
@@ -165,7 +172,7 @@ export function EditorPlanoIA({ plan, clienteNome, clienteLogo, onRefresh }: Pro
           onClick={() => setMostrarTexto(true)}
           style={{ border: "none", background: "none", color: "var(--mf-laranja)", fontWeight: 600, fontSize: "0.8125rem", cursor: "pointer", padding: 0, marginBottom: "0.75rem" }}
         >
-          ✏️ Editar o texto e gerar de novo
+          <PencilLine size={14} style={{ display: "inline", verticalAlign: "-2px", marginRight: 6 }} />Editar o texto e gerar de novo
         </button>
       )}
 
@@ -177,7 +184,7 @@ export function EditorPlanoIA({ plan, clienteNome, clienteLogo, onRefresh }: Pro
         <>
           {!!estrutura.notas_internas?.length && (
             <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 12, padding: "0.875rem 1rem", marginBottom: "1rem" }}>
-              <div style={{ fontWeight: 700, fontSize: "0.8125rem", color: "#92400E", marginBottom: 6 }}>💡 Observações do diretor de marketing <span style={{ fontWeight: 500 }}>(só você vê)</span></div>
+              <div style={{ fontWeight: 700, fontSize: "0.8125rem", color: "#92400E", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}><Lightbulb size={15} />Observações do diretor de marketing <span style={{ fontWeight: 500 }}>(só você vê)</span></div>
               <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.8125rem", color: "#78350F", lineHeight: 1.5 }}>
                 {estrutura.notas_internas.map((n, i) => <li key={i}>{n}</li>)}
               </ul>
@@ -188,9 +195,9 @@ export function EditorPlanoIA({ plan, clienteNome, clienteLogo, onRefresh }: Pro
           </div>
 
           <div style={{ display: "flex", justifyContent: "center", gap: "0.75rem", marginTop: "0.625rem", flexWrap: "wrap", fontSize: "0.8125rem" }}>
-            <button onClick={() => setTelaCheia(true)} style={{ border: "none", background: "none", color: "var(--mf-texto-sec)", cursor: "pointer", fontWeight: 600 }}>⛶ Tela cheia</button>
-            <a href={`/portal?cliente=${plan.cliente_id}&plano=${plan.id}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--mf-texto-sec)", fontWeight: 600, textDecoration: "none" }}>
-              👁 Ver como o cliente vê
+            <button onClick={() => setTelaCheia(true)} style={{ border: "none", background: "none", color: "var(--mf-texto-sec)", cursor: "pointer", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}><Maximize2 size={14} />Tela cheia</button>
+            <a href={`/portal?cliente=${plan.cliente_id}&plano=${plan.id}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--mf-texto-sec)", fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <Eye size={14} />Ver como o cliente vê
             </a>
           </div>
 
@@ -211,8 +218,8 @@ export function EditorPlanoIA({ plan, clienteNome, clienteLogo, onRefresh }: Pro
 
           {/* Enviar */}
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
-            <button className="mf-btn-primary" onClick={enviarAoCliente} disabled={enviando || !!gerando} style={{ minWidth: 220, justifyContent: "center" }}>
-              {enviando ? "Enviando..." : status === "rascunho" ? "✅ Aprovar e enviar ao cliente" : "↻ Reenviar ao cliente"}
+            <button className="mf-btn-primary" onClick={enviarAoCliente} disabled={enviando || !!gerando} style={{ minWidth: 220, justifyContent: "center", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              {status === "rascunho" || status === "ajuste" ? <Send size={15} /> : <RefreshCw size={15} />}{enviando ? "Enviando..." : status === "rascunho" ? "Aprovar e enviar ao cliente" : status === "ajuste" ? "Enviar versão ajustada" : "Reenviar ao cliente"}
             </button>
           </div>
           {(estrutura.conteudos?.length ?? 0) > 0 && (
@@ -229,8 +236,8 @@ export function EditorPlanoIA({ plan, clienteNome, clienteLogo, onRefresh }: Pro
             <button
               onClick={() => setTelaCheia(false)}
               aria-label="Fechar"
-              style={{ position: "sticky", top: 10, float: "right", marginRight: 10, zIndex: 2, width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", color: "#fff", cursor: "pointer", fontSize: 18 }}
-            >×</button>
+              style={{ position: "sticky", top: 10, float: "right", marginRight: 10, zIndex: 2, width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+            ><X size={18} /></button>
             <PlanoVisual estrutura={estrutura} clienteNome={clienteNome} clienteLogo={clienteLogo} mesLabel={mesLabel} />
           </div>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 // components/ui/UploadLogo.tsx — Escolher foto/logo (galeria ou câmera), comprimir e enviar ao Storage
+import { Camera, Plus } from "lucide-react";
 import { useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { comprimirImagem } from "@/lib/imagem";
@@ -70,7 +71,7 @@ export function UploadLogo({ valor, nome, pasta = "clientes", onChange }: Props)
             <img src={valor} alt={nome} style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
           ) : (
             <span style={{ flex: 1, borderRadius: "50%", background: "#F4F4F5", color: "#71717A", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 20 }}>
-              {nome ? iniciais(nome) : "📷"}
+              {nome ? iniciais(nome) : <Camera size={24} />}
             </span>
           )}
         </span>
@@ -79,7 +80,7 @@ export function UploadLogo({ valor, nome, pasta = "clientes", onChange }: Props)
             <span className="mf-spinner" style={{ width: 22, height: 22 }} />
           </span>
         )}
-        <span style={{ position: "absolute", right: -2, bottom: -2, width: 26, height: 26, borderRadius: "50%", background: "#FF6A00", color: "#fff", border: "2px solid #fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700 }}>+</span>
+        <span style={{ position: "absolute", right: -2, bottom: -2, width: 26, height: 26, borderRadius: "50%", background: "#FF6A00", color: "#fff", border: "2px solid #fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700 }}><Plus size={14} strokeWidth={3} /></span>
       </button>
 
       <div style={{ minWidth: 0 }}>

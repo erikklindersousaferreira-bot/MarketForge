@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { Wallet, Repeat, Receipt, Check } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { ResumoMes } from "@/components/financeiro/ResumoMes";
 import { supabase } from "@/lib/supabase";
@@ -487,7 +488,7 @@ function AbaCobrancas({ clientes }: { clientes: Pick<Cliente, "id" | "nome">[] }
           <div style={{ padding: "3rem", textAlign: "center" }}><div className="mf-spinner" style={{ margin: "0 auto" }} /></div>
         ) : filtradas.length === 0 ? (
           <div className="mf-empty">
-            <div className="mf-empty-icon">💰</div>
+            <div className="mf-empty-icon"><Wallet size={40} strokeWidth={1.5} /></div>
             <div className="mf-empty-title">Nenhuma cobrança encontrada</div>
           </div>
         ) : (
@@ -512,7 +513,7 @@ function AbaCobrancas({ clientes }: { clientes: Pick<Cliente, "id" | "nome">[] }
                     </td>
                     <td style={{ fontSize: "0.875rem" }}>
                       <div>{c.descricao}</div>
-                      {c.recorrente && <div style={{ fontSize: "0.75rem", color: "var(--mf-azul)" }}>↻ Recorrente</div>}
+                      {c.recorrente && <div style={{ fontSize: "0.75rem", color: "var(--mf-azul)" }}><Repeat size={12} style={{ display: "inline", verticalAlign: "-2px", marginRight: 4 }} />Recorrente</div>}
                     </td>
                     <td style={{ fontSize: "0.875rem", fontWeight: 600, color: c.status === "pago" ? "var(--mf-verde)" : "var(--mf-texto)" }}>
                       {brl(c.valor)}
@@ -682,7 +683,7 @@ function AbaDespesas() {
         ) : filtradas.length === 0 ? (
           <div className="mf-card">
             <div className="mf-empty">
-              <div className="mf-empty-icon">📋</div>
+              <div className="mf-empty-icon"><Receipt size={40} strokeWidth={1.5} /></div>
               <div className="mf-empty-title">Nenhuma despesa cadastrada</div>
             </div>
           </div>
@@ -733,7 +734,7 @@ function AbaDespesas() {
                             title={p.status !== "pago" ? `Marcar parcela ${p.numero_parcela} como paga` : undefined}
                           >
                             {p.numero_parcela}/{parcelas.length} · {brl(p.valor_parcela)}
-                            {p.status === "pago" && " ✓"}
+                            {p.status === "pago" && <Check size={11} style={{ display: "inline", verticalAlign: "-1px", marginLeft: 3 }} />}
                           </button>
                         ))}
                       </div>

@@ -386,9 +386,11 @@ body {
   color: var(--mf-texto-sec);
 }
 .mf-empty-icon {
-  font-size: 2.5rem;
+  display: flex;
+  justify-content: center;
   margin-bottom: 0.75rem;
-  opacity: 0.4;
+  color: var(--mf-texto-desab);
+  font-size: 2.5rem;
 }
 .mf-empty-title {
   font-weight: 600;

@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { Lock, UserRound, Clock } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Usuario, Cliente } from "@/lib/types";
@@ -45,7 +46,7 @@ function ModalSenhaGerada({ dados, onClose }: { dados: SenhaGerada; onClose: () 
   const site = typeof window !== "undefined" ? window.location.origin : "";
   const texto =
     `Olá${dados.nome ? ", " + dados.nome.split(" ")[0] : ""}! Seu acesso ao sistema da MarketForge:\n\n` +
-    `🔗 ${site}/login\n📧 ${dados.email ?? ""}\n🔑 Senha temporária: ${dados.senha}\n\n` +
+    `Link: ${site}/login\nE-mail: ${dados.email ?? ""}\nSenha temporária: ${dados.senha}\n\n` +
     `No primeiro acesso o sistema vai pedir para você criar a sua própria senha.`;
 
   async function copiar() {
@@ -73,7 +74,7 @@ function ModalSenhaGerada({ dados, onClose }: { dados: SenhaGerada; onClose: () 
             <div style={{ fontSize: "0.8125rem", color: "var(--mf-texto-sec)", marginTop: 6 }}>{dados.email}</div>
           </div>
           <div style={{ background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 8, padding: "0.75rem", fontSize: "0.8125rem", color: "#92400E", marginBottom: "1.25rem" }}>
-            🔒 No primeiro acesso a pessoa é obrigada a criar uma senha nova.
+            <Lock size={13} style={{ display: "inline", verticalAlign: "-2px", marginRight: 6 }} />No primeiro acesso a pessoa é obrigada a criar uma senha nova.
           </div>
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
             <button type="button" className="mf-btn-secondary" onClick={copiar} style={{ flex: 1, justifyContent: "center", display: "flex", alignItems: "center", gap: 6 }}>
@@ -240,7 +241,7 @@ function ModalNovoUsuario({ clientes, onClose, onSave }: ModalNovoProps) {
           ) : (
             <>
               <div style={{ background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 8, padding: "0.875rem", fontSize: "0.8125rem", color: "#92400E", marginBottom: "1.25rem" }}>
-                🔒 Vamos gerar uma senha temporária para você enviar. No primeiro acesso a pessoa cria a própria senha.
+                <Lock size={13} style={{ display: "inline", verticalAlign: "-2px", marginRight: 6 }} />Vamos gerar uma senha temporária para você enviar. No primeiro acesso a pessoa cria a própria senha.
               </div>
 
               <div style={{ marginBottom: "0.875rem" }}>
@@ -550,7 +551,7 @@ export default function UsuariosPage() {
           </div>
         ) : filtrados.length === 0 ? (
           <div className="mf-empty">
-            <div className="mf-empty-icon">👤</div>
+            <div className="mf-empty-icon"><UserRound size={40} strokeWidth={1.5} /></div>
             <div className="mf-empty-title">
               {busca || filtroPapel !== "todos" ? "Nenhum usuário encontrado" : "Nenhum usuário ainda"}
             </div>
@@ -585,7 +586,7 @@ export default function UsuariosPage() {
                         <div>
                           <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>{u.nome || u.email || "Sem nome"}</div>
                           {u.primeiro_acesso && (
-                            <div style={{ fontSize: "0.75rem", color: "#CA8A04", fontWeight: 500 }}>⏳ Aguardando primeiro acesso</div>
+                            <div style={{ fontSize: "0.75rem", color: "#CA8A04", fontWeight: 500 }}><Clock size={12} style={{ display: "inline", verticalAlign: "-2px", marginRight: 4 }} />Aguardando primeiro acesso</div>
                           )}
                         </div>
                       </div>

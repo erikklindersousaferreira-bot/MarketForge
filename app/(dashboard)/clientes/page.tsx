@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { Users } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { UploadLogo } from "@/components/ui/UploadLogo";
 import { supabase } from "@/lib/supabase";
@@ -303,7 +304,7 @@ export default function ClientesPage() {
           </div>
         ) : filtrados.length === 0 ? (
           <div className="mf-empty">
-            <div className="mf-empty-icon">👥</div>
+            <div className="mf-empty-icon"><Users size={40} strokeWidth={1.5} /></div>
             <div className="mf-empty-title">
               {busca || filtroStatus !== "todos" ? "Nenhum cliente encontrado" : "Nenhum cliente ainda"}
             </div>

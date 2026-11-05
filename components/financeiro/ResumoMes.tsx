@@ -1,6 +1,7 @@
 "use client";
 
 // components/financeiro/ResumoMes.tsx — Quanto entra, quanto sai e o lucro de cada mês
+import { ArrowDownCircle, ArrowUpCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -121,14 +122,14 @@ export function ResumoMes() {
     <div>
       {/* Navegação de mês */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", marginBottom: "1rem" }}>
-        <button className="mf-btn-secondary" onClick={() => setMes(somaMes(mes, -1))} aria-label="Mês anterior" style={{ padding: "0.5rem 0.75rem" }}>‹</button>
+        <button className="mf-btn-secondary" onClick={() => setMes(somaMes(mes, -1))} aria-label="Mês anterior" style={{ padding: "0.5rem 0.625rem" }}><ChevronLeft size={18} /></button>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontWeight: 800, fontSize: "1.125rem" }}>{nomeMes(mes)}</div>
           {mes !== mesAtual && (
             <button onClick={() => setMes(mesAtual)} style={{ border: "none", background: "none", color: "var(--mf-laranja)", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer" }}>Voltar para o mês atual</button>
           )}
         </div>
-        <button className="mf-btn-secondary" onClick={() => setMes(somaMes(mes, 1))} aria-label="Próximo mês" style={{ padding: "0.5rem 0.75rem" }}>›</button>
+        <button className="mf-btn-secondary" onClick={() => setMes(somaMes(mes, 1))} aria-label="Próximo mês" style={{ padding: "0.5rem 0.625rem" }}><ChevronRight size={18} /></button>
       </div>
 
       {erro && <div style={{ background: "var(--mf-vermelho-bg)", color: "var(--mf-vermelho)", borderRadius: 8, padding: "0.75rem 1rem", fontSize: "0.875rem", marginBottom: "1rem" }}>{erro}</div>}
@@ -155,7 +156,7 @@ export function ResumoMes() {
       {/* Entradas x saídas */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
         <div className="mf-stat-card">
-          <span className="mf-stat-label">💰 Vai entrar (cobranças do mês)</span>
+          <span className="mf-stat-label" style={{ display: "flex", alignItems: "center", gap: 6 }}><ArrowDownCircle size={15} color="#16A34A" />Vai entrar (cobranças do mês)</span>
           <span className="mf-stat-value" style={{ color: "var(--mf-verde)" }}>{brl(atual.receita)}</span>
           <span style={{ fontSize: "0.75rem", color: "var(--mf-texto-sec)" }}>
             Recebido {brl(atual.recebido)} · Falta {brl(atual.aReceber)}
@@ -163,7 +164,7 @@ export function ResumoMes() {
           <Barra parte={atual.recebido} total={atual.receita} cor="#16A34A" />
         </div>
         <div className="mf-stat-card">
-          <span className="mf-stat-label">💸 Vai sair (despesas do mês)</span>
+          <span className="mf-stat-label" style={{ display: "flex", alignItems: "center", gap: 6 }}><ArrowUpCircle size={15} color="#DC2626" />Vai sair (despesas do mês)</span>
           <span className="mf-stat-value" style={{ color: "var(--mf-vermelho)" }}>{brl(atual.despesa)}</span>
           <span style={{ fontSize: "0.75rem", color: "var(--mf-texto-sec)" }}>
             Pago {brl(atual.pago)} · Falta {brl(atual.aPagar)}
