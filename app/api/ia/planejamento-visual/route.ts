@@ -85,25 +85,42 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
     }
 
-    const body = (await req.json().catch(() => ({}))) as { planejamento_id?: string; texto?: string; ajuste?: string };
+    const body = (await req.json().catch(() => ({}))) as { planejamento_id?: string; texto?: string; ajuste?: string; usar_dados?: boolean };
     if (!body.planejamento_id) return NextResponse.json({ error: "Planejamento não informado." }, { status: 400 });
 
     const { data: planRaw } = await admin
       .from("planejamentos")
-      .select("id, mes_referencia, objetivo, publico_alvo, tom_voz, texto_base, estrutura, status_aprovacao, cliente:cliente_id(nome, segmento)")
+      .select("id, mes_referencia, objetivo, publico_alvo, tom_voz, observacoes, texto_base, estrutura, status_aprovacao, cliente:cliente_id(nome, segmento), conteudos(titulo, data_publicacao, plataforma, formato, legenda, observacoes, status)")
       .eq("id", body.planejamento_id)
       .single();
     const plan = planRaw as unknown as {
       id: string; mes_referencia: string; objetivo: string | null; publico_alvo: string | null; tom_voz: string | null;
-      texto_base: string | null; estrutura: EstruturaPlanejamento | null; status_aprovacao: string;
+      observacoes: string | null; texto_base: string | null; estrutura: EstruturaPlanejamento | null; status_aprovacao: string;
+      conteudos: { titulo: string; data_publicacao: string | null; plataforma: string | null; formato: string | null; legenda: string | null; observacoes: string | null; status: string }[] | null;
       cliente: { nome: string; segmento: string | null } | null;
     } | null;
     if (!plan) return NextResponse.json({ error: "Planejamento não encontrado." }, { status: 404 });
 
-    const texto = (body.texto ?? plan.texto_base ?? "").trim();
+    // Sem texto (ou pedido explícito): monta o briefing com os dados já cadastrados
+    const existentes = (plan.conteudos ?? []).filter((c) => c.status !== "cancelado");
+    const textoDosDados = [
+      plan.objetivo ? `Objetivo do mês: ${plan.objetivo}` : "",
+      plan.publico_alvo ? `Público-alvo: ${plan.publico_alvo}` : "",
+      plan.tom_voz ? `Tom de voz: ${plan.tom_voz}` : "",
+      plan.observacoes ? `Observações: ${plan.observacoes}` : "",
+      existentes.length
+        ? "Conteúdos já planejados (manter, não duplicar):\n" + existentes.map((c) =>
+            `- ${c.data_publicacao ? c.data_publicacao.split("-").reverse().slice(0, 2).join("/") + " · " : ""}${c.titulo} (${[c.plataforma, c.formato].filter(Boolean).join(" ")})${c.legenda ? " — " + c.legenda.slice(0, 160) : ""}${c.observacoes ? " — " + c.observacoes.replace(/\n/g, " ").slice(0, 200) : ""}`
+          ).join("\n")
+        : "",
+    ].filter(Boolean).join("\n");
+
+    const textoDigitado = (body.texto ?? plan.texto_base ?? "").trim();
+    const usarDados = body.usar_dados || textoDigitado.length < 30;
+    const texto = usarDados ? [textoDigitado, textoDosDados].filter(Boolean).join("\n\n") : textoDigitado;
     const ajuste = (body.ajuste ?? "").trim();
     if (!ajuste && texto.length < 30) {
-      return NextResponse.json({ error: "Escreva um pouco mais sobre o planejamento do mês (pelo menos algumas frases)." }, { status: 400 });
+      return NextResponse.json({ error: "Preencha o objetivo do planejamento ou escreva algumas frases sobre o mês." }, { status: 400 });
     }
     if (ajuste && !plan.estrutura) {
       return NextResponse.json({ error: "Gere o planejamento primeiro, depois peça ajustes." }, { status: 400 });
@@ -129,7 +146,11 @@ export async function POST(req: NextRequest) {
         content: `${contexto}\n\nTexto original do planejamento:\n${texto || "(não informado)"}\n\nPlanejamento atual (JSON):\n${JSON.stringify(plan.estrutura)}\n\nAplique este ajuste e devolva o JSON completo atualizado:\n${ajuste}`,
       });
     } else {
-      mensagens.push({ role: "user", content: `${contexto}\n\nTexto do planejamento do mês:\n${texto}` });
+      mensagens.push({
+        role: "user",
+        content: `${contexto}\n\n${usarDados ? "Dados do planejamento cadastrados no sistema" : "Texto do planejamento do mês"}:\n${texto}` +
+          (existentes.length ? `\n\nIMPORTANTE: os conteúdos já planejados acima devem entrar no cronograma e no resumo, mas NÃO repita nenhum deles na lista "conteudos" — ali vão só conteúdos novos que você recomendar (pode ser vazia).` : ""),
+      });
     }
 
     const openai = new OpenAI({ apiKey: key });
@@ -149,7 +170,7 @@ export async function POST(req: NextRequest) {
     }
 
     const atualizacao: Record<string, unknown> = { estrutura };
-    if (!ajuste) atualizacao.texto_base = texto;
+    if (!ajuste && !usarDados) atualizacao.texto_base = texto;
     // Mexeu depois de enviado/aprovado → volta para rascunho até reenviar
     if (plan.status_aprovacao !== "rascunho") atualizacao.status_aprovacao = "rascunho";
 

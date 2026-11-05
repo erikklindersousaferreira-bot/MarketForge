@@ -4,7 +4,7 @@
 // Dentro do card de Planejamento: texto do mês → IA monta o visual → ajustes → enviar ao cliente.
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { ClipboardList, Sparkles, PencilLine, Maximize2, Eye, Send, RefreshCw, Lightbulb, CheckCircle2, X } from "lucide-react";
+import { ClipboardList, Sparkles, PencilLine, Maximize2, Eye, Send, RefreshCw, Lightbulb, CheckCircle2, X, Wand2 } from "lucide-react";
 import { PlanoVisual } from "./PlanoVisual";
 import { STATUS_APROVACAO, mesPorExtenso, type EstruturaPlanejamento, type StatusAprovacao } from "@/lib/planejamento-tipos";
 
@@ -29,6 +29,18 @@ type Props = {
 
 const PLATAFORMAS_OK = ["Instagram", "Facebook", "TikTok", "YouTube", "LinkedIn", "WhatsApp", "Site", "Outro"];
 
+/** Monta o planejamento visual com a IA usando os dados já cadastrados (sem texto). */
+export async function montarPlanoComDados(planoId: string): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const res = await fetch("/api/ia/planejamento-visual", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ planejamento_id: planoId, usar_dados: true }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, erro: data.error ?? "Erro ao gerar com a IA." };
+  return { ok: true };
+}
+
 /** Aprova e envia o plano ao cliente: recria os conteúdos com data e marca como "enviado". */
 export async function enviarPlanoAoCliente(
   planoId: string,
@@ -37,8 +49,13 @@ export async function enviarPlanoAoCliente(
   // Recria os conteúdos gerados pela IA que ainda não andaram (rascunho)
   await supabase.from("conteudos").delete().eq("planejamento_id", planoId).eq("gerado_ia", true).eq("status", "rascunho");
 
+  // Não duplica conteúdos que já existem no planejamento (mesmo título)
+  const { data: atuais } = await supabase.from("conteudos").select("titulo").eq("planejamento_id", planoId);
+  const norm = (t: string) => t.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const jaExistem = new Set(((atuais ?? []) as { titulo: string }[]).map((c) => norm(c.titulo)));
+
   const novos = (estrutura.conteudos ?? [])
-    .filter((c) => c.titulo?.trim())
+    .filter((c) => c.titulo?.trim() && !jaExistem.has(norm(c.titulo)))
     .map((c) => ({
       planejamento_id: planoId,
       titulo: c.titulo.trim().slice(0, 200),
@@ -77,7 +94,7 @@ export function EditorPlanoIA({ plan, clienteNome, clienteLogo, onRefresh }: Pro
   const [estrutura, setEstrutura] = useState<EstruturaPlanejamento | null>(plan.estrutura ?? null);
   const [status, setStatus] = useState<StatusAprovacao>((plan.status_aprovacao as StatusAprovacao) ?? "rascunho");
   const [ajuste, setAjuste] = useState("");
-  const [gerando, setGerando] = useState<"" | "gerar" | "ajustar">("");
+  const [gerando, setGerando] = useState<"" | "gerar" | "ajustar" | "dados">("");
   const [enviando, setEnviando] = useState(false);
   const [telaCheia, setTelaCheia] = useState(false);
   const [mostrarTexto, setMostrarTexto] = useState(!plan.estrutura);
@@ -87,13 +104,17 @@ export function EditorPlanoIA({ plan, clienteNome, clienteLogo, onRefresh }: Pro
   const mesLabel = mesPorExtenso(plan.mes_referencia);
   const st = STATUS_APROVACAO[status] ?? STATUS_APROVACAO.rascunho;
 
-  async function chamarIA(modo: "gerar" | "ajustar") {
+  async function chamarIA(modo: "gerar" | "ajustar" | "dados") {
     setErro(""); setOk(""); setGerando(modo);
     try {
       const res = await fetch("/api/ia/planejamento-visual", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(modo === "gerar" ? { planejamento_id: plan.id, texto } : { planejamento_id: plan.id, ajuste }),
+        body: JSON.stringify(
+          modo === "gerar" ? { planejamento_id: plan.id, texto }
+          : modo === "dados" ? { planejamento_id: plan.id, texto, usar_dados: true }
+          : { planejamento_id: plan.id, ajuste }
+        ),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setErro(data.error ?? "Erro ao gerar."); return; }
@@ -101,7 +122,7 @@ export function EditorPlanoIA({ plan, clienteNome, clienteLogo, onRefresh }: Pro
       setStatus("rascunho");
       setMostrarTexto(false);
       if (modo === "ajustar") setAjuste("");
-      setOk(modo === "gerar" ? "Planejamento montado! Revise abaixo." : "Ajuste aplicado.");
+      setOk(modo === "ajustar" ? "Ajuste aplicado." : "Planejamento montado! Revise abaixo e envie ao cliente.");
     } finally {
       setGerando("");
     }
@@ -159,12 +180,16 @@ export function EditorPlanoIA({ plan, clienteNome, clienteLogo, onRefresh }: Pro
             <button className="mf-btn-primary" onClick={() => chamarIA("gerar")} disabled={!!gerando || texto.trim().length < 30} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
               <Sparkles size={15} />{gerando === "gerar" ? "A IA está montando..." : estrutura ? "Gerar de novo" : "Gerar planejamento com IA"}
             </button>
+            <button className="mf-btn-secondary" onClick={() => chamarIA("dados")} disabled={!!gerando} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+              title="Usa o objetivo, público, tom de voz e os conteúdos já criados">
+              <Wand2 size={15} />{gerando === "dados" ? "A IA está montando..." : "Gerar com os dados do planejamento"}
+            </button>
             {estrutura && (
               <button className="mf-btn-secondary" onClick={() => setMostrarTexto(false)} disabled={!!gerando}>Cancelar</button>
             )}
           </div>
           <p style={{ fontSize: "0.75rem", color: "var(--mf-texto-sec)", margin: "0.5rem 0 0" }}>
-            Dica: no celular, toque no microfone do teclado para ditar.
+            O texto é opcional: “Gerar com os dados do planejamento” usa o objetivo, o público, o tom de voz e os conteúdos já criados. No celular, toque no microfone do teclado para ditar.
           </p>
         </div>
       ) : (

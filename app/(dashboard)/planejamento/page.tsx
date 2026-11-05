@@ -2,7 +2,7 @@
 
 import { CalendarRange } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { EditorPlanoIA, enviarPlanoAoCliente, type PlanoParaEditor } from "@/components/planejamento/EditorPlanoIA";
+import { EditorPlanoIA, enviarPlanoAoCliente, montarPlanoComDados, type PlanoParaEditor } from "@/components/planejamento/EditorPlanoIA";
 import type { EstruturaPlanejamento } from "@/lib/planejamento-tipos";
 import { STATUS_APROVACAO, type StatusAprovacao } from "@/lib/planejamento-tipos";
 import { supabase } from "@/lib/supabase";
@@ -395,7 +395,7 @@ Mês de referência: ${planejamento.mes_referencia ? new Date(planejamento.mes_r
           <IconSpark />
         </div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: "0.9375rem" }}>Assistente de Conteúdo IA</div>
+          <div style={{ fontWeight: 700, fontSize: "0.9375rem" }}>Ideias de posts (IA)</div>
           <div style={{ fontSize: "0.75rem", color: "var(--mf-texto-sec)" }}>Contexto do planejamento carregado</div>
         </div>
       </div>
@@ -503,6 +503,7 @@ function CardPlanejamento({ plan, onRefresh }: CardPlanejamentoProps) {
   const [deletandoCont, setDeletandoCont] = useState<string | null>(null);
   const [confirmarExcluir, setConfirmarExcluir] = useState(false);
   const [enviandoRapido,   setEnviandoRapido]   = useState(false);
+  const [montando,         setMontando]         = useState(false);
   const [excluindoPlan,    setExcluindoPlan]    = useState(false);
   const [erroExcluir,      setErroExcluir]      = useState("");
 
@@ -532,6 +533,16 @@ function CardPlanejamento({ plan, onRefresh }: CardPlanejamentoProps) {
     const r = await enviarPlanoAoCliente(plan.id, plan.estrutura as EstruturaPlanejamento);
     setEnviandoRapido(false);
     if (!r.ok) { alert(r.erro); return; }
+    onRefresh();
+  }
+
+  async function montarRapido(e: React.MouseEvent) {
+    e.stopPropagation();
+    setMontando(true);
+    const r = await montarPlanoComDados(plan.id);
+    setMontando(false);
+    if (!r.ok) { alert(r.erro); return; }
+    setExpandido(true);
     onRefresh();
   }
 
@@ -603,7 +614,17 @@ function CardPlanejamento({ plan, onRefresh }: CardPlanejamentoProps) {
               </button>
             ) : (plan.estrutura || (plan.status_aprovacao && plan.status_aprovacao !== "rascunho")) ? (
               <span className={statusAprov.cls}>{statusAprov.label}</span>
-            ) : null}
+            ) : (
+              <button
+                className="mf-btn-secondary"
+                onClick={montarRapido}
+                disabled={montando}
+                style={{ fontSize: "0.75rem", padding: "0.3rem 0.75rem", minHeight: 0, borderRadius: 999, borderColor: "var(--mf-laranja)", color: "var(--mf-laranja)" }}
+                title="A IA monta o planejamento do cliente com o objetivo, público, tom de voz e conteúdos já criados"
+              >
+                {montando ? "Montando..." : "Montar planejamento com IA"}
+              </button>
+            )}
             {plan.status_aprovacao === "ajuste" && <span className={statusAprov.cls}>{statusAprov.label}</span>}
             <span className="mf-badge mf-badge-verde">{contagem.publicado} pub.</span>
             <span className="mf-badge mf-badge-azul">{contagem.aprovado} aprov.</span>
@@ -637,7 +658,7 @@ function CardPlanejamento({ plan, onRefresh }: CardPlanejamentoProps) {
               onClick={() => setMostrarIA(v => !v)}
               style={{ fontSize: "0.8125rem", padding: "0.375rem 0.75rem", display: "flex", alignItems: "center", gap: "0.375rem", borderColor: mostrarIA ? "var(--mf-laranja)" : undefined, color: mostrarIA ? "var(--mf-laranja)" : undefined }}
             >
-              <IconSpark /> {mostrarIA ? "Fechar IA" : "Assistente IA"}
+              <IconSpark /> {mostrarIA ? "Fechar ideias" : "Ideias de posts (IA)"}
             </button>
             <button
               className="mf-btn-secondary"
