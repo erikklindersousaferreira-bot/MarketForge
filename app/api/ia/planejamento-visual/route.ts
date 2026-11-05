@@ -88,18 +88,51 @@ export async function POST(req: NextRequest) {
     const body = (await req.json().catch(() => ({}))) as { planejamento_id?: string; texto?: string; ajuste?: string; usar_dados?: boolean };
     if (!body.planejamento_id) return NextResponse.json({ error: "Planejamento não informado." }, { status: 400 });
 
-    const { data: planRaw } = await admin
+    // 1) Dados básicos do planejamento
+    const { data: baseRaw, error: erroBase } = await admin
       .from("planejamentos")
-      .select("id, mes_referencia, objetivo, publico_alvo, tom_voz, observacoes, texto_base, estrutura, status_aprovacao, cliente:cliente_id(nome, segmento), conteudos(titulo, data_publicacao, plataforma, formato, legenda, observacoes, status)")
+      .select("id, cliente_id, mes_referencia, objetivo, publico_alvo, tom_voz, observacoes")
       .eq("id", body.planejamento_id)
-      .single();
-    const plan = planRaw as unknown as {
-      id: string; mes_referencia: string; objetivo: string | null; publico_alvo: string | null; tom_voz: string | null;
-      observacoes: string | null; texto_base: string | null; estrutura: EstruturaPlanejamento | null; status_aprovacao: string;
-      conteudos: { titulo: string; data_publicacao: string | null; plataforma: string | null; formato: string | null; legenda: string | null; observacoes: string | null; status: string }[] | null;
-      cliente: { nome: string; segmento: string | null } | null;
+      .maybeSingle();
+    if (erroBase) {
+      console.error("[ia-planejamento-visual] planejamento:", erroBase.message);
+      return NextResponse.json({ error: `Erro ao ler o planejamento: ${erroBase.message}` }, { status: 500 });
+    }
+    const base = baseRaw as {
+      id: string; cliente_id: string; mes_referencia: string; objetivo: string | null;
+      publico_alvo: string | null; tom_voz: string | null; observacoes: string | null;
     } | null;
-    if (!plan) return NextResponse.json({ error: "Planejamento não encontrado." }, { status: 404 });
+    if (!base) return NextResponse.json({ error: "Planejamento não encontrado (pode ter sido excluído). Atualize a página." }, { status: 404 });
+
+    // 2) Campos do planejamento visual (etapa 12)
+    const { data: visualRaw, error: erroVisual } = await admin
+      .from("planejamentos")
+      .select("texto_base, estrutura, status_aprovacao")
+      .eq("id", base.id)
+      .maybeSingle();
+    if (erroVisual) {
+      console.error("[ia-planejamento-visual] campos visuais:", erroVisual.message);
+      return NextResponse.json({
+        error: "O banco ainda não tem os campos do planejamento visual. No Supabase, rode o arquivo etapa12-planejamento-visual.sql e tente de novo.",
+      }, { status: 500 });
+    }
+    const visual = (visualRaw ?? {}) as { texto_base?: string | null; estrutura?: EstruturaPlanejamento | null; status_aprovacao?: string | null };
+
+    // 3) Cliente e conteúdos (consultas separadas: não dependem de vínculos do banco)
+    const [{ data: cliRaw }, { data: contRaw, error: erroCont }] = await Promise.all([
+      admin.from("clientes").select("nome, segmento").eq("id", base.cliente_id).maybeSingle(),
+      admin.from("conteudos").select("titulo, data_publicacao, plataforma, formato, legenda, observacoes, status").eq("planejamento_id", base.id),
+    ]);
+    if (erroCont) console.warn("[ia-planejamento-visual] conteúdos:", erroCont.message);
+
+    const plan = {
+      ...base,
+      texto_base: visual.texto_base ?? null,
+      estrutura: visual.estrutura ?? null,
+      status_aprovacao: visual.status_aprovacao ?? "rascunho",
+      cliente: (cliRaw as { nome: string; segmento: string | null } | null) ?? null,
+      conteudos: (contRaw ?? []) as { titulo: string; data_publicacao: string | null; plataforma: string | null; formato: string | null; legenda: string | null; observacoes: string | null; status: string }[],
+    };
 
     // Sem texto (ou pedido explícito): monta o briefing com os dados já cadastrados
     const existentes = (plan.conteudos ?? []).filter((c) => c.status !== "cancelado");
