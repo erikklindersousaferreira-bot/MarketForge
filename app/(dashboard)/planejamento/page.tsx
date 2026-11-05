@@ -1,6 +1,8 @@
 ﻿"use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { EditorPlanoIA, type PlanoParaEditor } from "@/components/planejamento/EditorPlanoIA";
+import { STATUS_APROVACAO, type StatusAprovacao } from "@/lib/planejamento-tipos";
 import { supabase } from "@/lib/supabase";
 import type { Planejamento, Conteudo, Cliente } from "@/lib/types";
 
@@ -487,7 +489,7 @@ Mês de referência: ${planejamento.mes_referencia ? new Date(planejamento.mes_r
 
 // ── Card de Planejamento ──────────────────────────────────────
 interface CardPlanejamentoProps {
-  plan: Planejamento & { cliente?: { nome: string }; conteudos?: Conteudo[] };
+  plan: Planejamento & { cliente?: { nome: string; logo_url?: string | null }; conteudos?: Conteudo[] } & Partial<PlanoParaEditor>;
   onRefresh: () => void;
 }
 
@@ -503,6 +505,8 @@ function CardPlanejamento({ plan, onRefresh }: CardPlanejamentoProps) {
 
   const conteudos = plan.conteudos ?? [];
   const clienteNome = (plan.cliente as unknown as { nome: string } | null)?.nome ?? "—";
+  const clienteLogo = (plan.cliente as unknown as { logo_url?: string | null } | null)?.logo_url ?? null;
+  const statusAprov = STATUS_APROVACAO[(plan.status_aprovacao ?? "rascunho") as StatusAprovacao] ?? STATUS_APROVACAO.rascunho;
 
   const mesLabel = plan.mes_referencia
     ? new Date(plan.mes_referencia + "T12:00").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
@@ -570,7 +574,8 @@ function CardPlanejamento({ plan, onRefresh }: CardPlanejamentoProps) {
 
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexShrink: 0 }}>
           {/* Contadores */}
-          <div style={{ display: "flex", gap: "0.5rem", fontSize: "0.75rem" }}>
+          <div style={{ display: "flex", gap: "0.5rem", fontSize: "0.75rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
+            {(plan.estrutura || plan.status_aprovacao !== "rascunho") && <span className={statusAprov.cls}>{statusAprov.label}</span>}
             <span className="mf-badge mf-badge-verde">{contagem.publicado} pub.</span>
             <span className="mf-badge mf-badge-azul">{contagem.aprovado} aprov.</span>
             <span className="mf-badge mf-badge-cinza">{contagem.rascunho} rascunho</span>
@@ -581,6 +586,14 @@ function CardPlanejamento({ plan, onRefresh }: CardPlanejamentoProps) {
       {/* Conteúdo expandido */}
       {expandido && (
         <div style={{ borderTop: "1px solid var(--mf-borda)" }}>
+          {/* Planejamento visual para o cliente (IA) */}
+          <EditorPlanoIA
+            plan={plan as unknown as PlanoParaEditor}
+            clienteNome={clienteNome}
+            clienteLogo={clienteLogo}
+            onRefresh={onRefresh}
+          />
+
           {/* Ações */}
           <div style={{ padding: "0.75rem 1.25rem", display: "flex", gap: "0.5rem", flexWrap: "wrap", background: "var(--mf-fundo)", borderBottom: "1px solid var(--mf-borda)" }}>
             <button
@@ -737,7 +750,7 @@ export default function PlanejamentoPage() {
     setCarregando(true);
     const { data } = await supabase
       .from("planejamentos")
-      .select("*, cliente:cliente_id(id, nome), conteudos(*)")
+      .select("*, cliente:cliente_id(id, nome, logo_url), conteudos(*)")
       .order("mes_referencia", { ascending: false });
     if (data) setPlanejamentos(data as typeof planejamentos);
     setCarregando(false);

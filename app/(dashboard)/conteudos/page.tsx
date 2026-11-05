@@ -40,6 +40,44 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   cancelado: { label: "Cancelado", cls: "mf-badge mf-badge-vermelho" },
 };
 
+type ClienteStory = { id: string; nome: string; logo_url: string | null; cor_primaria: string | null };
+
+function iniciaisCli(nome: string) {
+  return (nome || "?").split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+}
+
+/** Bolinha do cliente estilo stories: anel laranja quando tem conteúdo esperando */
+function StoryCliente({ cliente, ativo, pendentes, onClick }: { cliente: ClienteStory | null; ativo: boolean; pendentes: number; onClick: () => void }) {
+  const nome = cliente?.nome ?? "Todos";
+  const anel = ativo
+    ? "conic-gradient(#FF6A00, #FF6A00)"
+    : pendentes > 0 ? "conic-gradient(#FF6A00, #F59E0B, #FF6A00)" : "#E4E4E7";
+  return (
+    <button onClick={onClick} title={nome} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, border: "none", background: "none", cursor: "pointer", flexShrink: 0, width: 72, padding: 0 }}>
+      <span style={{ position: "relative", width: 64, height: 64, borderRadius: "50%", padding: 3, background: anel, display: "flex" }}>
+        <span style={{ flex: 1, borderRadius: "50%", background: "#fff", padding: 2, display: "flex" }}>
+          {cliente?.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={cliente.logo_url} alt={nome} style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+          ) : (
+            <span style={{ flex: 1, borderRadius: "50%", background: cliente ? (cliente.cor_primaria || "#FF6A00") : "#18181B", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: cliente ? 17 : 13 }}>
+              {cliente ? iniciaisCli(nome) : <LayoutGrid size={20} />}
+            </span>
+          )}
+        </span>
+        {pendentes > 0 && (
+          <span style={{ position: "absolute", top: -2, right: -2, minWidth: 20, height: 20, borderRadius: 999, background: "#FF6A00", color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px", border: "2px solid #fff" }}>
+            {pendentes > 9 ? "9+" : pendentes}
+          </span>
+        )}
+      </span>
+      <span style={{ fontSize: 11.5, fontWeight: ativo ? 700 : 500, color: ativo ? "var(--mf-laranja)" : "var(--mf-texto)", maxWidth: 72, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {nome}
+      </span>
+    </button>
+  );
+}
+
 // ── Helpers ──────────────────────────────────────────────────
 function dataFmt(iso: string | null | undefined) {
   if (!iso) return "Sem data";
@@ -224,6 +262,7 @@ function ModalConteudo({
 export default function ConteudosPage() {
   const [conteudos, setConteudos] = useState<ConteudoLinha[]>([]);
   const [planejamentos, setPlanejamentos] = useState<PlanejamentoOpcao[]>([]);
+  const [clientesStory, setClientesStory] = useState<ClienteStory[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
 
@@ -235,7 +274,7 @@ export default function ConteudosPage() {
   const [modal, setModal] = useState<Partial<ConteudoLinha> | null | undefined>(undefined);
 
   const carregar = useCallback(async () => {
-    const [resC, resP] = await Promise.all([
+    const [resC, resP, resCli] = await Promise.all([
       supabase
         .from("conteudos")
         .select("*, planejamento:planejamentos(id, mes_referencia, cliente:clientes(id, nome))")
@@ -245,7 +284,9 @@ export default function ConteudosPage() {
         .select("id, mes_referencia, cliente:clientes(id, nome)")
         .eq("status", "ativo")
         .order("mes_referencia", { ascending: false }),
+      supabase.from("clientes").select("id, nome, logo_url, cor_primaria").eq("status", "ativo").order("nome"),
     ]);
+    setClientesStory((resCli.data ?? []) as ClienteStory[]);
 
     setCarregando(false);
 
@@ -282,6 +323,24 @@ export default function ConteudosPage() {
     }
     setConteudos((prev) => prev.filter((x) => x.id !== c.id));
   }
+
+  // Conteúdos esperando (rascunho/aprovado) por cliente
+  const pendentesPorCliente = useMemo(() => {
+    const m: Record<string, number> = {};
+    conteudos.forEach((c) => {
+      const id = c.planejamento?.cliente?.id;
+      if (id && (c.status === "rascunho" || c.status === "aprovado")) m[id] = (m[id] ?? 0) + 1;
+    });
+    return m;
+  }, [conteudos]);
+
+  // Clientes com conteúdo primeiro
+  const storiesOrdenados = useMemo(() => {
+    const comConteudo = new Set(conteudos.map((c) => c.planejamento?.cliente?.id).filter(Boolean) as string[]);
+    return [...clientesStory].sort((a, b) =>
+      Number(comConteudo.has(b.id)) - Number(comConteudo.has(a.id)) || a.nome.localeCompare(b.nome)
+    );
+  }, [clientesStory, conteudos]);
 
   const clientesUnicos = useMemo(() => {
     const mapa = new Map<string, string>();
@@ -324,6 +383,24 @@ export default function ConteudosPage() {
         </button>
       </div>
 
+      {/* Clientes estilo stories */}
+      {clientesStory.length > 0 && (
+        <div className="mf-card" style={{ padding: "0.875rem 0.75rem", marginBottom: "1rem" }}>
+          <div className="mf-scroll-x" style={{ display: "flex", gap: "0.5rem", overflowX: "auto", scrollbarWidth: "none" }}>
+            <StoryCliente cliente={null} ativo={!filtroCliente} pendentes={0} onClick={() => setFiltroCliente("")} />
+            {storiesOrdenados.map((c) => (
+              <StoryCliente
+                key={c.id}
+                cliente={c}
+                ativo={filtroCliente === c.id}
+                pendentes={pendentesPorCliente[c.id] ?? 0}
+                onClick={() => setFiltroCliente(filtroCliente === c.id ? "" : c.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Resumo por status */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "0.75rem", marginBottom: "1.25rem" }}>
         {Object.entries(STATUS).map(([v, s]) => {
@@ -350,7 +427,7 @@ export default function ConteudosPage() {
         </div>
         <select className="mf-input" style={{ flex: "0 1 180px" }} value={filtroCliente} onChange={(e) => setFiltroCliente(e.target.value)}>
           <option value="">Todos os clientes</option>
-          {clientesUnicos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          {(clientesStory.length ? clientesStory : clientesUnicos).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
         </select>
         <select className="mf-input" style={{ flex: "0 1 160px" }} value={filtroPlataforma} onChange={(e) => setFiltroPlataforma(e.target.value)}>
           <option value="">Todas as plataformas</option>
