@@ -2,7 +2,9 @@
 
 // components/planejamento/PlanoVisual.tsx
 // Planejamento do mês no visual escuro da MarketForge (igual ao PDF), pensado para o celular.
-import type { EstruturaPlanejamento } from "@/lib/planejamento-tipos";
+import { useMemo, useState } from "react";
+import { Target, Zap, Film, Megaphone, Camera, X, ChevronRight, CalendarDays, MessageSquareText } from "lucide-react";
+import type { EstruturaPlanejamento, ConteudoDetalhe } from "@/lib/planejamento-tipos";
 
 const LARANJA = "#FF6A00";
 const DOURADO = "#E8C27A";
@@ -12,7 +14,92 @@ type Props = {
   clienteNome: string;
   clienteLogo?: string | null;
   mesLabel: string;
+  /** Conteúdos do plano (do banco). Se não vier, usa os da estrutura da IA. */
+  conteudos?: ConteudoDetalhe[];
 };
+
+const STATUS_CONTEUDO: Record<string, { label: string; cor: string }> = {
+  rascunho:  { label: "Planejado",  cor: "#A1A1AA" },
+  aprovado:  { label: "Aprovado",   cor: "#60A5FA" },
+  agendado:  { label: "Agendado",   cor: "#FBBF24" },
+  publicado: { label: "Publicado",  cor: "#3DDC84" },
+  cancelado: { label: "Cancelado",  cor: "#71717A" },
+};
+
+const norm = (t: string) => (t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+const ddmm = (iso?: string | null) => (iso && /^\d{4}-\d{2}-\d{2}/.test(iso) ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : "");
+
+/** Acha o conteúdo ligado a um item do cronograma/ações (pela data DD/MM ou pelo título) */
+function acharConteudo(lista: ConteudoDetalhe[], quando: string, titulo: string): ConteudoDetalhe | undefined {
+  const data = (quando.match(/\d{1,2}\/\d{1,2}/)?.[0] ?? "").split("/").map((x) => x.padStart(2, "0")).join("/");
+  const t = norm(titulo);
+  const porTitulo = lista.find((c) => { const ct = norm(c.titulo); return ct && t && (ct.includes(t) || t.includes(ct)); });
+  if (porTitulo) return porTitulo;
+  if (data) {
+    const doDia = lista.filter((c) => ddmm(c.data) === data);
+    if (doDia.length === 1) return doDia[0];
+  }
+  return undefined;
+}
+
+function dataExtenso(iso?: string | null) {
+  if (!iso) return "Data a definir";
+  const d = new Date(iso.slice(0, 10) + "T12:00");
+  const t = d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+/** Folha com o detalhe completo do conteúdo */
+function FolhaConteudo({ c, onClose }: { c: ConteudoDetalhe; onClose: () => void }) {
+  const r = c.roteiro ?? {};
+  const st = STATUS_CONTEUDO[c.status ?? ""];
+  // Conteúdos antigos sem roteiro: mostra a descrição/observações como roteiro
+  const semRoteiro = !r.gancho && !r.desenvolvimento && !r.cta && !r.gravacao;
+  const blocos: { icone: React.ReactNode; titulo: string; texto?: string | null }[] = [
+    { icone: <Target size={16} />, titulo: "Objetivo", texto: r.objetivo },
+    { icone: <Zap size={16} />, titulo: "Gancho (primeiros segundos)", texto: r.gancho },
+    { icone: <Film size={16} />, titulo: "Desenvolvimento", texto: r.desenvolvimento ?? (semRoteiro ? c.observacoes : null) },
+    { icone: <Megaphone size={16} />, titulo: "Chamada para ação", texto: r.cta },
+    { icone: <Camera size={16} />, titulo: "Como vamos gravar", texto: r.gravacao },
+  ];
+  return (
+    <div className="pv-folha-fundo" onClick={(ev) => ev.target === ev.currentTarget && onClose()}>
+      <div className="pv-folha" role="dialog" aria-label={c.titulo}>
+        <div className="pv-folha-alca" />
+        <button className="pv-folha-x" onClick={onClose} aria-label="Fechar"><X size={18} /></button>
+        <div className="pv-folha-meta">
+          <span><CalendarDays size={13} /> {dataExtenso(c.data)}</span>
+          {(c.formato || c.plataforma) && <span>{[c.formato, c.plataforma].filter(Boolean).join(" · ")}</span>}
+          {st && <span style={{ color: st.cor }}>● {st.label}</span>}
+        </div>
+        <h3 className="pv-folha-titulo">{c.titulo}</h3>
+
+        <div className="pv-folha-rotulo">Roteiro</div>
+        <div className="pv-folha-blocos">
+          {blocos.filter((b) => b.texto?.trim()).map((b, i) => (
+            <div key={i} className="pv-folha-bloco">
+              <span className="pv-folha-ic">{b.icone}</span>
+              <div>
+                <div className="pv-folha-bt">{b.titulo}</div>
+                <p className="pv-folha-txt">{b.texto}</p>
+              </div>
+            </div>
+          ))}
+          {blocos.every((b) => !b.texto?.trim()) && (
+            <p className="pv-folha-txt" style={{ color: "#71717A" }}>O roteiro deste conteúdo ainda está sendo preparado pela equipe.</p>
+          )}
+        </div>
+
+        {c.legenda?.trim() && (
+          <>
+            <div className="pv-folha-rotulo"><MessageSquareText size={13} style={{ display: "inline", verticalAlign: "-2px", marginRight: 6 }} />Legenda sugerida</div>
+            <p className="pv-folha-legenda">{c.legenda}</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function Secao({ n, titulo, subtitulo, extra, children }: { n: number; titulo: string; subtitulo?: string; extra?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -38,9 +125,18 @@ function Pilula({ children, cor = LARANJA, escura = false }: { children: React.R
   );
 }
 
-export function PlanoVisual({ estrutura: e, clienteNome, clienteLogo, mesLabel }: Props) {
+export function PlanoVisual({ estrutura: e, clienteNome, clienteLogo, mesLabel, conteudos }: Props) {
   let n = 0;
   const prox = () => ++n;
+  const [aberto, setAberto] = useState<ConteudoDetalhe | null>(null);
+
+  const lista: ConteudoDetalhe[] = useMemo(() => {
+    const base: ConteudoDetalhe[] = conteudos ?? (e.conteudos ?? []).map((c) => ({
+      titulo: c.titulo, data: c.data, plataforma: c.plataforma, formato: c.formato, legenda: c.legenda,
+      roteiro: c.roteiro ?? { objetivo: c.objetivo, gancho: c.gancho, gravacao: c.conceito },
+    }));
+    return [...base].filter((c) => c.status !== "cancelado").sort((a, b) => (a.data ?? "9999").localeCompare(b.data ?? "9999"));
+  }, [conteudos, e.conteudos]);
 
   return (
     <div className="pv">
@@ -158,15 +254,23 @@ export function PlanoVisual({ estrutura: e, clienteNome, clienteLogo, mesLabel }
       {e.cronograma && !!e.cronograma.itens?.length && (
         <Secao n={prox()} titulo={e.cronograma.titulo || "Cronograma"} subtitulo={e.cronograma.subtitulo}>
           <div className="pv-crono">
-            {e.cronograma.itens.map((c, i) => (
-              <div key={i} className="pv-crono-linha">
-                <div className={`pv-crono-data ${c.destaque ? "on" : i === 0 ? "on" : "contorno"}`}>{c.quando}</div>
-                <div className="pv-card pv-crono-card">
-                  <h3 className="pv-h3">{c.titulo}</h3>
-                  {c.descricao && <p className="pv-txt">{c.descricao}</p>}
+            {e.cronograma.itens.map((c, i) => {
+              const ligado = acharConteudo(lista, c.quando, c.titulo);
+              return (
+                <div key={i} className="pv-crono-linha">
+                  <div className={`pv-crono-data ${c.destaque ? "on" : i === 0 ? "on" : "contorno"}`}>{c.quando}</div>
+                  <div
+                    className={`pv-card pv-crono-card ${ligado ? "pv-tocavel" : ""}`}
+                    onClick={ligado ? () => setAberto(ligado) : undefined}
+                    role={ligado ? "button" : undefined}
+                  >
+                    <h3 className="pv-h3">{c.titulo}</h3>
+                    {c.descricao && <p className="pv-txt">{c.descricao}</p>}
+                    {ligado && <span className="pv-ver">Ver roteiro <ChevronRight size={13} /></span>}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Secao>
       )}
@@ -175,8 +279,10 @@ export function PlanoVisual({ estrutura: e, clienteNome, clienteLogo, mesLabel }
       {e.acoes && !!e.acoes.itens?.length && (
         <Secao n={prox()} titulo={e.acoes.titulo || "Ações especiais"} subtitulo={e.acoes.subtitulo}>
           <div style={{ display: "grid", gap: 12 }}>
-            {e.acoes.itens.map((a, i) => (
-              <div key={i} className="pv-card pv-acao">
+            {e.acoes.itens.map((a, i) => {
+              const ligado = acharConteudo(lista, a.data, a.titulo);
+              return (
+              <div key={i} className={`pv-card pv-acao ${ligado ? "pv-tocavel" : ""}`} onClick={ligado ? () => setAberto(ligado) : undefined} role={ligado ? "button" : undefined}>
                 <div className="pv-acao-data">
                   <strong>{a.data}</strong>
                   {a.tipo && <span>{a.tipo}</span>}
@@ -189,9 +295,11 @@ export function PlanoVisual({ estrutura: e, clienteNome, clienteLogo, mesLabel }
                       {a.status === "programado" ? "Já programado" : "Aguardando"}
                     </span>
                   )}
+                  {ligado && <span className="pv-ver" style={{ marginLeft: a.status ? 10 : 0 }}>Ver roteiro <ChevronRight size={13} /></span>}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </Secao>
       )}
@@ -216,6 +324,33 @@ export function PlanoVisual({ estrutura: e, clienteNome, clienteLogo, mesLabel }
           {e.proxima_etapa.status && (
             <div className="pv-aviso" style={{ marginTop: 12 }}><Pilula cor={DOURADO}>Status</Pilula><span>{e.proxima_etapa.status}</span></div>
           )}
+        </Secao>
+      )}
+
+      {/* ── Conteúdos do mês (tocáveis) ── */}
+      {lista.length > 0 && (
+        <Secao n={prox()} titulo="Conteúdos do mês" subtitulo="Toque em um conteúdo para ver o roteiro completo">
+          <div className="pv-conteudos">
+            {lista.map((c, i) => {
+              const st = STATUS_CONTEUDO[c.status ?? ""];
+              return (
+                <button key={c.id ?? i} className="pv-card pv-conteudo pv-tocavel" onClick={() => setAberto(c)}>
+                  <span className="pv-conteudo-data">
+                    <strong>{ddmm(c.data) || "—"}</strong>
+                    <span>{c.formato || "Post"}</span>
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                    <span className="pv-conteudo-titulo">{c.titulo}</span>
+                    <span className="pv-conteudo-meta">
+                      {c.roteiro?.objetivo ? c.roteiro.objetivo.split(/[—.-]/)[0].trim() : c.plataforma || "Instagram"}
+                      {st && <><span style={{ color: st.cor, marginLeft: 8 }}>●</span> {st.label}</>}
+                    </span>
+                  </span>
+                  <ChevronRight size={18} color={LARANJA} />
+                </button>
+              );
+            })}
+          </div>
         </Secao>
       )}
 
@@ -262,6 +397,8 @@ export function PlanoVisual({ estrutura: e, clienteNome, clienteLogo, mesLabel }
       )}
 
       <footer className="pv-rodape">MarketForge · Planejamento de Marketing para {clienteNome}</footer>
+
+      {aberto && <FolhaConteudo c={aberto} onClose={() => setAberto(null)} />}
     </div>
   );
 }
@@ -326,6 +463,33 @@ const CSS = `
 .pv-final { margin-top:18px; padding:16px; border:1px solid ${LARANJA}; border-radius:14px; background:#120C08; text-align:center; display:flex; flex-direction:column; gap:4px; }
 .pv-final strong { font-size:14.5px; }
 .pv-final span { color:#A1A1AA; font-size:12.5px; }
+.pv-tocavel { cursor:pointer; transition:transform 120ms ease, border-color 150ms ease; }
+.pv-tocavel:hover { border-color:${LARANJA}; }
+.pv-tocavel:active { transform:scale(0.98); }
+.pv-ver { display:inline-flex; align-items:center; gap:2px; margin-top:10px; color:${LARANJA}; font-size:12px; font-weight:700; }
+.pv-conteudos { display:grid; gap:10px; }
+.pv-conteudo { display:flex; align-items:center; gap:14px; width:100%; color:#fff; font-family:inherit; text-align:left; }
+.pv-conteudo-data { width:58px; height:58px; border-radius:14px; background:#0F0F0F; border:1.5px solid ${LARANJA}; display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; }
+.pv-conteudo-data strong { font-size:15px; font-weight:800; }
+.pv-conteudo-data span { font-size:9.5px; color:#A1A1AA; text-transform:uppercase; font-weight:600; letter-spacing:.04em; margin-top:2px; max-width:52px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pv-conteudo-titulo { display:block; font-weight:700; font-size:14px; line-height:1.3; }
+.pv-conteudo-meta { display:block; font-size:11.5px; color:#A1A1AA; margin-top:3px; }
+.pv-folha-fundo { position:fixed; inset:0; z-index:80; background:rgba(0,0,0,0.7); display:flex; align-items:flex-end; justify-content:center; animation:pv-fade 160ms ease; }
+.pv-folha { position:relative; width:100%; max-width:620px; max-height:88vh; overflow-y:auto; background:#141414; color:#fff; border-radius:24px 24px 0 0; padding:10px 20px calc(24px + env(safe-area-inset-bottom)); font-family:'Poppins',system-ui,sans-serif; animation:pv-sobe 260ms cubic-bezier(.2,.9,.3,1); }
+.pv-folha-alca { width:40px; height:5px; border-radius:999px; background:#3F3F46; margin:0 auto 14px; }
+.pv-folha-x { position:absolute; top:14px; right:14px; width:34px; height:34px; border-radius:50%; border:none; background:#262626; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+.pv-folha-meta { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:#A1A1AA; padding-right:40px; }
+.pv-folha-meta span { display:inline-flex; align-items:center; gap:5px; }
+.pv-folha-titulo { font-size:21px; font-weight:800; margin:8px 0 4px; line-height:1.2; letter-spacing:-.01em; }
+.pv-folha-rotulo { color:${LARANJA}; font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; margin:20px 0 10px; }
+.pv-folha-blocos { display:grid; gap:10px; }
+.pv-folha-bloco { display:flex; gap:12px; background:#1C1C1C; border:1px solid #2A2A2A; border-radius:14px; padding:12px 14px; }
+.pv-folha-ic { width:32px; height:32px; border-radius:10px; background:#2A1406; color:${LARANJA}; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.pv-folha-bt { font-size:12px; font-weight:700; color:#E5E5E5; }
+.pv-folha-txt { margin:4px 0 0; font-size:13.5px; line-height:1.55; color:#D4D4D8; white-space:pre-wrap; }
+.pv-folha-legenda { margin:0; font-size:13.5px; line-height:1.6; color:#E5E5E5; background:#1C1C1C; border-left:3px solid ${LARANJA}; border-radius:10px; padding:12px 14px; white-space:pre-wrap; }
+@keyframes pv-sobe { from { transform:translateY(100%); } to { transform:translateY(0); } }
+@keyframes pv-fade { from { opacity:0; } to { opacity:1; } }
 .pv-rodape { margin-top:30px; padding-top:14px; border-top:1px solid #1F1F1F; color:#52525B; font-size:10.5px; text-align:center; }
 @media (min-width: 640px) {
   .pv { padding:0 32px 32px; }

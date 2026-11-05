@@ -48,6 +48,23 @@ export async function GET(req: NextRequest) {
       .eq("cliente_id", clienteId).in("status", ["pendente", "atrasado"]).order("vencimento").limit(12),
   ]);
 
+  // Conteúdos dos planejamentos visíveis (com roteiro)
+  const idsPlanos = ((rPlan.data ?? []) as { id: string }[]).map((p) => p.id);
+  let conteudos: unknown[] = [];
+  if (idsPlanos.length) {
+    let rc = await admin.from("conteudos")
+      .select("id, planejamento_id, titulo, data_publicacao, plataforma, formato, legenda, observacoes, roteiro, status")
+      .in("planejamento_id", idsPlanos).neq("status", "cancelado").order("data_publicacao", { ascending: true, nullsFirst: false });
+    if (rc.error) {
+      // banco sem a coluna "roteiro" (etapa 16): busca sem ela
+      console.warn("[portal-dados] conteúdos (tentando sem roteiro):", rc.error.message);
+      rc = await admin.from("conteudos")
+        .select("id, planejamento_id, titulo, data_publicacao, plataforma, formato, legenda, observacoes, status")
+        .in("planejamento_id", idsPlanos).neq("status", "cancelado").order("data_publicacao", { ascending: true, nullsFirst: false }) as typeof rc;
+    }
+    conteudos = rc.data ?? [];
+  }
+
   for (const [nome, r] of [["clientes", rCli], ["planejamentos", rPlan], ["tarefas", rTar], ["eventos", rEv], ["cobrancas", rCob]] as const) {
     if (r.error) console.error(`[portal-dados] ${nome}:`, r.error.message);
   }
@@ -60,5 +77,6 @@ export async function GET(req: NextRequest) {
     tarefas: rTar.data ?? [],
     eventos: rEv.data ?? [],
     cobrancas: rCob.data ?? [],
+    conteudos,
   });
 }

@@ -46,8 +46,14 @@ const ESQUEMA = `{
     "subfrase": "..."
   },
   "conteudos": [{ "titulo": "Vídeo do Pagode", "data": "AAAA-MM-DD ou null", "plataforma": "Instagram", "formato": "Reels",
-                  "objetivo": "atração | confiança | desejo | conversão | retenção — e por quê", "gancho": "primeiros segundos",
-                  "conceito": "ideia criativa e orientação de gravação", "legenda": "sugestão curta opcional" }],
+                  "roteiro": {
+                    "objetivo": "Atração — por que esse conteúdo existe e o que ele deve gerar",
+                    "gancho": "o que acontece/é dito nos primeiros 3 segundos",
+                    "desenvolvimento": "sequência do vídeo/post em 2 a 4 passos curtos",
+                    "cta": "chamada para ação natural (ou vazio se não fizer sentido)",
+                    "gravacao": "como vamos gravar: cenas, ângulos, o que o cliente precisa deixar pronto"
+                  },
+                  "legenda": "legenda sugerida, pronta para postar" }],
   "notas_internas": ["observações SÓ PARA A AGÊNCIA (o cliente não vê): pontos fracos do plano, informações que faltam, riscos e sugestões melhores"]
 }`;
 
@@ -68,7 +74,7 @@ ${ESQUEMA}
 - "conteudos": um item para cada vídeo/post com data definida (formato AAAA-MM-DD, usando o ano e o mês do planejamento). Itens recorrentes ou sem data: data null. Não liste stories diários um por um.
 - "resumo.cards": de 3 a 6 cards; marque "destaque": true nos que têm data específica.
 - "resumo.depende_cliente": o que o cliente precisa confirmar ou entregar.
-- Cada item de "conteudos" deve ter função estratégica clara (campo "objetivo"), um gancho e um conceito de gravação. Nada de conteúdo genérico.
+- Cada item de "conteudos" deve ter "roteiro" completo (objetivo, gancho, desenvolvimento, cta, gravacao) e "legenda". O cliente vai ler o roteiro: linguagem clara, específica para o negócio, sem jargão. Nada de conteúdo genérico.
 - "notas_internas": 2 a 6 observações diretas para a agência, como um diretor de marketing faria: o que está fraco, o que falta saber, riscos, e alternativas melhores. Se o plano estiver bom, diga o que reforçar. Não repita o texto.
 - Como não dá para fazer perguntas aqui, coloque as dúvidas importantes em "notas_internas" (para a agência) ou em "depende_cliente" (para o cliente).`;
 
@@ -182,7 +188,7 @@ export async function POST(req: NextRequest) {
       mensagens.push({
         role: "user",
         content: `${contexto}\n\n${usarDados ? "Dados do planejamento cadastrados no sistema" : "Texto do planejamento do mês"}:\n${texto}` +
-          (existentes.length ? `\n\nIMPORTANTE: os conteúdos já planejados acima devem entrar no cronograma e no resumo, mas NÃO repita nenhum deles na lista "conteudos" — ali vão só conteúdos novos que você recomendar (pode ser vazia).` : ""),
+          (existentes.length ? `\n\nIMPORTANTE: inclua na lista "conteudos" TODOS os conteúdos já planejados acima, com o MESMO título exato e a mesma data, preenchendo o roteiro completo e a legenda de cada um. Depois, se fizer sentido, acrescente conteúdos novos que você recomendar.` : ""),
       });
     }
 

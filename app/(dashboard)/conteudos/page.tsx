@@ -121,6 +121,15 @@ function ModalConteudo({
     responsavel: conteudo?.responsavel ?? "",
     observacoes: conteudo?.observacoes ?? "",
   });
+  const roteiroInicial = ((conteudo as { roteiro?: Record<string, string> | null } | null)?.roteiro ?? {}) as Record<string, string>;
+  const [roteiro, setRoteiro] = useState({
+    objetivo: roteiroInicial.objetivo ?? "",
+    gancho: roteiroInicial.gancho ?? "",
+    desenvolvimento: roteiroInicial.desenvolvimento ?? "",
+    cta: roteiroInicial.cta ?? "",
+    gravacao: roteiroInicial.gravacao ?? "",
+  });
+  const [mostrarRoteiro, setMostrarRoteiro] = useState(Object.values(roteiroInicial).some((v) => (v ?? "").toString().trim()));
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
 
@@ -146,6 +155,9 @@ function ModalConteudo({
       hashtags: form.hashtags.trim() || null,
       responsavel: form.responsavel.trim() || null,
       observacoes: form.observacoes.trim() || null,
+      roteiro: Object.values(roteiro).some((v) => v.trim())
+        ? Object.fromEntries(Object.entries(roteiro).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v))
+        : null,
     };
 
     const { error } = isEdicao
@@ -233,6 +245,32 @@ function ModalConteudo({
               <label className="mf-label">Responsável</label>
               <input className="mf-input" placeholder="Nome" value={form.responsavel ?? ""} onChange={(e) => set("responsavel", e.target.value)} />
             </div>
+          </div>
+
+          {/* Roteiro (o cliente vê no portal ao tocar no conteúdo) */}
+          <div style={{ marginBottom: "0.875rem", border: "1px solid var(--mf-borda)", borderRadius: 12, padding: "0.75rem 0.875rem", background: "#FFFCF9" }}>
+            <button type="button" onClick={() => setMostrarRoteiro((v) => !v)}
+              style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", border: "none", background: "none", padding: 0, cursor: "pointer", fontWeight: 700, fontSize: "0.875rem", color: "var(--mf-texto)" }}>
+              <span>Roteiro <span style={{ fontWeight: 500, color: "var(--mf-texto-sec)", fontSize: "0.75rem" }}>· o cliente vê no portal</span></span>
+              <span style={{ color: "var(--mf-laranja)", fontSize: "0.8125rem" }}>{mostrarRoteiro ? "Esconder" : "Editar roteiro"}</span>
+            </button>
+            {mostrarRoteiro && (
+              <div style={{ marginTop: "0.75rem", display: "grid", gap: "0.625rem" }}>
+                {([
+                  ["objetivo", "Objetivo", "Ex.: Atração — mostrar o produto para quem ainda não conhece", 2],
+                  ["gancho", "Gancho (primeiros segundos)", "Ex.: Close da calda escorrendo no sorvete", 2],
+                  ["desenvolvimento", "Desenvolvimento", "Passo a passo do vídeo/post", 4],
+                  ["cta", "Chamada para ação", "Ex.: Vem experimentar na Cidade Nova", 2],
+                  ["gravacao", "Como vamos gravar", "Cenas, ângulos e o que o cliente precisa deixar pronto", 3],
+                ] as [keyof typeof roteiro, string, string, number][]).map(([k, label, ph, linhas]) => (
+                  <div key={k}>
+                    <label className="mf-label">{label}</label>
+                    <textarea className="mf-input" rows={linhas} placeholder={ph} value={roteiro[k]}
+                      onChange={(e) => setRoteiro((r) => ({ ...r, [k]: e.target.value }))} style={{ resize: "vertical" }} />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div style={{ marginBottom: "1rem" }}>

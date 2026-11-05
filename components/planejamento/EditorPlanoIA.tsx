@@ -49,13 +49,26 @@ export async function enviarPlanoAoCliente(
   // Recria os conteúdos gerados pela IA que ainda não andaram (rascunho)
   await supabase.from("conteudos").delete().eq("planejamento_id", planoId).eq("gerado_ia", true).eq("status", "rascunho");
 
-  // Não duplica conteúdos que já existem no planejamento (mesmo título)
-  const { data: atuais } = await supabase.from("conteudos").select("titulo").eq("planejamento_id", planoId);
+  // Conteúdos que já existem (mesmo título): só recebem o roteiro/legenda, sem duplicar
+  const { data: atuais } = await supabase.from("conteudos").select("id, titulo, legenda").eq("planejamento_id", planoId);
   const norm = (t: string) => t.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const jaExistem = new Set(((atuais ?? []) as { titulo: string }[]).map((c) => norm(c.titulo)));
+  const porTitulo = new Map(((atuais ?? []) as { id: string; titulo: string; legenda: string | null }[]).map((c) => [norm(c.titulo), c]));
+
+  for (const c of estrutura.conteudos ?? []) {
+    const existente = c.titulo?.trim() ? porTitulo.get(norm(c.titulo)) : undefined;
+    if (!existente) continue;
+    const roteiro = c.roteiro ?? (c.objetivo || c.gancho || c.conceito ? { objetivo: c.objetivo, gancho: c.gancho, gravacao: c.conceito } : null);
+    const atualizar: Record<string, unknown> = {};
+    if (roteiro) atualizar.roteiro = roteiro;
+    if (!existente.legenda?.trim() && c.legenda?.trim()) atualizar.legenda = c.legenda.trim();
+    if (Object.keys(atualizar).length) {
+      const { error: errUp } = await supabase.from("conteudos").update(atualizar).eq("id", existente.id);
+      if (errUp) console.warn("[enviar plano] roteiro de conteúdo existente:", errUp.message);
+    }
+  }
 
   const novos = (estrutura.conteudos ?? [])
-    .filter((c) => c.titulo?.trim() && !jaExistem.has(norm(c.titulo)))
+    .filter((c) => c.titulo?.trim() && !porTitulo.has(norm(c.titulo)))
     .map((c) => ({
       planejamento_id: planoId,
       titulo: c.titulo.trim().slice(0, 200),
@@ -64,6 +77,7 @@ export async function enviarPlanoAoCliente(
       status: "rascunho",
       data_publicacao: c.data && /^\d{4}-\d{2}-\d{2}$/.test(c.data) ? c.data : null,
       legenda: c.legenda?.trim() || null,
+      roteiro: c.roteiro ?? (c.objetivo || c.gancho || c.conceito ? { objetivo: c.objetivo, gancho: c.gancho, gravacao: c.conceito } : null),
       observacoes: [
         c.objetivo ? `Objetivo: ${c.objetivo}` : "",
         c.gancho ? `Gancho: ${c.gancho}` : "",

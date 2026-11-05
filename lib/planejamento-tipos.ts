@@ -2,6 +2,28 @@
 
 export type ItemSimples = { titulo: string; descricao?: string };
 
+/** Roteiro de um vídeo/post (aparece para o cliente ao tocar no conteúdo) */
+export type Roteiro = {
+  objetivo?: string;        // atração, confiança, desejo, conversão ou retenção — e por quê
+  gancho?: string;          // primeiros segundos
+  desenvolvimento?: string; // o que acontece no vídeo/post
+  cta?: string;             // chamada para ação
+  gravacao?: string;        // como vamos gravar / o que precisamos no dia
+};
+
+/** Conteúdo como aparece no portal (vem da tabela conteudos ou da estrutura da IA) */
+export type ConteudoDetalhe = {
+  id?: string;
+  titulo: string;
+  data?: string | null;     // YYYY-MM-DD
+  plataforma?: string | null;
+  formato?: string | null;
+  legenda?: string | null;
+  observacoes?: string | null;
+  roteiro?: Roteiro | null;
+  status?: string | null;
+};
+
 export type EstruturaPlanejamento = {
   /** Linha abaixo do nome do cliente na capa. Ex.: "Programações · Restaurante · Delivery" */
   subtitulo?: string;
@@ -74,6 +96,7 @@ export type EstruturaPlanejamento = {
     objetivo?: string;
     gancho?: string;
     conceito?: string;
+    roteiro?: Roteiro;
   }[];
 
   /** Observações do "diretor de marketing" só para a agência (o cliente não vê) */

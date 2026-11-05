@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { CalendarRange, ListChecks, Clapperboard, CreditCard, Eye, MessageCircle, Inbox, CheckCircle2, PencilLine, ChevronRight, CalendarClock, Video, LogOut } from "lucide-react";
 import { PlanoVisual } from "@/components/planejamento/PlanoVisual";
-import { mesPorExtenso, type EstruturaPlanejamento, type StatusAprovacao } from "@/lib/planejamento-tipos";
+import { mesPorExtenso, type EstruturaPlanejamento, type StatusAprovacao, type ConteudoDetalhe, type Roteiro } from "@/lib/planejamento-tipos";
 
 const LARANJA = "#FF6A00";
 const WHATSAPP_AGENCIA = "5594991187661";
@@ -21,6 +21,7 @@ type Tarefa = { id: string; titulo: string; status: string; prazo: string | null
 type Evento = { id: string; titulo: string; tipo: string; data_inicio: string; local: string | null };
 type Cobranca = { id: string; descricao: string | null; valor: number; vencimento: string | null; status: string };
 type Aba = "plano" | "semana" | "agenda" | "financeiro";
+type ConteudoDB = { id: string; planejamento_id: string; titulo: string; data_publicacao: string | null; plataforma: string | null; formato: string | null; legenda: string | null; observacoes: string | null; roteiro?: Roteiro | null; status: string };
 
 // ── Datas ────────────────────────────────────────────────────
 function soData(iso: string | null | undefined): string {
@@ -71,6 +72,7 @@ function PortalConteudo() {
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [cobrancas, setCobrancas] = useState<Cobranca[]>([]);
+  const [conteudosDB, setConteudosDB] = useState<ConteudoDB[]>([]);
   const [aba, setAba] = useState<Aba>("plano");
 
   const [folhaAjuste, setFolhaAjuste] = useState(false);
@@ -103,12 +105,22 @@ function PortalConteudo() {
     setTarefas((d.tarefas ?? []) as Tarefa[]);
     setEventos((d.eventos ?? []) as Evento[]);
     setCobrancas((d.cobrancas ?? []) as Cobranca[]);
+    setConteudosDB((d.conteudos ?? []) as ConteudoDB[]);
     setCarregando(false);
   }, [clienteParam, planoParam, router]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
   const plano = planos.find((p) => p.id === planoId) ?? null;
+  const conteudosDoPlano: ConteudoDetalhe[] | undefined = useMemo(() => {
+    if (!plano) return undefined;
+    const doPlano = conteudosDB.filter((c) => c.planejamento_id === plano.id);
+    if (!doPlano.length) return undefined; // usa os da estrutura da IA
+    return doPlano.map((c) => ({
+      id: c.id, titulo: c.titulo, data: c.data_publicacao, plataforma: c.plataforma, formato: c.formato,
+      legenda: c.legenda, observacoes: c.observacoes, roteiro: c.roteiro ?? null, status: c.status,
+    }));
+  }, [plano, conteudosDB]);
 
   // Entregas da semana + atrasadas não entregues
   const semana = useMemo(() => {
@@ -224,6 +236,7 @@ function PortalConteudo() {
                 clienteNome={cliente?.nome ?? ""}
                 clienteLogo={cliente?.logo_url}
                 mesLabel={mesPorExtenso(plano.mes_referencia)}
+                conteudos={conteudosDoPlano}
               />
             ) : (
               <div className="portal-card portal-vazio">
