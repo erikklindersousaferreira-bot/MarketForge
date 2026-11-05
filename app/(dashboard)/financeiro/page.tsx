@@ -138,7 +138,7 @@ function ModalCobranca({ cobranca, clientes, onClose, onSave }: ModalCobrancaPro
       ? await supabase.from("cobrancas").update(payload).eq("id", cobranca!.id!)
       : await supabase.from("cobrancas").insert(payload);
 
-    if (error) { setErro("Erro ao salvar. Tente novamente."); setSalvando(false); return; }
+    if (error) { console.error("[financeiro] cobrança:", error); setErro(`Erro ao salvar: ${error.message}`); setSalvando(false); return; }
     onSave();
   }
 
@@ -284,7 +284,7 @@ function ModalDespesa({ despesa, onClose, onSave }: ModalDespesaProps) {
       if (error) { setErro("Erro ao salvar."); setSalvando(false); return; }
     } else {
       const { data: novaDespesa, error } = await supabase.from("despesas").insert(payload).select().single();
-      if (error || !novaDespesa) { setErro("Erro ao criar despesa."); setSalvando(false); return; }
+      if (error || !novaDespesa) { console.error("[financeiro] despesa:", error); setErro(`Erro ao criar despesa${error ? ": " + error.message : "."}`); setSalvando(false); return; }
 
       // Criar parcelas se parcelada
       if (form.tipo === "parcelada" && numParcelas && numParcelas > 0) {
