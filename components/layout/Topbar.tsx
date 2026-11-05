@@ -24,16 +24,6 @@ function IconSino({ temNaoLidas }: { temNaoLidas: boolean }) {
   );
 }
 
-function IconMenu() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="3" y1="12" x2="21" y2="12" />
-      <line x1="3" y1="6" x2="21" y2="6" />
-      <line x1="3" y1="18" x2="21" y2="18" />
-    </svg>
-  );
-}
-
 function IconExternalLink() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -156,27 +146,15 @@ export function Topbar({ usuario, titulo, onMenuMobile }: TopbarProps) {
     <header className="topbar">
       {/* Esquerda: botão mobile + título */}
       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-        <button
-          className="mf-btn-ghost"
-          onClick={onMenuMobile}
-          style={{
-            display: "none",
-            padding: "0.375rem",
-            color: "var(--mf-texto-sec)",
-          }}
-          id="btn-menu-mobile"
-          aria-label="Abrir menu"
-        >
-          <IconMenu />
-        </button>
-        <style>{`
-          @media (max-width: 768px) {
-            #btn-menu-mobile { display: flex !important; }
-          }
-        `}</style>
+        {/* Celular: ícone da marca no lugar do menu (a navegação fica nas abas de baixo) */}
+        <Link href="/painel" className="topbar-logo-mobile" aria-label="MarketForge — Painel">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-icone.png" alt="MarketForge" width={30} height={30} style={{ borderRadius: 8, display: "block" }} />
+        </Link>
 
         {titulo && (
           <h1
+            className="topbar-titulo"
             style={{
               fontSize: "1rem",
               fontWeight: 700,
@@ -235,7 +213,7 @@ export function Topbar({ usuario, titulo, onMenuMobile }: TopbarProps) {
           {/* Painel de notificações */}
           {painelAberto && (
             <div
-              className="animate-fade-in"
+              className="animate-fade-in topbar-notif-painel"
               style={{
                 position: "absolute",
                 top: "calc(100% + 0.5rem)",
@@ -372,9 +350,10 @@ export function Topbar({ usuario, titulo, onMenuMobile }: TopbarProps) {
         </div>
 
         {/* Avatar / perfil */}
-        <div
+        <Link
+          href="/perfil"
           className="mf-avatar"
-          style={{ cursor: "default" }}
+          style={{ cursor: "pointer", textDecoration: "none" }}
           title={`${usuario.nome} (${usuario.papel})`}
         >
           {usuario.avatar_url ? (
@@ -390,9 +369,9 @@ export function Topbar({ usuario, titulo, onMenuMobile }: TopbarProps) {
               }}
             />
           ) : (
-            getInitials(usuario.nome)
+            getInitials(usuario.nome || "?")
           )}
-        </div>
+        </Link>
       </div>
     </header>
   );

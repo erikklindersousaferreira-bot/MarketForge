@@ -105,6 +105,100 @@ const LABEL_RECORRENCIA: Record<string, string> = {
   anual: 'Anual',
 }
 
+// ─── Logo do cliente ─────────────────────────────────────────────────────────
+
+type ClienteMini = Pick<Cliente, 'id' | 'nome'> & {
+  logo_url?: string | null
+  cor_primaria?: string | null
+}
+type MapaClientes = Record<string, ClienteMini>
+
+function iniciais(nome: string) {
+  return (nome || '?').split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase() || '?'
+}
+
+function ClienteLogo({
+  cliente,
+  size = 18,
+  anel = false,
+}: {
+  cliente?: ClienteMini | null
+  size?: number
+  anel?: boolean
+}) {
+  const [falhou, setFalhou] = useState(false)
+  if (!cliente) return null
+  const cor = cliente.cor_primaria || '#FF6A00'
+  const estiloAnel = anel
+    ? { boxShadow: `0 0 0 2px #fff, 0 0 0 ${size > 30 ? 4 : 3}px #FF6A00` }
+    : { boxShadow: '0 0 0 1.5px #fff' }
+  if (cliente.logo_url && !falhou) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={cliente.logo_url}
+        alt={cliente.nome}
+        title={cliente.nome}
+        onError={() => setFalhou(true)}
+        className="rounded-full object-cover bg-white shrink-0"
+        style={{ width: size, height: size, ...estiloAnel }}
+      />
+    )
+  }
+  return (
+    <span
+      title={cliente.nome}
+      className="rounded-full shrink-0 inline-flex items-center justify-center font-bold text-white"
+      style={{ width: size, height: size, background: cor, fontSize: Math.max(8, size * 0.38), ...estiloAnel }}
+    >
+      {iniciais(cliente.nome)}
+    </span>
+  )
+}
+
+/** Clientes únicos com gravação (ou qualquer evento com cliente) no dia */
+function logosDoDia(evs: EventoAgenda[], mapa: MapaClientes): ClienteMini[] {
+  const vistos = new Set<string>()
+  const ordenados = [...evs].sort((a, b) => (a.tipo === 'gravacao' ? -1 : 0) - (b.tipo === 'gravacao' ? -1 : 0))
+  const lista: ClienteMini[] = []
+  for (const ev of ordenados) {
+    if (ev.tipo !== 'gravacao' || !ev.cliente_id || vistos.has(ev.cliente_id)) continue
+    const c = mapa[ev.cliente_id]
+    if (c) { vistos.add(ev.cliente_id); lista.push(c) }
+  }
+  return lista
+}
+
+function PilhaLogos({ clientes, size = 18, max = 3 }: { clientes: ClienteMini[]; size?: number; max?: number }) {
+  if (clientes.length === 0) return null
+  const extra = clientes.length - max
+  return (
+    <div className="flex items-center" style={{ paddingLeft: size * 0.3 }}>
+      {clientes.slice(0, max).map(c => (
+        <span key={c.id} style={{ marginLeft: -size * 0.3 }}>
+          <ClienteLogo cliente={c} size={size} />
+        </span>
+      ))}
+      {extra > 0 && (
+        <span
+          className="rounded-full bg-gray-800 text-white font-bold inline-flex items-center justify-center"
+          style={{ width: size, height: size, fontSize: Math.max(8, size * 0.4), marginLeft: -size * 0.3, boxShadow: '0 0 0 1.5px #fff' }}
+        >
+          +{extra}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function eventosNoDia(eventos: EventoAgenda[], dStr: string) {
+  return eventos.filter(ev => {
+    const start = isoDate(new Date(ev.data_inicio))
+    const end = isoDate(new Date(ev.data_fim))
+    return start <= dStr && end >= dStr
+  })
+}
+
 // ─── Form state ──────────────────────────────────────────────────────────────
 
 type FormState = {
@@ -450,7 +544,7 @@ function ModalDetalhe({
 
   return (
     <div className="mf-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="mf-modal" style={{ maxWidth: 480 }}>
+      <div className="mf-modal" style={{ maxWidth: 480, padding: '1.25rem' }}>
         {/* header colorido */}
         <div
           className="rounded-xl p-4 mb-4 flex items-start justify-between"
@@ -509,8 +603,8 @@ function ModalDetalhe({
           {/* Cliente */}
           {cliente && (
             <div className="flex items-center gap-2 text-gray-700">
-              <Briefcase size={15} className="text-gray-400 shrink-0" />
-              <span>{cliente.nome}</span>
+              <ClienteLogo cliente={cliente as ClienteMini} size={28} anel={evento.tipo === 'gravacao'} />
+              <span className="font-medium">{cliente.nome}</span>
             </div>
           )}
 
@@ -562,21 +656,32 @@ function ModalDetalhe({
 
 // ─── Chip de evento no calendário ────────────────────────────────────────────
 
-function ChipEvento({ evento, onClick }: { evento: EventoAgenda; onClick: () => void }) {
+function ChipEvento({
+  evento,
+  cliente,
+  onClick,
+}: {
+  evento: EventoAgenda
+  cliente?: ClienteMini
+  onClick: (e: React.MouseEvent) => void
+}) {
   const cor = evento.cor ?? COR_TIPO[evento.tipo] ?? '#FF6A00'
   return (
     <button
       onClick={onClick}
-      className="w-full text-left text-xs rounded px-1.5 py-0.5 truncate font-medium leading-5"
+      className="w-full text-left text-xs rounded-md px-1.5 py-0.5 font-medium leading-5 flex items-center gap-1 min-w-0"
       style={{ backgroundColor: cor + '22', color: cor, border: `1px solid ${cor}44` }}
       title={evento.titulo}
     >
+      {cliente && <ClienteLogo cliente={cliente} size={16} />}
+      <span className="truncate">
       {!evento.dia_todo && (
         <span className="opacity-70 mr-1">
           {formatHour(new Date(evento.data_inicio))}
         </span>
       )}
       {evento.titulo}
+      </span>
     </button>
   )
 }
@@ -586,11 +691,13 @@ function ChipEvento({ evento, onClick }: { evento: EventoAgenda; onClick: () => 
 function ViewSemana({
   dias,
   eventos,
+  mapa,
   onDiaClick,
   onEventoClick,
 }: {
   dias: Date[]
   eventos: EventoAgenda[]
+  mapa: MapaClientes
   onDiaClick: (d: Date) => void
   onEventoClick: (e: EventoAgenda) => void
 }) {
@@ -615,6 +722,9 @@ function ViewSemana({
           >
             {d.getDate()}
           </div>
+          <div className="flex justify-center mt-1 min-h-[20px]">
+            <PilhaLogos clientes={logosDoDia(eventosNoDia(eventos, isoDate(d)), mapa)} size={20} />
+          </div>
         </div>
       ))}
 
@@ -638,6 +748,7 @@ function ViewSemana({
               <ChipEvento
                 key={ev.id}
                 evento={ev}
+                cliente={ev.cliente_id ? mapa[ev.cliente_id] : undefined}
                 onClick={e => { e.stopPropagation(); onEventoClick(ev) }}
               />
             ))}
@@ -653,11 +764,15 @@ function ViewSemana({
 function ViewMes({
   ref: refDate,
   eventos,
+  mapa,
+  diaSelecionado,
   onDiaClick,
   onEventoClick,
 }: {
   ref: Date
   eventos: EventoAgenda[]
+  mapa: MapaClientes
+  diaSelecionado: Date
   onDiaClick: (d: Date) => void
   onEventoClick: (e: EventoAgenda) => void
 }) {
@@ -679,37 +794,53 @@ function ViewMes({
       <div className="grid grid-cols-7">
         {dias.map((d, i) => {
           if (!d) {
-            return <div key={`null-${i}`} className="bg-gray-50 min-h-[90px] border-b border-r border-[#E9E9EC]" />
+            return <div key={`null-${i}`} className="bg-gray-50 min-h-[64px] md:min-h-[90px] border-b border-r border-[#E9E9EC]" />
           }
           const dStr = isoDate(d)
-          const evs = eventos
-            .filter(ev => {
-              const start = isoDate(new Date(ev.data_inicio))
-              const end = isoDate(new Date(ev.data_fim))
-              return start <= dStr && end >= dStr
-            })
-            .slice(0, 3)
+          const todosDoDia = eventosNoDia(eventos, dStr)
+          const evs = todosDoDia.slice(0, 3)
+          const logos = logosDoDia(todosDoDia, mapa)
+          const selecionado = dStr === isoDate(diaSelecionado)
 
           return (
             <div
               key={dStr}
               onClick={() => onDiaClick(d)}
-              className={`min-h-[90px] p-1.5 border-b border-r border-[#E9E9EC] cursor-pointer hover:bg-gray-50 ${
+              className={`min-h-[64px] md:min-h-[90px] p-1 md:p-1.5 border-b border-r border-[#E9E9EC] cursor-pointer hover:bg-gray-50 ${
                 dStr === hj ? 'bg-orange-50' : 'bg-white'
-              }`}
+              } ${selecionado ? 'ring-2 ring-inset ring-[#FF6A00]/40' : ''}`}
             >
-              <div
-                className={`text-sm font-semibold w-6 h-6 flex items-center justify-center rounded-full mb-1 ${
-                  dStr === hj ? 'bg-[#FF6A00] text-white' : 'text-gray-700'
-                }`}
-              >
-                {d.getDate()}
+              <div className="flex items-center justify-between gap-1 mb-1">
+                <div
+                  className={`text-xs md:text-sm font-semibold w-6 h-6 flex items-center justify-center rounded-full shrink-0 ${
+                    dStr === hj ? 'bg-[#FF6A00] text-white' : 'text-gray-700'
+                  }`}
+                >
+                  {d.getDate()}
+                </div>
+                <div className="hidden md:block">
+                  <PilhaLogos clientes={logos} size={18} />
+                </div>
               </div>
-              <div className="space-y-0.5">
+
+              {/* Celular: só as logos e bolinhas */}
+              <div className="md:hidden flex flex-col items-center gap-1">
+                <PilhaLogos clientes={logos} size={18} max={2} />
+                {todosDoDia.length > logos.length && (
+                  <div className="flex gap-0.5">
+                    {todosDoDia.filter(ev => ev.tipo !== 'gravacao' || !ev.cliente_id).slice(0, 3).map(ev => (
+                      <span key={ev.id} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ev.cor ?? COR_TIPO[ev.tipo] ?? '#FF6A00' }} />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-0.5 hidden md:block">
                 {evs.map(ev => (
                   <ChipEvento
                     key={ev.id}
                     evento={ev}
+                    cliente={ev.cliente_id ? mapa[ev.cliente_id] : undefined}
                     onClick={e => { e.stopPropagation(); onEventoClick(ev) }}
                   />
                 ))}
@@ -740,11 +871,13 @@ function ViewMes({
 function PainelDia({
   dia,
   eventos,
+  mapa,
   onEventoClick,
   onNovoClick,
 }: {
   dia: Date
   eventos: EventoAgenda[]
+  mapa: MapaClientes
   onEventoClick: (e: EventoAgenda) => void
   onNovoClick: () => void
 }) {
@@ -789,9 +922,13 @@ function PainelDia({
               <button
                 key={ev.id}
                 onClick={() => onEventoClick(ev)}
-                className="w-full text-left rounded-xl p-3 hover:shadow-sm transition-shadow"
+                className="w-full text-left rounded-xl p-3 hover:shadow-sm transition-shadow flex gap-3 items-start"
                 style={{ backgroundColor: cor + '12', borderLeft: `3px solid ${cor}` }}
               >
+                {ev.cliente_id && mapa[ev.cliente_id] && (
+                  <ClienteLogo cliente={mapa[ev.cliente_id]} size={40} anel={ev.tipo === 'gravacao'} />
+                )}
+                <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span
                     className="text-xs font-medium px-1.5 py-0.5 rounded"
@@ -812,6 +949,7 @@ function PainelDia({
                     <MapPin size={10} /> {ev.local}
                   </div>
                 )}
+                </div>
               </button>
             )
           })}
@@ -864,7 +1002,7 @@ export default function AgendaPage() {
         .gte('data_inicio', intervalo.inicio + 'T00:00:00')
         .lte('data_inicio', intervalo.fim + 'T23:59:59')
         .order('data_inicio'),
-      supabase.from('clientes').select('id, nome').eq('ativo', true).order('nome'),
+      supabase.from('clientes').select('id, nome, logo_url, cor_primaria, status').order('nome'),
       supabase
         .from('usuarios')
         .select('id, nome')
@@ -890,6 +1028,17 @@ export default function AgendaPage() {
   }, [eventos, filtroCliente, filtroTipo, filtroResp])
 
   const diasSemana = useMemo(() => diasDaSemana(refDate), [refDate])
+
+  const mapaClientes = useMemo(() => {
+    const m: MapaClientes = {}
+    for (const c of clientes as ClienteMini[]) m[c.id] = c
+    return m
+  }, [clientes])
+
+  // Celular: escolher um dia na faixa da semana
+  function selecionarDia(d: Date) {
+    setDiaSelecionado(d)
+  }
 
   function navAnterior() {
     const d = new Date(refDate)
@@ -930,7 +1079,7 @@ export default function AgendaPage() {
     : `${MESES[refDate.getMonth()]} ${refDate.getFullYear()}`
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="space-y-4 md:space-y-5">
       {/* Cabeçalho */}
       <div className="mf-page-header">
         <div>
@@ -958,7 +1107,7 @@ export default function AgendaPage() {
           <button onClick={navAnterior} className="p-2 rounded-lg border border-[#E9E9EC] hover:bg-gray-50">
             <ChevronLeft size={16} />
           </button>
-          <span className="text-sm font-semibold text-gray-700 min-w-[200px] text-center">
+          <span className="text-sm font-semibold text-gray-700 min-w-[150px] md:min-w-[200px] text-center">
             {tituloNav}
           </span>
           <button onClick={navProximo} className="p-2 rounded-lg border border-[#E9E9EC] hover:bg-gray-50">
@@ -966,8 +1115,8 @@ export default function AgendaPage() {
           </button>
         </div>
 
-        {/* Visão + filtros */}
-        <div className="flex gap-2 flex-wrap">
+        {/* Visão + filtros (no celular desliza para o lado) */}
+        <div className="flex gap-2 md:flex-wrap mf-scroll-x w-full md:w-auto pb-1 md:pb-0 [&>*]:shrink-0">
           {/* Toggle visão */}
           <div className="flex border border-[#E9E9EC] rounded-lg overflow-hidden">
             <button
@@ -989,7 +1138,7 @@ export default function AgendaPage() {
           </div>
 
           <select
-            className="mf-input py-1.5 text-sm max-w-[160px]"
+            className="mf-input py-1.5 text-sm w-auto max-w-[160px]"
             value={filtroCliente}
             onChange={e => setFiltroCliente(e.target.value)}
           >
@@ -998,7 +1147,7 @@ export default function AgendaPage() {
           </select>
 
           <select
-            className="mf-input py-1.5 text-sm max-w-[140px]"
+            className="mf-input py-1.5 text-sm w-auto max-w-[140px]"
             value={filtroTipo}
             onChange={e => setFiltroTipo(e.target.value)}
           >
@@ -1006,11 +1155,12 @@ export default function AgendaPage() {
             <option value="reuniao">Reunião</option>
             <option value="tarefa">Tarefa</option>
             <option value="entrega">Entrega</option>
+            <option value="gravacao">Gravação</option>
             <option value="outro">Outro</option>
           </select>
 
           <select
-            className="mf-input py-1.5 text-sm max-w-[160px]"
+            className="mf-input py-1.5 text-sm w-auto max-w-[160px]"
             value={filtroResp}
             onChange={e => setFiltroResp(e.target.value)}
           >
@@ -1036,13 +1186,50 @@ export default function AgendaPage() {
           <div className="mf-spinner" />
         </div>
       ) : (
-        <div className="flex gap-5">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-5">
+          {/* Celular, visão semana: faixa de dias estilo stories */}
+          {visao === 'semana' && (
+            <div className="md:hidden -mx-1 flex justify-between gap-1">
+              {diasSemana.map((d, i) => {
+                const dStr = isoDate(d)
+                const evs = eventosNoDia(eventosFiltrados, dStr)
+                const logos = logosDoDia(evs, mapaClientes)
+                const sel = dStr === isoDate(diaSelecionado)
+                const ehHoje = dStr === hoje()
+                return (
+                  <button
+                    key={dStr}
+                    onClick={() => selecionarDia(d)}
+                    className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-2xl transition-colors ${
+                      sel ? 'bg-[#FF6A00] text-white shadow-md' : 'bg-white text-gray-700 border border-[#E9E9EC]'
+                    }`}
+                  >
+                    <span className={`text-[10px] font-semibold uppercase ${sel ? 'text-white/80' : 'text-gray-400'}`}>
+                      {DIAS_SEMANA_CURTO[i]}
+                    </span>
+                    <span className={`text-base font-bold leading-none ${ehHoje && !sel ? 'text-[#FF6A00]' : ''}`}>
+                      {d.getDate()}
+                    </span>
+                    <span className="h-[18px] flex items-center">
+                      {logos.length > 0 ? (
+                        <PilhaLogos clientes={logos} size={16} max={2} />
+                      ) : evs.length > 0 ? (
+                        <span className={`w-1.5 h-1.5 rounded-full ${sel ? 'bg-white' : 'bg-[#FF6A00]'}`} />
+                      ) : null}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
           {/* Calendário */}
-          <div className="flex-1 min-w-0">
+          <div className={`flex-1 min-w-0 ${visao === 'semana' ? 'hidden md:block' : ''}`}>
             {visao === 'semana' ? (
               <ViewSemana
                 dias={diasSemana}
                 eventos={eventosFiltrados}
+                mapa={mapaClientes}
                 onDiaClick={d => setDiaSelecionado(d)}
                 onEventoClick={ev => setEventoDetalhe(ev)}
               />
@@ -1050,17 +1237,20 @@ export default function AgendaPage() {
               <ViewMes
                 ref={refDate}
                 eventos={eventosFiltrados}
-                onDiaClick={d => { setDiaSelecionado(d); setVisao('semana'); setRefDate(d) }}
+                mapa={mapaClientes}
+                diaSelecionado={diaSelecionado}
+                onDiaClick={d => setDiaSelecionado(d)}
                 onEventoClick={ev => setEventoDetalhe(ev)}
               />
             )}
           </div>
 
           {/* Painel do dia selecionado */}
-          <div className="w-72 shrink-0">
+          <div className="w-full lg:w-72 shrink-0">
             <PainelDia
               dia={diaSelecionado}
               eventos={eventosFiltrados}
+              mapa={mapaClientes}
               onEventoClick={ev => setEventoDetalhe(ev)}
               onNovoClick={() => abrirNovoComDia(diaSelecionado)}
             />
